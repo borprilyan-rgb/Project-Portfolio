@@ -1,9 +1,8 @@
 import streamlit as st
 import pandas as pd
 
-# 1. Initialize session state to hold our database during the session
+# 1. Initialize session state
 if 'db' not in st.session_state:
-    # Pre-loading your example data
     initial_data = {
         'Room/Work Name': ['Men Toilet', 'Men Toilet', 'Men Toilet', 'Men Toilet'],
         'Project Type': ['Retail', 'Retail', 'Hotel', 'Hotel'],
@@ -18,13 +17,24 @@ st.title("Project Estimating Database")
 
 # --- SECTION 1: ADD NEW ITEMS ---
 st.header("Add New Item")
+
+# Get dynamic lists from the current database
+current_rooms = sorted(st.session_state.db['Room/Work Name'].unique().tolist())
+current_projects = sorted(st.session_state.db['Project Type'].unique().tolist())
+
 with st.form("add_item_form", clear_on_submit=True):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        room_name = st.selectbox("Room / Work Name", 
-                                 ["Men Toilet", "Women Toilet", "Disabled", "Architecture", "Sanitary", "Openings"])
-        project_type = st.selectbox("Project Type", ["Hotel", "Apartment", "Retail"])
+        # Room / Work Name inputs
+        room_sel = st.selectbox("Room / Work Name", ["+ Add New..."] + current_rooms)
+        new_room = st.text_input("Type new Room Name here (if adding new)")
+        
+        st.write("") # Spacer
+        
+        # Project Type inputs
+        proj_sel = st.selectbox("Project Type", ["+ Add New..."] + current_projects)
+        new_proj = st.text_input("Type new Project Type here (if adding new)")
     
     with col2:
         item_name = st.text_input("Item Name (e.g., Urinal, Sink)")
@@ -36,38 +46,42 @@ with st.form("add_item_form", clear_on_submit=True):
     submitted = st.form_submit_button("Add to Database")
     
     if submitted and item_name:
-        new_row = {
-            'Room/Work Name': room_name,
-            'Project Type': project_type,
-            'Item Name': item_name,
-            'Unit Qty': unit_qty,
-            'Unit Price': unit_price
-        }
-        # Append the new row to our dataframe
-        st.session_state.db = pd.concat([st.session_state.db, pd.DataFrame([new_row])], ignore_index=True)
-        st.success(f"Added {item_name} to the database!")
+        # Determine the final values based on user input
+        final_room = new_room if room_sel == "+ Add New..." and new_room else room_sel
+        final_project = new_proj if proj_sel == "+ Add New..." and new_proj else proj_sel
+
+        # Validation: prevent empty new categories
+        if final_room == "+ Add New..." or final_project == "+ Add New...":
+            st.error("⚠️ Please type a name for the new Room or Project Type.")
+        else:
+            new_row = {
+                'Room/Work Name': final_room,
+                'Project Type': final_project,
+                'Item Name': item_name,
+                'Unit Qty': unit_qty,
+                'Unit Price': unit_price
+            }
+            # Append the new row
+            st.session_state.db = pd.concat([st.session_state.db, pd.DataFrame([new_row])], ignore_index=True)
+            st.success(f"Added {item_name} to {final_room} ({final_project})!")
 
 st.divider()
 
 # --- SECTION 2: VIEW, SORT & CALCULATE ---
 st.header("Database & Subtotals")
 
-# Create a working copy of the database and calculate total price
 df = st.session_state.db.copy()
 df['Total Price'] = df['Unit Qty'] * df['Unit Price']
 
-# Filtering options
-selected_project = st.selectbox("Filter by Project Type", ["All"] + list(df['Project Type'].unique()))
+selected_project = st.selectbox("Filter by Project Type", ["All"] + sorted(df['Project Type'].unique().tolist()))
 
 if selected_project != "All":
     filtered_df = df[df['Project Type'] == selected_project]
 else:
     filtered_df = df
 
-# Sort the data by Room/Work Name
 filtered_df = filtered_df.sort_values(by=['Room/Work Name', 'Item Name'])
 
-# Display the main dataframe
 st.dataframe(
     filtered_df, 
     use_container_width=True,
@@ -78,11 +92,9 @@ st.dataframe(
     }
 )
 
-# Calculate and display subtotals
 if not filtered_df.empty:
     st.subheader("Subtotals by Room/Work Name")
     
-    # Group by Room/Work Name and sum the Total Price
     subtotals = filtered_df.groupby('Room/Work Name')['Total Price'].sum().reset_index()
     
     colA, colB = st.columns([2, 1])
