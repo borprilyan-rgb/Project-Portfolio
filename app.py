@@ -1,111 +1,79 @@
 import streamlit as st
 import pandas as pd
 
-# 1. Initialize session state
-if 'db' not in st.session_state:
-    initial_data = {
-        'Room/Work Name': ['Men Toilet', 'Men Toilet', 'Men Toilet', 'Men Toilet'],
-        'Project Type': ['Retail', 'Retail', 'Hotel', 'Hotel'],
-        'Item Name': ['Closet', 'Jet Washer', 'Closet', 'Jet Washer'],
-        'Unit Qty': [3, 3, 2, 2],
-        'Unit Price': [7000000, 900000, 5500000, 650000]
-    }
-    st.session_state.db = pd.DataFrame(initial_data)
+# --- 1. DATA EXTRACTION ---
+data_retail_pria = {
+    "Item": ["CLOSET", "JET WASHER", "WASTAFEL +kran", "Vanity", "Cubicle", "Hand Dryer", "FLOOR DRAIN", "Robe hook & Tissu Holder", "Urinoir", "Partisi Urinoir"],
+    "Unit": [3, 3, 3, 3, 3, 2, 9, 3, 3, 3],
+    "Unit Price (Rp)": [7000000, 900000, 5000000, 6000000, 15000000, 1050000, 400000, 275000, 3500000, 2500000],
+    "Total (Rp)": [21000000, 2700000, 15000000, 18000000, 45000000, 2100000, 3600000, 825000, 10500000, 7500000]
+}
 
-st.set_page_config(page_title="Estimating Database", layout="wide")
-st.title("Project Estimating Database")
+data_retail_wanita = {
+    "Item": ["CLOSET", "JET WASHER", "WASTAFEL +kran", "Vanity", "Cubicle", "Hand Dryer", "FLOOR DRAIN", "Robe hook & Tissu Holder"],
+    "Unit": [5, 5, 3, 3, 5, 2, 8, 5],
+    "Unit Price (Rp)": [7000000, 900000, 5000000, 6000000, 15000000, 1050000, 400000, 275000],
+    "Total (Rp)": [35000000, 4500000, 15000000, 18000000, 75000000, 2100000, 3200000, 1375000]
+}
 
-# --- SECTION 1: ADD NEW ITEMS ---
-st.header("Add New Item")
+data_hotel_pria = {
+    "Item": ["CLOSET", "JET WASHER", "WASTAFEL +kran", "Vanity", "Cubicle", "Hand Dryer", "FLOOR DRAIN", "Robe hook & Tissu Holder", "Urinoir", "Partisi Urinoir"],
+    "Unit": [2, 2, 2, 2, 2, 2, 9, 2, 2, 2],
+    "Unit Price (Rp)": [7000000, 900000, 5000000, 6000000, 15000000, 1050000, 400000, 275000, 3500000, 2500000],
+    "Total (Rp)": [14000000, 1800000, 10000000, 12000000, 30000000, 2100000, 3600000, 550000, 7000000, 5000000]
+}
 
-# Get dynamic lists from the current database
-current_rooms = sorted(st.session_state.db['Room/Work Name'].unique().tolist())
-current_projects = sorted(st.session_state.db['Project Type'].unique().tolist())
+data_hotel_wanita = {
+    "Item": ["CLOSET", "JET WASHER", "WASTAFEL +kran", "Vanity", "Cubicle", "Hand Dryer", "FLOOR DRAIN", "Robe hook & Tissu Holder"],
+    "Unit": [3, 3, 3, 3, 3, 2, 8, 3],
+    "Unit Price (Rp)": [7000000, 900000, 5000000, 6000000, 15000000, 1050000, 400000, 275000],
+    "Total (Rp)": [21000000, 2700000, 15000000, 18000000, 45000000, 2100000, 3200000, 825000]
+}
 
-with st.form("add_item_form", clear_on_submit=True):
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        # Room / Work Name inputs
-        room_sel = st.selectbox("Room / Work Name", ["+ Add New..."] + current_rooms)
-        new_room = st.text_input("Type new Room Name here (if adding new)")
-        
-        st.write("") # Spacer
-        
-        # Project Type inputs
-        proj_sel = st.selectbox("Project Type", ["+ Add New..."] + current_projects)
-        new_proj = st.text_input("Type new Project Type here (if adding new)")
-    
-    with col2:
-        item_name = st.text_input("Item Name (e.g., Urinal, Sink)")
-        
-    with col3:
-        unit_qty = st.number_input("Unit Qty", min_value=1, step=1)
-        unit_price = st.number_input("Unit Price", min_value=0, step=50000)
+# --- 2. HELPER FUNCTIONS ---
+def format_currency(val):
+    """Formats numbers to standard comma-separated values."""
+    return f"{val:,.0f}"
 
-    submitted = st.form_submit_button("Add to Database")
-    
-    if submitted and item_name:
-        # Determine the final values based on user input
-        final_room = new_room if room_sel == "+ Add New..." and new_room else room_sel
-        final_project = new_proj if proj_sel == "+ Add New..." and new_proj else proj_sel
+# --- 3. STREAMLIT UI SETUP ---
+st.set_page_config(page_title="Budget Database Toilet", layout="wide")
+st.title("Database Estimasi Biaya Toilet Publik")
 
-        # Validation: prevent empty new categories
-        if final_room == "+ Add New..." or final_project == "+ Add New...":
-            st.error("⚠️ Please type a name for the new Room or Project Type.")
-        else:
-            new_row = {
-                'Room/Work Name': final_room,
-                'Project Type': final_project,
-                'Item Name': item_name,
-                'Unit Qty': unit_qty,
-                'Unit Price': unit_price
-            }
-            # Append the new row
-            st.session_state.db = pd.concat([st.session_state.db, pd.DataFrame([new_row])], ignore_index=True)
-            st.success(f"Added {item_name} to {final_room} ({final_project})!")
-
-st.divider()
-
-# --- SECTION 2: VIEW, SORT & CALCULATE ---
-st.header("Database & Subtotals")
-
-df = st.session_state.db.copy()
-df['Total Price'] = df['Unit Qty'] * df['Unit Price']
-
-selected_project = st.selectbox("Filter by Project Type", ["All"] + sorted(df['Project Type'].unique().tolist()))
-
-if selected_project != "All":
-    filtered_df = df[df['Project Type'] == selected_project]
-else:
-    filtered_df = df
-
-filtered_df = filtered_df.sort_values(by=['Room/Work Name', 'Item Name'])
-
-st.dataframe(
-    filtered_df, 
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "Unit Price": st.column_config.NumberColumn(format="%d"),
-        "Total Price": st.column_config.NumberColumn(format="%d")
-    }
+# Sidebar navigation
+st.sidebar.header("Pilih Kategori Toilet")
+category = st.sidebar.radio(
+    "Navigasi Data:",
+    ("Publik Toilet RETAIL - Pria",
+     "Publik Toilet RETAIL - Wanita",
+     "Publik Toilet Hotel - Pria",
+     "Publik Toilet Hotel - Wanita")
 )
 
-if not filtered_df.empty:
-    st.subheader("Subtotals by Room/Work Name")
-    
-    subtotals = filtered_df.groupby('Room/Work Name')['Total Price'].sum().reset_index()
-    
-    colA, colB = st.columns([2, 1])
-    with colA:
-        st.dataframe(
-            subtotals, 
-            use_container_width=True, 
-            hide_index=True,
-            column_config={"Total Price": st.column_config.NumberColumn(format="%d")}
-        )
-    
-    with colB:
-        grand_total = filtered_df['Total Price'].sum()
-        st.metric(label="Grand Total", value=f"{grand_total:,.0f}")
+# --- 4. LOGIC & DISPLAY ---
+# Map the selection to the correct data and assign the grand total
+if category == "Publik Toilet RETAIL - Pria":
+    df = pd.DataFrame(data_retail_pria)
+    grand_total = 126225000
+elif category == "Publik Toilet RETAIL - Wanita":
+    df = pd.DataFrame(data_retail_wanita)
+    grand_total = 154175000
+elif category == "Publik Toilet Hotel - Pria":
+    df = pd.DataFrame(data_hotel_pria)
+    grand_total = 86050000
+else:
+    df = pd.DataFrame(data_hotel_wanita)
+    grand_total = 107825000
+
+# Format the numerical columns to look like standard currency
+df_display = df.copy()
+df_display['Unit Price (Rp)'] = df_display['Unit Price (Rp)'].apply(format_currency)
+df_display['Total (Rp)'] = df_display['Total (Rp)'].apply(format_currency)
+
+# Render the layout
+st.subheader(category)
+
+# Using st.dataframe allows users to sort columns and scroll if needed
+st.dataframe(df_display, use_container_width=True, hide_index=True)
+
+# Render the Grand Total at the bottom
+st.markdown(f"### Total Keseluruhan: **Rp {format_currency(grand_total)}**")
