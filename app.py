@@ -3,14 +3,14 @@ import pandas as pd
 
 # --- 1. DATA EXTRACTION ---
 data_retail_pria = {
-    "Item": ["CLOSET", "JET WASHER", "WASTAFEL +kran", "Vanity", "Cubicle", "Hand Dryer", "FLOOR DRAIN", "Robe hook & Tissu Holder", "Urinoir", "Partisi Urinoir"],
+    "Item": ["CLOSET", "JET WASHER", "WASTAFEL +kran", "Vanity", "Cubicle", "Hand Dryer", "FLOOR DRAIN", "Robe hook & Tissue Holder", "Urinoir", "Partisi Urinoir"],
     "Unit": [3, 3, 3, 3, 3, 2, 9, 3, 3, 3],
     "Unit Price (Rp)": [7000000, 900000, 5000000, 6000000, 15000000, 1050000, 400000, 275000, 3500000, 2500000],
     "Total (Rp)": [21000000, 2700000, 15000000, 18000000, 45000000, 2100000, 3600000, 825000, 10500000, 7500000]
 }
 
 data_retail_wanita = {
-    "Item": ["CLOSET", "JET WASHER", "WASTAFEL +kran", "Vanity", "Cubicle", "Hand Dryer", "FLOOR DRAIN", "Robe hook & Tissu Holder"],
+    "Item": ["CLOSET", "JET WASHER", "WASTAFEL +kran", "Vanity", "Cubicle", "Hand Dryer", "FLOOR DRAIN", "Robe hook & Tissue Holder"],
     "Unit": [5, 5, 3, 3, 5, 2, 8, 5],
     "Unit Price (Rp)": [7000000, 900000, 5000000, 6000000, 15000000, 1050000, 400000, 275000],
     "Total (Rp)": [35000000, 4500000, 15000000, 18000000, 75000000, 2100000, 3200000, 1375000]
