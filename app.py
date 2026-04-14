@@ -53,7 +53,9 @@ category = st.sidebar.radio(
 # Map the selection to the correct data and assign the grand total
 if category == "Publik Toilet RETAIL - Pria":
     df = pd.DataFrame(data_retail_pria)
-    grand_total = 126225000
+    grand_total = df["Total (Rp)"].sum()
+    
+    print(f"Grand Total: Rp {grand_total:,}")
 elif category == "Publik Toilet RETAIL - Wanita":
     df = pd.DataFrame(data_retail_wanita)
     grand_total = 154175000
