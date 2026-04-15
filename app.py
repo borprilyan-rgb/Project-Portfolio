@@ -2,7 +2,7 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
-import gspread  # Moved to top
+import gspread
 
 # --- APP CONFIG ---
 st.set_page_config(page_title="Pro Calculator", layout="wide")
