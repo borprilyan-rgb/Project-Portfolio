@@ -83,7 +83,7 @@ with col1:
             # client = conn._client
 
 # --- VIEW & DELETE ---
-if st.button("💾 Save Calculation"):
+if st.button("Save Calculation to Sheet"):
     new_data = [
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         sheet_name,
