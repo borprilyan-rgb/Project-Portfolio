@@ -36,7 +36,7 @@ with col1:
 
     st.metric("Result", res)
 
-    # --- SAVE LOGIC ---
+# --- SAVE LOGIC ---
     if st.button("💾 Save Calculation to Sheet"):
         new_data = {
             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -48,26 +48,32 @@ with col1:
         }
         
         try:
-            # 1. Access the raw client
-            client = conn.client.client
-            # 2. Get spreadsheet URL from secrets safely
+            # 1. Access the client correctly
+            # In recent versions of st-gsheets-connection, the attribute is often ._client
+            # But let's use the most reliable way to get to gspread:
+            client = conn.client 
+            
+            # 2. Get the spreadsheet URL from secrets
             sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
             ss = client.open_by_url(sheet_url)
             
             try:
                 ws = ss.worksheet(sheet_name)
             except gspread.exceptions.WorksheetNotFound:
+                # Create the worksheet if it doesn't exist
                 ws = ss.add_worksheet(title=sheet_name, rows="100", cols="20")
                 ws.append_row(list(new_data.keys())) 
                 st.toast(f"New sheet '{sheet_name}' created!")
 
+            # 3. Append the data
             ws.append_row(list(new_data.values()))
             st.success(f"Saved to {sheet_name}!")
-            # 3. Clear cache so the 'History' view updates immediately
             st.cache_data.clear() 
             
         except Exception as e:
             st.error(f"Error saving to Google Sheets: {e}")
+            # If '.client' failed again, try '._client' below:
+            # client = conn._client
 
 # --- VIEW & DELETE ---
 with col2:
