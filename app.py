@@ -4,6 +4,8 @@ import pandas as pd
 from datetime import datetime
 import gspread
 
+raw_client = conn.client._client
+
 # --- APP CONFIG ---
 st.set_page_config(page_title="Pro Calculator", layout="wide")
 
@@ -95,18 +97,28 @@ with col2:
         st.dataframe(df, use_container_width=True)
     except:
         st.info("No data in this sheet yet. Save a calculation to begin!")
-
 st.sidebar.markdown("---")
 if st.sidebar.button("🗑️ Clear Current Sheet"):
     try:
-        client = conn.client.client
+        # 1. Use the "innermost" client that worked for the save function
+        client = conn.client._client 
+        
+        # 2. Open the spreadsheet
         sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         ss = client.open_by_url(sheet_url)
+        
+        # 3. Get the worksheet
         ws = ss.worksheet(sheet_name)
+        
+        # 4. Clear and reset headers
         ws.clear()
         ws.append_row(["Timestamp", "Project", "Value_A", "Operation", "Value_B", "Result"])
+        
+        # 5. Clear Streamlit's internal cache so the table on the right updates
         st.cache_data.clear()
+        
         st.sidebar.success(f"Cleared {sheet_name}")
         st.rerun()
+        
     except Exception as e:
-        st.sidebar.error(f"Error: {e}")
+        st.sidebar.error(f"Error clearing sheet: {e}")
