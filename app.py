@@ -36,25 +36,22 @@ with col1:
 
     st.metric("Result", res)
 
-# --- SAVE LOGIC ---
-    if st.button("Save Calculation to Sheet"):
-        new_data = {
-            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Project": sheet_name,
-            "Value_A": val_a,
-            "Operation": operation,
-            "Value_B": val_b,
-            "Result": res
-        }
+    # --- SAVE LOGIC ---
+    if st.button("💾 Save Calculation to Sheet"):
+        # We prepare the data as a list for the .append_row function
+        new_row = [
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            sheet_name,
+            val_a,
+            operation,
+            val_b,
+            res,
+            "Active"  # The status column
+        ]
         
         try:
-            # Reaching one level deeper to get the actual gspread client
-            # Try this first:
+            # Reaching into the gspread client
             client = conn.client._client 
-            
-            # If that fails with an error, try this instead:
-            # client = conn._client._client
-            
             sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
             ss = client.open_by_url(sheet_url)
             
@@ -62,81 +59,56 @@ with col1:
                 ws = ss.worksheet(sheet_name)
             except gspread.exceptions.WorksheetNotFound:
                 ws = ss.add_worksheet(title=sheet_name, rows="100", cols="20")
-                ws.append_row(list(new_data.keys())) 
+                # Add headers including the 'Status' column
+                ws.append_row(["Timestamp", "Project", "Value_A", "Operation", "Value_B", "Result", "Status"])
                 st.toast(f"New sheet '{sheet_name}' created!")
 
-            ws.append_row(list(new_data.values()))
-            st.success(f"Saved to {sheet_name}!")
-            st.cache_data.clear() 
-            
-        except Exception as e:
-            st.error(f"Error: {e}")
-
-            # 3. Append the data
-            ws.append_row(list(new_data.values()))
+            ws.append_row(new_row)
             st.success(f"Saved to {sheet_name}!")
             st.cache_data.clear() 
             
         except Exception as e:
             st.error(f"Error saving to Google Sheets: {e}")
-            # If '.client' failed again, try '._client' below:
-            # client = conn._client
 
-# --- VIEW & DELETE ---
-if st.button("Save Calculation to Sheet"):
-    new_data = [
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        sheet_name,
-        val_a,
-        operation,
-        val_b,
-        res,
-        "Active"  # <--- New 'Status' column
-    ]
-    
-    client = conn.client._client
-    ss = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"])
-    
-    try:
-        ws = ss.worksheet(sheet_name)
-    except gspread.exceptions.WorksheetNotFound:
-        ws = ss.add_worksheet(title=sheet_name, rows="100", cols="20")
-        ws.append_row(["Timestamp", "Project", "Value_A", "Operation", "Value_B", "Result", "Status"])
-    
-    ws.append_row(new_data)
-    st.success("Saved!")
-    st.cache_data.clear()
-
-# --- 2. UPDATED VIEW & MARK AS "NOT FOR USE" ---
+# --- VIEW & ARCHIVE LOGIC ---
 with col2:
     st.subheader("Sheet History")
+    
+    if st.button("🔄 Refresh Data"):
+        st.cache_data.clear()
+
     try:
+        # Read the sheet data
         df = conn.read(worksheet=sheet_name, ttl=0)
         
-        # Filter: Only show the "Active" ones to the user
-        active_df = df[df['Status'] == 'Active'].copy()
-        
-        # Add the Row_ID for referencing
-        active_df['Row_ID'] = active_df.index + 2
-        
-        # Show the filtered list
-        st.dataframe(active_df, use_container_width=True)
-        
-        st.divider()
-        row_to_archive = st.number_input("Enter Row_ID to mark as 'Not for Use'", min_value=2, step=1)
-        
-        if st.button("🚫 Mark as Not for Use"):
-            client = conn.client._client
-            ss = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"])
-            ws = ss.worksheet(sheet_name)
+        # Filter: Only show 'Active' rows
+        if "Status" in df.columns:
+            active_df = df[df['Status'] == 'Active'].copy()
+            # Add Row_ID (Index + 2 to match Google Sheets row numbers)
+            active_df['Row_ID'] = active_df.index + 2
             
-            # Find the column index for 'Status' (it's the 7th column)
-            # update_cell(row, col, value)
-            ws.update_cell(int(row_to_archive), 7, "Archived")
+            # Show the table
+            st.dataframe(active_df, use_container_width=True)
             
-            st.cache_data.clear()
-            st.warning(f"Row {row_to_archive} is now hidden.")
-            st.rerun()
+            st.divider()
+            
+            # ARCHIVE SECTION
+            row_to_archive = st.number_input("Enter Row_ID to hide (Not for Use)", min_value=2, step=1)
+            
+            if st.button("🚫 Mark as Not for Use"):
+                client = conn.client._client
+                sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+                ss = client.open_by_url(sheet_url)
+                ws = ss.worksheet(sheet_name)
+                
+                # Column 7 is the 'Status' column
+                ws.update_cell(int(row_to_archive), 7, "Archived")
+                
+                st.cache_data.clear()
+                st.warning(f"Row {row_to_archive} is now hidden.")
+                st.rerun()
+        else:
+            st.info("The sheet format is being updated. Please save a new calculation.")
 
-    except Exception as e:
-        st.info("No active calculations found.")
+    except Exception:
+        st.info("No active calculations found in this project yet.")
