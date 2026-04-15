@@ -97,28 +97,31 @@ with col2:
         st.dataframe(df, use_container_width=True)
     except:
         st.info("No data in this sheet yet. Save a calculation to begin!")
+
 st.sidebar.markdown("---")
 if st.sidebar.button("🗑️ Clear Current Sheet"):
     try:
-        # 1. Use the "innermost" client that worked for the save function
-        client = conn.client._client 
+        # 1. Use the working client path
+        # Note: If this line errors, try conn._client._client
+        raw_client = conn.client._client 
         
-        # 2. Open the spreadsheet
+        # 2. Open spreadsheet
         sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-        ss = client.open_by_url(sheet_url)
+        ss = raw_client.open_by_url(sheet_url)
         
-        # 3. Get the worksheet
-        ws = ss.worksheet(sheet_name)
-        
-        # 4. Clear and reset headers
-        ws.clear()
-        ws.append_row(["Timestamp", "Project", "Value_A", "Operation", "Value_B", "Result"])
-        
-        # 5. Clear Streamlit's internal cache so the table on the right updates
-        st.cache_data.clear()
-        
-        st.sidebar.success(f"Cleared {sheet_name}")
-        st.rerun()
-        
+        # 3. Try to find the tab
+        try:
+            ws = ss.worksheet(sheet_name)
+            # 4. Clear and reset headers
+            ws.clear()
+            ws.append_row(["Timestamp", "Project", "Value_A", "Operation", "Value_B", "Result"])
+            
+            # 5. Reset app state
+            st.cache_data.clear()
+            st.sidebar.success(f"Cleared {sheet_name}")
+            st.rerun()
+        except gspread.exceptions.WorksheetNotFound:
+            st.sidebar.error("Cannot clear: This project tab does not exist yet.")
+            
     except Exception as e:
-        st.sidebar.error(f"Error clearing sheet: {e}")
+        st.sidebar.error(f"System Error: {e}")
