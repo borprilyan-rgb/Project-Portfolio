@@ -55,6 +55,26 @@ with col_rate3:
     )
     rate_architecture = st.number_input(f"Rate for {project_type} (per GFA m²)", min_value=0.0, value=0.0)
 
+# --- SUB-SECTION: FACADE ---
+st.markdown("#### 🧱 Facade Breakdown")
+col_fac1, col_fac2, col_fac3 = st.columns(3)
+
+with col_fac1:
+    st.write("**Precast**")
+    pct_precast = st.slider("Precast Coverage (%)", 0, 100, 0, key="pct_precast") / 100
+    rate_precast = st.number_input("Precast Rate (per m²)", min_value=0.0, value=0.0)
+
+with col_fac2:
+    st.write("**Window Wall**")
+    pct_window = st.slider("Window Wall Coverage (%)", 0, 100, 0, key="pct_window") / 100
+    rate_window = st.number_input("Window Wall Rate (per m²)", min_value=0.0, value=0.0)
+
+with col_fac3:
+    st.write("**Double Skin**")
+    pct_double = st.slider("Double Skin Coverage (%)", 0, 100, 0, key="pct_double") / 100
+    rate_double = st.number_input("Double Skin Rate (per m²)", min_value=0.0, value=0.0)
+
+
 st.markdown("---")
 
 # --- STEP 3: CALCULATIONS ---
@@ -62,6 +82,10 @@ total_earthwork = gba * rate_earthwork
 total_foundation = gba * rate_foundation
 total_structural = gba * rate_structural
 total_architecture = gfa * rate_architecture
+# Calculations for Facade
+total_precast = facade * pct_precast * rate_precast
+total_window = facade * pct_window * rate_window
+total_double_skin = facade * pct_double * rate_double
 
 # --- STEP 4: HARD COST INFORMATION TABLE ---
 st.header("📊 Hard Cost Table")
@@ -72,21 +96,30 @@ hard_cost_data = {
         "2. Earthwork", 
         "3. Foundation",
         "4. Structural Work",
-        f"5. Basic Architecture ({project_type})"
+        f"5. Basic Architecture ({project_type})",
+        "6. Facade - Precast",
+        "7. Facade - Window Wall",
+        "8. Facade - Double Skin"
     ],
     "Basis": [
         "5% of Hard Cost", 
         f"{gba:,.2f} m² (GBA) x {rate_earthwork:,.2f}", 
         f"{gba:,.2f} m² (GBA) x {rate_foundation:,.2f}",
         f"{gba:,.2f} m² (GBA) x {rate_structural:,.2f}",
-        f"{gfa:,.2f} m² (GFA) x {rate_architecture:,.2f}"
+        f"{gfa:,.2f} m² (GFA) x {rate_architecture:,.2f}",
+        f"{facade * pct_precast:,.2f} m² (Facade Area) x {rate_precast:,.2f}",
+        f"{facade * pct_window:,.2f} m² (Facade Area) x {rate_window:,.2f}",
+        f"{facade * pct_double:,.2f} m² (Facade Area) x {rate_double:,.2f}"
     ],
     "Amount": [
-        0.0, # Placeholder for now
+        0.0, 
         total_earthwork, 
         total_foundation,
         total_structural,
-        total_architecture
+        total_architecture,
+        total_precast,
+        total_window,
+        total_double_skin
     ]
 }
 
