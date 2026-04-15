@@ -62,13 +62,13 @@ hard_cost_data = {
     "Description": [
         "1. Preliminary Works", 
         "2. Earthwork", 
-        "3. Foundation"
+        "3. Foundation",
         "4. Structural Work"
     ],
     "Basis": [
         "5% of Hard Cost", 
         f"{gba:,.2f} m² (GBA) x {rate_earthwork:,.2f}", 
-        f"{gba:,.2f} m² (GBA) x {rate_foundation:,.2f}"
+        f"{gba:,.2f} m² (GBA) x {rate_foundation:,.2f}",
         f"{gba:,.2f} m² (GBA) x {rate_structural:,.2f}"
     ],
     "Amount": [
