@@ -47,23 +47,30 @@ with col1:
             "Result": res
         }
         
-        try:
-            # 1. Access the client correctly
-            # In recent versions of st-gsheets-connection, the attribute is often ._client
-            # But let's use the most reliable way to get to gspread:
-            client = conn.client 
+            try:
+            # Reaching one level deeper to get the actual gspread client
+            # Try this first:
+            client = conn.client._client 
             
-            # 2. Get the spreadsheet URL from secrets
+            # If that fails with an error, try this instead:
+            # client = conn._client._client
+            
             sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
             ss = client.open_by_url(sheet_url)
             
             try:
                 ws = ss.worksheet(sheet_name)
             except gspread.exceptions.WorksheetNotFound:
-                # Create the worksheet if it doesn't exist
                 ws = ss.add_worksheet(title=sheet_name, rows="100", cols="20")
                 ws.append_row(list(new_data.keys())) 
                 st.toast(f"New sheet '{sheet_name}' created!")
+
+            ws.append_row(list(new_data.values()))
+            st.success(f"Saved to {sheet_name}!")
+            st.cache_data.clear() 
+            
+        except Exception as e:
+            st.error(f"Error: {e}")
 
             # 3. Append the data
             ws.append_row(list(new_data.values()))
