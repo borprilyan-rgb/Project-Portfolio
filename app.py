@@ -61,30 +61,25 @@ st.caption("Adjust percentages to split the total Facade area (Total must be 100
 
 col_fac1, col_fac2, col_fac3 = st.columns(3)
 
-# Initialize percentages in session state if not present
-if 'pct_precast' not in st.session_state:
-    st.session_state.pct_precast = 40.0
-    st.session_state.pct_window = 40.0
-    st.session_state.pct_double = 20.0
-
 with col_fac1:
-    precast_p = st.number_input("Precast (%)", min_value=0.0, max_value=100.0, value=st.session_state.pct_precast)
-    rate_precast = st.number_input("Precast Rate (per m²)", min_value=0.0, value=0.0)
+    # We use 'key' so Streamlit remembers the value, and set a default
+    precast_p = st.number_input("Precast (%)", min_value=0.0, max_value=100.0, value=40.0, key="fac_pre")
+    rate_precast = st.number_input("Precast Rate (per m²)", min_value=0.0, value=0.0, key="rate_pre")
 
 with col_fac2:
-    # Logic: Window wall defaults to the remaining percentage
-    window_p = st.number_input("Window Wall (%)", min_value=0.0, max_value=100.0, value=st.session_state.pct_window)
-    rate_window = st.number_input("Window Wall Rate (per m²)", min_value=0.0, value=0.0)
+    window_p = st.number_input("Window Wall (%)", min_value=0.0, max_value=100.0, value=40.0, key="fac_win")
+    rate_window = st.number_input("Window Wall Rate (per m²)", min_value=0.0, value=0.0, key="rate_win")
 
 with col_fac3:
-    # Logic: Double skin is the remainder
-    remainder = max(0.0, 100.0 - (precast_p + window_p))
-    double_p = st.number_input("Double Skin (%)", value=remainder, disabled=True)
-    rate_double = st.number_input("Double Skin Rate (per m²)", min_value=0.0, value=0.0)
+    # Automatically calculate the remainder
+    double_p = max(0.0, 100.0 - (precast_p + window_p))
+    st.write(f"**Double Skin (%)**")
+    st.info(f"{double_p}%") # Displayed as a read-only info box
+    rate_double = st.number_input("Double Skin Rate (per m²)", min_value=0.0, value=0.0, key="rate_double")
 
-total_pct = precast_p + window_p + double_p
-if total_pct > 100:
-    st.error(f"Total percentage is {total_pct}%. Please reduce values to 100%.")
+# Validation check
+if (precast_p + window_p) > 100.0:
+    st.error("⚠️ Precast + Window Wall exceeds 100%! Please lower one of them.")
 
 st.markdown("---")
 
