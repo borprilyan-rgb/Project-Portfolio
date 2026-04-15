@@ -38,18 +38,22 @@ st.markdown("---")
 
 # --- STEP 2: UNIT RATES (Changeable Numbers) ---
 st.subheader("💰 Unit Rates & Estimations")
-col_rate1, col_rate2 = st.columns(2)
+col_rate1, col_rate2, col_rate3 = st.columns(3)
 
 with col_rate1:
     rate_earthwork = st.number_input("Earthwork Rate (per GBA m²)", min_value=0.0, value=0.0, step=1.0)
     
 with col_rate2:
-    # New input for Foundation
     rate_foundation = st.number_input("Foundation Rate (per GBA m²)", min_value=0.0, value=0.0, step=1.0)
+
+with col_rate3:
+    # New input for Structural Work
+    rate_structural = st.number_input("Structural Work Rate (per GBA m²)", min_value=0.0, value=0.0, step=1.0)
 
 # --- STEP 3: CALCULATIONS ---
 total_earthwork = gba * rate_earthwork
 total_foundation = gba * rate_foundation
+total_structural = gba * rate_structural
 
 # --- STEP 4: HARD COST INFORMATION TABLE ---
 st.header("📊 Hard Cost")
@@ -59,16 +63,19 @@ hard_cost_data = {
         "1. Preliminary Works", 
         "2. Earthwork", 
         "3. Foundation"
+        "4. Structural Work"
     ],
     "Basis": [
         "5% of Hard Cost", 
         f"{gba:,.2f} m² (GBA) x {rate_earthwork:,.2f}", 
         f"{gba:,.2f} m² (GBA) x {rate_foundation:,.2f}"
+        f"{gba:,.2f} m² (GBA) x {rate_structural:,.2f}"
     ],
     "Amount": [
         0.0, 
         total_earthwork, 
-        total_foundation
+        total_foundation,
+        total_structural
     ]
 }
 
