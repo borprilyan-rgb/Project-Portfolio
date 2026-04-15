@@ -11,11 +11,11 @@ st.set_page_config(page_title="Pro Calculator", layout="wide")
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # --- SIDEBAR: SHEET MANAGEMENT ---
-st.sidebar.title("📁 Project Management")
+st.sidebar.title("Project Management")
 sheet_name = st.sidebar.text_input("Project/Sheet Name", value="General_Calculations")
 
 # --- CALCULATOR LOGIC ---
-st.title("🔢 Advanced Calculator")
+st.title("Advanced Calculator")
 
 col1, col2 = st.columns(2)
 
@@ -37,7 +37,7 @@ with col1:
     st.metric("Result", res)
 
 # --- SAVE LOGIC ---
-    if st.button("💾 Save Calculation to Sheet"):
+    if st.button("Save Calculation to Sheet"):
         new_data = {
             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "Project": sheet_name,
@@ -86,7 +86,7 @@ with col1:
 with col2:
     st.subheader("Sheet History")
     # Wrap this in a button or auto-refresh
-    if st.button("🔄 Refresh Data"):
+    if st.button("Refresh Data"):
         st.cache_data.clear()
 
     try:
@@ -97,7 +97,7 @@ with col2:
         st.info("No data in this sheet yet. Save a calculation to begin!")
 
 st.sidebar.markdown("---")
-if st.sidebar.button("🗑️ Clear Current Sheet"):
+if st.sidebar.button("Clear Current Sheet"):
     try:
         # 1. Use the working client path
         # Note: If this line errors, try conn._client._client
