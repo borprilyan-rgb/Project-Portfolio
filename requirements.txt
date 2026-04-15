@@ -3,3 +3,4 @@ pandas
 openpyxl
 numpy
 st-gsheets-connection
+gspread
