@@ -47,42 +47,53 @@ with col1:
             "Result": res
         }
         
-        # Access the raw client to handle worksheet creation
-        client = conn.client.client
-        ss = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"])
-        
         try:
-            # Check if tab exists
-            ws = ss.worksheet(sheet_name)
-        except gspread.exceptions.WorksheetNotFound:
-            # Create it if it doesn't
-            ws = ss.add_worksheet(title=sheet_name, rows="100", cols="20")
-            ws.append_row(list(new_data.keys())) # Add headers
-            st.toast(f"New sheet '{sheet_name}' created!")
+            # 1. Access the raw client
+            client = conn.client.client
+            # 2. Get spreadsheet URL from secrets safely
+            sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+            ss = client.open_by_url(sheet_url)
+            
+            try:
+                ws = ss.worksheet(sheet_name)
+            except gspread.exceptions.WorksheetNotFound:
+                ws = ss.add_worksheet(title=sheet_name, rows="100", cols="20")
+                ws.append_row(list(new_data.keys())) 
+                st.toast(f"New sheet '{sheet_name}' created!")
 
-        # Append the new row
-        ws.append_row(list(new_data.values()))
-        st.success(f"Saved to {sheet_name}!")
+            ws.append_row(list(new_data.values()))
+            st.success(f"Saved to {sheet_name}!")
+            # 3. Clear cache so the 'History' view updates immediately
+            st.cache_data.clear() 
+            
+        except Exception as e:
+            st.error(f"Error saving to Google Sheets: {e}")
 
 # --- VIEW & DELETE ---
 with col2:
     st.subheader("Sheet History")
+    # Wrap this in a button or auto-refresh
+    if st.button("🔄 Refresh Data"):
+        st.cache_data.clear()
+
     try:
-        df = conn.read(worksheet=sheet_name)
+        # We use ttl=0 or clear cache to ensure colleagues see each other's updates
+        df = conn.read(worksheet=sheet_name, ttl=0)
         st.dataframe(df, use_container_width=True)
     except:
-        st.info("No data in this sheet yet.")
+        st.info("No data in this sheet yet. Save a calculation to begin!")
 
 st.sidebar.markdown("---")
 if st.sidebar.button("🗑️ Clear Current Sheet"):
     try:
         client = conn.client.client
-        ss = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"])
+        sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+        ss = client.open_by_url(sheet_url)
         ws = ss.worksheet(sheet_name)
-        # Clear everything but the header
         ws.clear()
         ws.append_row(["Timestamp", "Project", "Value_A", "Operation", "Value_B", "Result"])
+        st.cache_data.clear()
         st.sidebar.success(f"Cleared {sheet_name}")
         st.rerun()
     except Exception as e:
-        st.sidebar.error("Could not clear sheet.")
+        st.sidebar.error(f"Error: {e}")
