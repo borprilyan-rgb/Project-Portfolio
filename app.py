@@ -53,21 +53,19 @@ if st.button("💾 Save Calculation to Sheet"):
         "Result": res
     }])
     
-    # 1. Get the underlying spreadsheet object
-    spreadsheet = conn.client._open_spreadsheet(conn._spreadsheet)
-    
     try:
-        # 2. Try to find the worksheet
-        worksheet = spreadsheet.worksheet(sheet_name)
+        # Try to read the existing tab
         existing_data = conn.read(worksheet=sheet_name)
         updated_df = pd.concat([existing_data, new_row], ignore_index=True)
-    except gspread.exceptions.WorksheetNotFound:
-        # 3. If it doesn't exist, create it!
-        spreadsheet.add_worksheet(title=sheet_name, rows="100", cols="20")
+    except Exception:
+        # If the tab doesn't exist, 'existing_data' fails.
+        # We treat the 'new_row' as the entire dataframe for a new tab.
         updated_df = new_row
-        st.info(f"Created new tab: {sheet_name}")
+        st.info(f"Creating new worksheet: {sheet_name}")
 
-    # 4. Save the data
+    # The .update() method in this library is smart: 
+    # If the worksheet name doesn't exist, it will often try to create it 
+    # OR you can use the 'spreadsheet' parameter to point it home.
     conn.update(worksheet=sheet_name, data=updated_df)
     st.success(f"Saved to {sheet_name}!")
 
