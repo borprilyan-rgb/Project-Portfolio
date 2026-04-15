@@ -83,43 +83,60 @@ with col1:
             # client = conn._client
 
 # --- VIEW & DELETE ---
+if st.button("💾 Save Calculation"):
+    new_data = [
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        sheet_name,
+        val_a,
+        operation,
+        val_b,
+        res,
+        "Active"  # <--- New 'Status' column
+    ]
+    
+    client = conn.client._client
+    ss = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"])
+    
+    try:
+        ws = ss.worksheet(sheet_name)
+    except gspread.exceptions.WorksheetNotFound:
+        ws = ss.add_worksheet(title=sheet_name, rows="100", cols="20")
+        ws.append_row(["Timestamp", "Project", "Value_A", "Operation", "Value_B", "Result", "Status"])
+    
+    ws.append_row(new_data)
+    st.success("Saved!")
+    st.cache_data.clear()
+
+# --- 2. UPDATED VIEW & MARK AS "NOT FOR USE" ---
 with col2:
     st.subheader("Sheet History")
-    # Wrap this in a button or auto-refresh
-    if st.button("Refresh Data"):
-        st.cache_data.clear()
-
     try:
-        # We use ttl=0 or clear cache to ensure colleagues see each other's updates
         df = conn.read(worksheet=sheet_name, ttl=0)
-        st.dataframe(df, use_container_width=True)
-    except:
-        st.info("No data in this sheet yet. Save a calculation to begin!")
-
-st.sidebar.markdown("---")
-if st.sidebar.button("Clear Current Sheet"):
-    try:
-        # 1. Use the working client path
-        # Note: If this line errors, try conn._client._client
-        raw_client = conn.client._client 
         
-        # 2. Open spreadsheet
-        sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-        ss = raw_client.open_by_url(sheet_url)
+        # Filter: Only show the "Active" ones to the user
+        active_df = df[df['Status'] == 'Active'].copy()
         
-        # 3. Try to find the tab
-        try:
+        # Add the Row_ID for referencing
+        active_df['Row_ID'] = active_df.index + 2
+        
+        # Show the filtered list
+        st.dataframe(active_df, use_container_width=True)
+        
+        st.divider()
+        row_to_archive = st.number_input("Enter Row_ID to mark as 'Not for Use'", min_value=2, step=1)
+        
+        if st.button("🚫 Mark as Not for Use"):
+            client = conn.client._client
+            ss = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"])
             ws = ss.worksheet(sheet_name)
-            # 4. Clear and reset headers
-            ws.clear()
-            ws.append_row(["Timestamp", "Project", "Value_A", "Operation", "Value_B", "Result"])
             
-            # 5. Reset app state
+            # Find the column index for 'Status' (it's the 7th column)
+            # update_cell(row, col, value)
+            ws.update_cell(int(row_to_archive), 7, "Archived")
+            
             st.cache_data.clear()
-            st.sidebar.success(f"Cleared {sheet_name}")
+            st.warning(f"Row {row_to_archive} is now hidden.")
             st.rerun()
-        except gspread.exceptions.WorksheetNotFound:
-            st.sidebar.error("Cannot clear: This project tab does not exist yet.")
-            
+
     except Exception as e:
-        st.sidebar.error(f"System Error: {e}")
+        st.info("No active calculations found.")
