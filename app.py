@@ -2,20 +2,17 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
+import gspread  # Moved to top
 
 # --- APP CONFIG ---
 st.set_page_config(page_title="Pro Calculator", layout="wide")
 
 # --- CONNECTION ---
-# This looks for credentials in your Streamlit Secrets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # --- SIDEBAR: SHEET MANAGEMENT ---
 st.sidebar.title("📁 Project Management")
-
-# Let users define the sheet name
 sheet_name = st.sidebar.text_input("Project/Sheet Name", value="General_Calculations")
-st.sidebar.info("If the sheet name doesn't exist, it will be created on save.")
 
 # --- CALCULATOR LOGIC ---
 st.title("🔢 Advanced Calculator")
@@ -28,7 +25,6 @@ with col1:
     val_b = st.number_input("Value B", value=0.0)
     operation = st.selectbox("Operation", ["Add", "Subtract", "Multiply", "Divide"])
     
-    # Simple calculation logic
     if operation == "Add":
         res = val_a + val_b
     elif operation == "Subtract":
@@ -36,43 +32,57 @@ with col1:
     elif operation == "Multiply":
         res = val_a * val_b
     else:
-        res = val_a / val_b if val_b != 0 else "Error (Div by 0)"
+        res = val_a / val_b if val_b != 0 else 0.0
 
     st.metric("Result", res)
 
-    # SAVE BUTTON
-import gspread # Add this to your imports at the top
+    # --- SAVE LOGIC ---
+    if st.button("💾 Save Calculation to Sheet"):
+        new_data = {
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Project": sheet_name,
+            "Value_A": val_a,
+            "Operation": operation,
+            "Value_B": val_b,
+            "Result": res
+        }
+        
+        # Access the raw client to handle worksheet creation
+        client = conn.client.client
+        ss = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"])
+        
+        try:
+            # Check if tab exists
+            ws = ss.worksheet(sheet_name)
+        except gspread.exceptions.WorksheetNotFound:
+            # Create it if it doesn't
+            ws = ss.add_worksheet(title=sheet_name, rows="100", cols="20")
+            ws.append_row(list(new_data.keys())) # Add headers
+            st.toast(f"New sheet '{sheet_name}' created!")
 
-if st.button("💾 Save Calculation to Sheet"):
-    new_row = pd.DataFrame([{
-        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "Project": sheet_name,
-        "Value_A": val_a,
-        "Operation": operation,
-        "Value_B": val_b,
-        "Result": res
-    }])
-    
+        # Append the new row
+        ws.append_row(list(new_data.values()))
+        st.success(f"Saved to {sheet_name}!")
+
+# --- VIEW & DELETE ---
+with col2:
+    st.subheader("Sheet History")
     try:
-        # Try to read the existing tab
-        existing_data = conn.read(worksheet=sheet_name)
-        updated_df = pd.concat([existing_data, new_row], ignore_index=True)
-    except Exception:
-        # If the tab doesn't exist, 'existing_data' fails.
-        # We treat the 'new_row' as the entire dataframe for a new tab.
-        updated_df = new_row
-        st.info(f"Creating new worksheet: {sheet_name}")
+        df = conn.read(worksheet=sheet_name)
+        st.dataframe(df, use_container_width=True)
+    except:
+        st.info("No data in this sheet yet.")
 
-    # The .update() method in this library is smart: 
-    # If the worksheet name doesn't exist, it will often try to create it 
-    # OR you can use the 'spreadsheet' parameter to point it home.
-    conn.update(worksheet=sheet_name, data=updated_df)
-    st.success(f"Saved to {sheet_name}!")
-
-# --- DELETE FUNCTION ---
 st.sidebar.markdown("---")
 if st.sidebar.button("🗑️ Clear Current Sheet"):
-    # In GSheets, we 'clear' by writing an empty header-only dataframe
-    empty_df = pd.DataFrame(columns=["Timestamp", "Project", "Value_A", "Operation", "Value_B", "Result"])
-    conn.update(worksheet=sheet_name, data=empty_df)
-    st.sidebar.success(f"Cleared {sheet_name}")
+    try:
+        client = conn.client.client
+        ss = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"])
+        ws = ss.worksheet(sheet_name)
+        # Clear everything but the header
+        ws.clear()
+        ws.append_row(["Timestamp", "Project", "Value_A", "Operation", "Value_B", "Result"])
+        st.sidebar.success(f"Cleared {sheet_name}")
+        st.rerun()
+    except Exception as e:
+        st.sidebar.error("Could not clear sheet.")
