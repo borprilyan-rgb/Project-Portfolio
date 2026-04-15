@@ -4,8 +4,6 @@ import pandas as pd
 from datetime import datetime
 import gspread
 
-raw_client = conn.client._client
-
 # --- APP CONFIG ---
 st.set_page_config(page_title="Pro Calculator", layout="wide")
 
