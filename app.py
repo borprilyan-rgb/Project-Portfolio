@@ -68,6 +68,49 @@ df_hc_display["Amount"] = df_hc_display["Amount"].map("{:,.2f}".format)
 
 st.table(df_hc_display)
 
+st.markdown("---")
+
+# --- STEP 2: UNIT RATES (Changeable Numbers) ---
+st.subheader("💰 Unit Rates & Estimations")
+col_rate1, col_rate2 = st.columns(2)
+
+with col_rate1:
+    rate_earthwork = st.number_input("Earthwork Rate (per GBA m²)", min_value=0.0, value=0.0, step=1.0)
+    
+with col_rate2:
+    # New input for Foundation
+    rate_foundation = st.number_input("Foundation Rate (per GBA m²)", min_value=0.0, value=0.0, step=1.0)
+
+# --- STEP 3: CALCULATIONS ---
+total_earthwork = gba * rate_earthwork
+total_foundation = gba * rate_foundation
+
+# --- STEP 4: HARD COST INFORMATION TABLE ---
+st.header("📊 Hard Cost")
+
+hard_cost_data = {
+    "Description": [
+        "1. Preliminary Works", 
+        "2. Earthwork", 
+        "3. Foundation"
+    ],
+    "Basis": [
+        "5% of Hard Cost", 
+        f"{gba:,.2f} m² (GBA) x {rate_earthwork:,.2f}", 
+        f"{gba:,.2f} m² (GBA) x {rate_foundation:,.2f}"
+    ],
+    "Amount": [
+        0.0, 
+        total_earthwork, 
+        total_foundation
+    ]
+}
+
+df_hc = pd.DataFrame(hard_cost_data)
+
+# Displaying the table with formatting
+st.table(df_hc.style.format({"Amount": "{:,.2f}"}))
+
 # --- STEP 2: HARD COST INFORMATION TABLE (Non-changeable) ---
 st.header("📊 Hard Cost")
 
