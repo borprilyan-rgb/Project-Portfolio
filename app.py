@@ -5,48 +5,67 @@ from datetime import datetime
 import gspread
 
 # --- APP CONFIG ---
-st.set_page_config(page_title="Pro Calculator", layout="wide")
+st.set_page_config(page_title="Project Budget Estimator", layout="wide")
 
 # --- CONNECTION ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # --- SIDEBAR: SHEET MANAGEMENT ---
 st.sidebar.title("Project Management")
-sheet_name = st.sidebar.text_input("Project/Sheet Name", value="General_Calculations")
+sheet_name = st.sidebar.text_input("Project/Sheet Name", value="RWI_PalmBeach_Budget")
 
 # --- CALCULATOR LOGIC ---
-st.title("Advanced Calculator")
+st.title("🏗️ Project Budget Calculator")
+st.markdown("Estimate and log Hard Costs and Soft Costs based on the master concept comparison.")
 
-col1, col2 = st.columns(2)
+col1, col2 = st.columns([1, 1.2])
 
 with col1:
-    st.subheader("Inputs")
-    val_a = st.number_input("Value A", value=0.0)
-    val_b = st.number_input("Value B", value=0.0)
-    operation = st.selectbox("Operation", ["Add", "Subtract", "Multiply", "Divide"])
+    st.subheader("Cost Item Input")
     
-    if operation == "Add":
-        res = val_a + val_b
-    elif operation == "Subtract":
-        res = val_a - val_b
-    elif operation == "Multiply":
-        res = val_a * val_b
-    else:
-        res = val_a / val_b if val_b != 0 else 0.0
+    # Adapted inputs based on the uploaded CSV structure
+    category = st.selectbox("Cost Category", ["HARD COST", "SOFT COST"])
+    
+    # Pre-populated descriptions based on standard items in the CSV
+    description_options = [
+        "PRELIMINARIES WORKS", "EARTHWORKS", "FOUNDATIONS", "STRUCTURAL WORKS", 
+        "ARCHITECTURAL WORKS", "F F & E", "M.E.P WORKS", "UTILITY CONNECTION", 
+        "EXTERNAL WORKS", "FACILITY", "CONTINGENCIES", "CONSULTANCY SERVICES FEE", 
+        "QS SERVICES", "PROJECT MANAGEMENT SERVICES", "INSURANCE COVERAGE", "Other (Custom)"
+    ]
+    description = st.selectbox("Description", description_options)
+    
+    if description == "Other (Custom)":
+        description = st.text_input("Enter Custom Description")
 
-    st.metric("Result", res)
+    col1_a, col1_b = st.columns(2)
+    with col1_a:
+        qty = st.number_input("Quantity (QTY)", value=0.0, format="%.4f")
+    with col1_b:
+        # Pre-populated units based on the CSV
+        unit = st.selectbox("Unit", ["m2 GBA", "m2 GFA", "m2", "unit", "bh", "Room", "%", "bln", "ls", "m'"])
+
+    rate = st.number_input("Rate (IDR)", value=0.0, format="%.2f")
+    
+    # --- CALCULATION ---
+    # Note: If using percentage (%), enter QTY as the percentage number (e.g., 5) and Rate as the base cost / 100.
+    total_cost = qty * rate
+
+    st.metric("Total Estimated Cost (IDR)", f"Rp {total_cost:,.2f}")
 
     # --- SAVE LOGIC ---
     if st.button("💾 Save Calculation to Sheet"):
-        # We prepare the data as a list for the .append_row function
+        # Prepare the new 9-column row
         new_row = [
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             sheet_name,
-            val_a,
-            operation,
-            val_b,
-            res,
-            "Active"  # The status column
+            category,
+            description,
+            qty,
+            unit,
+            rate,
+            total_cost,
+            "Active"  # The status column is now at index 8 (9th column)
         ]
         
         try:
@@ -59,12 +78,12 @@ with col1:
                 ws = ss.worksheet(sheet_name)
             except gspread.exceptions.WorksheetNotFound:
                 ws = ss.add_worksheet(title=sheet_name, rows="100", cols="20")
-                # Add headers including the 'Status' column
-                ws.append_row(["Timestamp", "Project", "Value_A", "Operation", "Value_B", "Result", "Status"])
+                # Updated headers to match the new construction variables
+                ws.append_row(["Timestamp", "Project", "Category", "Description", "QTY", "Unit", "Rate", "Total_Cost", "Status"])
                 st.toast(f"New sheet '{sheet_name}' created!")
 
             ws.append_row(new_row)
-            st.success(f"Saved to {sheet_name}!")
+            st.success(f"Saved {description} to {sheet_name}!")
             st.cache_data.clear() 
             
         except Exception as e:
@@ -72,7 +91,7 @@ with col1:
 
 # --- VIEW & ARCHIVE LOGIC ---
 with col2:
-    st.subheader("Sheet History")
+    st.subheader("Budget Sheet History")
     
     if st.button("🔄 Refresh Data"):
         st.cache_data.clear()
@@ -87,8 +106,12 @@ with col2:
             # Add Row_ID (Index + 2 to match Google Sheets row numbers)
             active_df['Row_ID'] = active_df.index + 2
             
-            # Show the table
-            st.dataframe(active_df, use_container_width=True)
+            # Show the table with specific formatting for easier reading
+            st.dataframe(
+                active_df[['Row_ID', 'Category', 'Description', 'QTY', 'Unit', 'Rate', 'Total_Cost']], 
+                use_container_width=True,
+                hide_index=True
+            )
             
             st.divider()
             
@@ -101,8 +124,8 @@ with col2:
                 ss = client.open_by_url(sheet_url)
                 ws = ss.worksheet(sheet_name)
                 
-                # Column 7 is the 'Status' column
-                ws.update_cell(int(row_to_archive), 7, "Archived")
+                # Column 9 is the new 'Status' column based on our new structure
+                ws.update_cell(int(row_to_archive), 9, "Archived")
                 
                 st.cache_data.clear()
                 st.warning(f"Row {row_to_archive} is now hidden.")
@@ -111,4 +134,4 @@ with col2:
             st.info("The sheet format is being updated. Please save a new calculation.")
 
     except Exception:
-        st.info("No active calculations found in this project yet.")
+        st.info("No active budget calculations found in this project yet.")
