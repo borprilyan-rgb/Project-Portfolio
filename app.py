@@ -47,7 +47,7 @@ with col1:
             "Result": res
         }
         
-            try:
+        try:
             # Reaching one level deeper to get the actual gspread client
             # Try this first:
             client = conn.client._client 
