@@ -36,40 +36,6 @@ with col3:
 
 st.markdown("---")
 
-st.markdown("---")
-
-# --- STEP 2: UNIT RATES (Changeable Numbers) ---
-st.subheader("💰 Unit Rates")
-col_rate1, col_rate2 = st.columns(2)
-
-with col_rate1:
-    # This is the "changeable number" for Earthwork
-    rate_earthwork = st.number_input("Earthwork Rate (per GBA m²)", min_value=0.0, value=100.0, step=1.0)
-
-# --- STEP 3: CALCULATIONS ---
-# Calculation for Earthwork: GBA (from Step 1) x Rate (from Step 2)
-total_earthwork = gba * rate_earthwork
-
-# --- STEP 4: HARD COST INFORMATION TABLE ---
-st.header("📊 Hard Cost")
-
-# We define the data, including our new Earthwork row
-hard_cost_data = {
-    "Description": ["1. Preliminary Works", "2. Earthwork"],
-    "Basis": ["5% of Hard Cost", f"{gba} m² (GBA) x {rate_earthwork}"],
-    "Amount": [0.0, total_earthwork] # Preliminary remains 0 until we have the full Hard Cost logic
-}
-
-df_hc = pd.DataFrame(hard_cost_data)
-
-# Formatting for display
-df_hc_display = df_hc.copy()
-df_hc_display["Amount"] = df_hc_display["Amount"].map("{:,.2f}".format)
-
-st.table(df_hc_display)
-
-st.markdown("---")
-
 # --- STEP 2: UNIT RATES (Changeable Numbers) ---
 st.subheader("💰 Unit Rates & Estimations")
 col_rate1, col_rate2 = st.columns(2)
