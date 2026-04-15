@@ -1,12 +1,13 @@
 import streamlit as st
+import pandas as pd
 
-# Page configuration
+# 1. MUST BE FIRST: Page configuration
 st.set_page_config(page_title="Complex Construction Calculator", layout="wide")
 
-st.title("🏗️ Project Dimension Calculator")
+st.title("🏗️ Project Dimension & Cost Calculator")
 st.markdown("---")
 
-# Using columns to organize the input fields
+# --- STEP 1: INPUT BOXES (Area Metrics) ---
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -35,32 +36,7 @@ with col3:
 
 st.markdown("---")
 
-# Creating a dictionary to store data for the next steps
-project_data = {
-    "Land Area": land_area,
-    "GBA": gba,
-    "GFA": gfa,
-    "SGFA": sgfa,
-    "Facade": facade,
-    "Rooms": rooms,
-    "Rooftop": rooftop,
-    "Lobby": lobby_interior,
-    "Glass Doors": door_glass,
-    "Wooden Doors": pintu_kayu,
-    "Steel Doors": pintu_besi,
-    "Facilities": facilities,
-    "Landscape": landscape,
-    "Boundary": boundary_wall,
-    "Road": access_road
-}
-
-# Display a summary table (optional, for verification)
-if st.checkbox("Show Data Summary"):
-    st.table([project_data])
-
-st.info("Inputs captured. Please provide the next set of instructions or calculation logic!")
-
-# --- STEP 2: UNIT RATES (Changeable Numbers) ---
+# --- STEP 2: UNIT RATES (The Changeable Numbers) ---
 st.subheader("💰 Unit Rates & Estimations")
 col_rate1, col_rate2, col_rate3 = st.columns(3)
 
@@ -71,30 +47,24 @@ with col_rate1:
 with col_rate2:
     rate_structural = st.number_input("Structural Work Rate (per GBA m²)", min_value=0.0, value=0.0)
 
-# --- SUB-SECTION: BASIC ARCHITECTURE ---
-st.markdown("#### 🏛️ Basic Architecture")
-col_arch1, col_arch2 = st.columns(2)
-
-with col_arch1:
-    # Dropdown to select project type
+with col_rate3:
+    st.markdown("**Basic Architecture**")
     project_type = st.selectbox(
         "Project Type",
         ["Hotel", "Retail", "Apartment", "Parking"]
     )
+    rate_architecture = st.number_input(f"Rate for {project_type} (per GFA m²)", min_value=0.0, value=0.0)
 
-with col_arch2:
-    # Changeable number for the architecture rate
-    rate_architecture = st.number_input(f"Architecture Rate for {project_type} (per GFA m²)", min_value=0.0, value=0.0)
+st.markdown("---")
 
 # --- STEP 3: CALCULATIONS ---
 total_earthwork = gba * rate_earthwork
 total_foundation = gba * rate_foundation
 total_structural = gba * rate_structural
-# Architecture uses GFA as requested
 total_architecture = gfa * rate_architecture
 
 # --- STEP 4: HARD COST INFORMATION TABLE ---
-st.header("📊 Hard Cost")
+st.header("📊 Hard Cost Table")
 
 hard_cost_data = {
     "Description": [
@@ -102,17 +72,17 @@ hard_cost_data = {
         "2. Earthwork", 
         "3. Foundation",
         "4. Structural Work",
-        f"5. Basic Architecture ({project_type})" # Dynamic Label
+        f"5. Basic Architecture ({project_type})"
     ],
     "Basis": [
         "5% of Hard Cost", 
         f"{gba:,.2f} m² (GBA) x {rate_earthwork:,.2f}", 
         f"{gba:,.2f} m² (GBA) x {rate_foundation:,.2f}",
         f"{gba:,.2f} m² (GBA) x {rate_structural:,.2f}",
-        f"{gfa:,.2f} m² (GFA) x {rate_architecture:,.2f}" # Uses GFA
+        f"{gfa:,.2f} m² (GFA) x {rate_architecture:,.2f}"
     ],
     "Amount": [
-        0.0, 
+        0.0, # Placeholder for now
         total_earthwork, 
         total_foundation,
         total_structural,
@@ -122,5 +92,5 @@ hard_cost_data = {
 
 df_hc = pd.DataFrame(hard_cost_data)
 
-# Displaying the table
+# Show the table
 st.table(df_hc.style.format({"Amount": "{:,.2f}"}))
