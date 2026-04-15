@@ -77,20 +77,4 @@ df_hc = pd.DataFrame(hard_cost_data)
 # Displaying the table with formatting
 st.table(df_hc.style.format({"Amount": "{:,.2f}"}))
 
-# --- STEP 2: HARD COST INFORMATION TABLE (Non-changeable) ---
-st.header("📊 Hard Cost")
 
-# Initializing the table with Preliminary Works
-# 'Amount' is 0 for now as we don't have the other components to calculate the 5%
-hard_cost_data = {
-    "Description": ["1. Preliminary Works"],
-    "Basis": ["5% of Hard Cost"],
-    "Amount": [0.0] 
-}
-
-df_hc = pd.DataFrame(hard_cost_data)
-
-# Displaying the information table
-st.table(df_hc)
-
-st.info("Preliminary Works added to the Hard Cost table. What is the next item?")
