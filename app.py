@@ -1,115 +1,119 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 
-# Set up page layout and title
-st.set_page_config(page_title="Budget Estimate Dashboard", layout="wide", page_icon="🏗️")
+# Hardcoded data extracted from the document
+raw_data = [
+    {'cost_type': 'HARD COST', 'main_item': 'PRELIMINARIES WORKS', 'description': 'PRELIMINARIES WORKS', 'qty': 5.0, 'unit': '%', 'rate': 1549932414153.24},
+    {'cost_type': 'HARD COST', 'main_item': 'EARTHWORKS', 'description': 'EARTHWORKS', 'qty': 179970.685, 'unit': 'm2 GBA', 'rate': 25000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'FOUNDATIONS', 'description': 'FOUNDATIONS', 'qty': 179970.685, 'unit': 'm2 GBA', 'rate': 400000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'STRUCTURAL WORKS', 'description': 'STRUCTURAL WORKS', 'qty': 179970.685, 'unit': 'm2 GBA', 'rate': 1933000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Basic Arsitektur', 'qty': 152658.99, 'unit': 'm2', 'rate': 1058000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Pintu Jendela Kaca', 'qty': 113432.1, 'unit': 'm2', 'rate': 1168897.04},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Precast', 'qty': 0.6, 'unit': 'm2', 'rate': 800000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Window Wall', 'qty': 0.3, 'unit': 'm2', 'rate': 1250000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Double Skin', 'qty': 0.1, 'unit': 'm2', 'rate': 2500000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Pintu Kaca', 'qty': 344.0, 'unit': 'm2', 'rate': 1000000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Railing', 'qty': 6305.0, 'unit': "m'", 'rate': 2200000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Skylight', 'qty': 0.0, 'unit': 'm2', 'rate': 4500000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Pintu Kayu', 'qty': 8992.0, 'unit': 'bh', 'rate': 3500000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Pintu Besi', 'qty': 1032.0, 'unit': 'bh', 'rate': 7000000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Interior Lobby / Korridor', 'qty': 15347.92, 'unit': 'm2', 'rate': 1500000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Gondola', 'qty': 15.0, 'unit': 'unit', 'rate': 600000000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'SBO - Sanitair', 'qty': 3783.0, 'unit': 'unit', 'rate': 27588686.23},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Unit Typical', 'qty': 3783.0, 'unit': 'unit', 'rate': 26875000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Public Wanita', 'qty': 15.0, 'unit': 'unit', 'rate': 98075000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Public Pria', 'qty': 15.0, 'unit': 'unit', 'rate': 77050000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Disable', 'qty': 0.0, 'unit': 'unit', 'rate': 30275000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Mushola', 'qty': 2.0, 'unit': 'unit', 'rate': 36500000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'SBO - Ironmongeries ', 'qty': 10024.0, 'unit': 'unit', 'rate': 863248.20},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Pintu Kayu (Sub)', 'qty': 8992.0, 'unit': 'unit', 'rate': 750000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Pintu Besi (Sub)', 'qty': 1032.0, 'unit': 'unit', 'rate': 1850000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'SBO - Keramik, HT & Marmer', 'qty': 201509.87, 'unit': 'm2 GFA', 'rate': 210000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'HT / CT', 'qty': 0.9, 'unit': 'm2', 'rate': 150000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Vinyl', 'qty': 0.0, 'unit': 'm2', 'rate': 750000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'ARCHITECTURAL WORKS', 'description': 'Marmer', 'qty': 0.1, 'unit': 'm2', 'rate': 750000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'F F & E', 'description': 'FF&E', 'qty': 1261.0, 'unit': 'unit', 'rate': 32000000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'F F & E', 'description': 'Lain2 : Linen chute & Gym Eqpmt', 'qty': 0.0, 'unit': 'ls', 'rate': 32000000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'M.E.P WORKS', 'description': 'M.E.P WORKS', 'qty': 179970.685, 'unit': 'm2 GBA', 'rate': 2810941.24},
+    {'cost_type': 'HARD COST', 'main_item': 'UTILITY CONNECTION', 'description': 'UTILITY CONNECTION', 'qty': 179970.685, 'unit': 'm2 GBA', 'rate': 92098.33},
+    {'cost_type': 'HARD COST', 'main_item': 'EXTERNAL WORKS', 'description': 'EXTERNAL WORKS', 'qty': 22496.935, 'unit': 'm2 AREA', 'rate': 1563000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'FACILITY', 'description': 'Fasos / Fasum', 'qty': 0.0, 'unit': 'm2', 'rate': 31000000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'FACILITY', 'description': 'Fasilitas Penghuni', 'qty': 2000.0, 'unit': 'm2', 'rate': 10000000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'FACILITY', 'description': 'Fasilitas Proyek', 'qty': 2.0, 'unit': 'unit', 'rate': 2000000000.0},
+    {'cost_type': 'HARD COST', 'main_item': 'CONTINGENCIES', 'description': 'CONTINGENCIES', 'qty': 3.0, 'unit': '%', 'rate': 1549932414153.24},
+    {'cost_type': 'SOFT COST', 'main_item': 'CONSULTANCY SERVICES FEE', 'description': 'Consultancy Services Unit', 'qty': 152658.99, 'unit': 'm2 GFA', 'rate': 174000.0},
+    {'cost_type': 'SOFT COST', 'main_item': 'CONSULTANCY SERVICES FEE', 'description': 'Consultancy Services Parkir', 'qty': 0.0, 'unit': 'm2 GFA', 'rate': 53000.0},
+    {'cost_type': 'SOFT COST', 'main_item': 'CONSULTANCY SERVICES FEE', 'description': 'Consultancy Operator', 'qty': 0.0, 'unit': 'm2 GFA', 'rate': 25000.0},
+    {'cost_type': 'SOFT COST', 'main_item': 'QS SERVICES', 'description': 'QS SERVICES', 'qty': 36.0, 'unit': 'bln', 'rate': 75000000.0},
+    {'cost_type': 'SOFT COST', 'main_item': 'PROJECT MANAGEMENT', 'description': 'PROJECT MANAGEMENT SERVICES', 'qty': 36.0, 'unit': 'bln', 'rate': 250000000.0},
+    {'cost_type': 'SOFT COST', 'main_item': 'INSURANCE COVERAGE', 'description': 'INSURANCE COVERAGE', 'qty': 0.12, 'unit': '%', 'rate': 1549932414153.24}
+]
 
-st.title("🏗️ Project Budget Estimate Dashboard")
-st.markdown("Interactive budget visualization for the **RWI.PALMBEACH.MIDRISE APARTEMENT** project.")
+def calculate_row_total(row):
+    """Calculates row logic. Handles % variations correctly"""
+    if '%' in str(row['Unit']):
+        return (row['Qty'] / 100.0) * row['Rate']
+    return row['Qty'] * row['Rate']
 
-# Optional File uploader for flexibility
-uploaded_file = st.file_uploader("Upload Budget CSV (Optional)", type=['csv'])
+st.set_page_config(page_title="Apartment Budget Calculator", layout="wide")
+st.title("🏗️ Project Budget Calculator")
+st.markdown("Edit the **Quantity (Qty)** or **Rate** below. The Totals and Grand Totals will compute automatically.")
 
-# Use the uploaded file or default to the local file
-file_path = uploaded_file if uploaded_file is not None else "calc.xlsx - APT.csv"
+# Convert to dataframe
+df = pd.DataFrame(raw_data)
+df.rename(columns={'cost_type': 'Cost Type', 'main_item': 'Category', 'description': 'Description', 'qty': 'Qty', 'unit': 'Unit', 'rate': 'Rate'}, inplace=True)
 
-try:
-    # ==========================================
-    # 1. Parse Summary Project Metrics (Top part)
-    # ==========================================
-    df_raw = pd.read_csv(file_path)
-    
-    st.header("📋 Project Key Metrics")
-    col1, col2, col3, col4 = st.columns(4)
-    
-    # Extract values based on the specific row/column format in the CSV
-    lahan = df_raw.iloc[7, 4]
-    gba = df_raw.iloc[8, 4]
-    gfa = df_raw.iloc[9, 4]
-    rooms = df_raw.iloc[12, 4]
-    
-    col1.metric("LAHAN (m²)", f"{float(lahan):,.2f}")
-    col2.metric("GBA", f"{float(gba):,.2f}")
-    col3.metric("GFA", f"{float(gfa):,.2f}")
-    col4.metric("ROOMS", str(rooms))
-    
-    st.divider()
+# Split into Hard Cost and Soft Cost
+df_hard = df[df['Cost Type'] == 'HARD COST'].drop(columns=['Cost Type']).reset_index(drop=True)
+df_soft = df[df['Cost Type'] == 'SOFT COST'].drop(columns=['Cost Type']).reset_index(drop=True)
 
-    # ==========================================
-    # 2. Parse Detailed Cost Data (Bottom part)
-    # ==========================================
-    # Skip the 15 header rows to get to the main tabular data
-    df_data = pd.read_csv(file_path, skiprows=15)
-    
-    # Rename columns for easier handling
-    df_data.columns = ['Empty', 'SN', 'Item_Name', 'Description', 'Code', 'Qty', 'Unit', 'Rate', 'Total', 'Remarks']
-    df_data = df_data.drop(columns=['Empty']) # Drop the leading empty column
-    
-    # Filter rows that represent the MAIN categories (where SN is a number like 1, 2, 3...)
-    main_cats = df_data[df_data['SN'].astype(str).str.match(r'^\d+$')].copy()
-    main_cats['Total'] = pd.to_numeric(main_cats['Total'], errors='coerce')
-    
-    # Distinguish between 'Hard Cost' and 'Soft Cost' using the "SOFT COST" row index
-    soft_cost_idx = df_data[df_data['SN'] == 'SOFT COST'].index
-    if len(soft_cost_idx) > 0:
-        idx_split = soft_cost_idx[0]
-        # Any row index greater than the "SOFT COST" label becomes a Soft Cost
-        main_cats['Cost Type'] = main_cats.index.map(lambda x: 'Soft Cost' if x > idx_split else 'Hard Cost')
-    else:
-        main_cats['Cost Type'] = 'Hard Cost'
+# --- HARD COST SECTION ---
+st.header("🧱 Hard Costs")
+edited_hard = st.data_editor(
+    df_hard,
+    use_container_width=True,
+    disabled=["Category", "Description", "Unit"], # Lock identifier columns
+    column_config={
+        "Qty": st.column_config.NumberColumn("Qty", format="%.2f"),
+        "Rate": st.column_config.NumberColumn("Rate (IDR)", format="%d"),
+    },
+    key="hard_cost_editor"
+)
 
-    # ==========================================
-    # 3. Visualizations
-    # ==========================================
-    st.header("📊 Cost Breakdown")
-    
-    col_fig1, col_fig2 = st.columns(2)
-    
-    # Bar Chart
-    fig_bar = px.bar(
-        main_cats, 
-        x='Item_Name', 
-        y='Total', 
-        color='Cost Type',
-        title="Total Cost by Category", 
-        text_auto='.2s',
-        labels={'Item_Name': 'Category', 'Total': 'Total Cost (IDR)'}
-    )
-    fig_bar.update_layout(xaxis_tickangle=-45)
-    col_fig1.plotly_chart(fig_bar, use_container_width=True)
-    
-    # Donut Chart
-    fig_pie = px.pie(
-        main_cats, 
-        names='Item_Name', 
-        values='Total', 
-        hole=0.4, 
-        title="Cost Distribution Share"
-    )
-    fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-    col_fig2.plotly_chart(fig_pie, use_container_width=True)
-    
-    st.divider()
+# Calculate Hard Cost Results
+edited_hard['Total'] = edited_hard.apply(calculate_row_total, axis=1)
+total_hard_cost = edited_hard['Total'].sum()
 
-    # ==========================================
-    # 4. Detailed Data Table
-    # ==========================================
-    st.header("📝 Detailed Data Table")
-    # Clean the display dataframe by removing completely blank rows
-    display_df = df_data.dropna(how='all', subset=['SN', 'Item_Name', 'Total']).reset_index(drop=True)
-    
-    # Format the Total and Rate columns for better readability
-    st.dataframe(
-        display_df.style.format({
-            "Rate": "{:,.2f}",
-            "Total": "{:,.2f}"
-        }), 
-        use_container_width=True,
-        height=400
-    )
+st.markdown(f"**💰 Total Hard Cost: `IDR {total_hard_cost:,.2f}`**")
+st.divider()
 
-except FileNotFoundError:
-    st.warning("⚠️ Please upload a CSV file or ensure `calc.xlsx - APT.csv` is in the same directory as this script.")
-except Exception as e:
-    st.error(f"❌ Error processing the file: {e}")
+# --- SOFT COST SECTION ---
+st.header("📐 Soft Costs")
+edited_soft = st.data_editor(
+    df_soft,
+    use_container_width=True,
+    disabled=["Category", "Description", "Unit"],
+    column_config={
+        "Qty": st.column_config.NumberColumn("Qty", format="%.2f"),
+        "Rate": st.column_config.NumberColumn("Rate (IDR)", format="%d"),
+    },
+    key="soft_cost_editor"
+)
+
+# Calculate Soft Cost Results
+edited_soft['Total'] = edited_soft.apply(calculate_row_total, axis=1)
+total_soft_cost = edited_soft['Total'].sum()
+
+st.markdown(f"**💰 Total Soft Cost: `IDR {total_soft_cost:,.2f}`**")
+st.divider()
+
+# --- GRAND TOTAL SUMMARY ---
+st.header("📊 Executive Summary")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(label="Total Hard Cost", value=f"IDR {total_hard_cost:,.0f}")
+with col2:
+    st.metric(label="Total Soft Cost", value=f"IDR {total_soft_cost:,.0f}")
+with col3:
+    st.metric(label="GRAND TOTAL", value=f"IDR {(total_hard_cost + total_soft_cost):,.0f}")
