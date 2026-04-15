@@ -41,42 +41,35 @@ with col1:
     st.metric("Result", res)
 
     # SAVE BUTTON
-    if st.button("💾 Save Calculation to Sheet"):
-        # Prepare the data
-        new_row = pd.DataFrame([{
-            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Project": sheet_name,
-            "Value_A": val_a,
-            "Operation": operation,
-            "Value_B": val_b,
-            "Result": res
-        }])
-        
-        try:
-            # Read existing data from that specific worksheet
-            existing_data = conn.read(worksheet=sheet_name)
-            updated_df = pd.concat([existing_data, new_row], ignore_index=True)
-        except:
-            # If sheet doesn't exist, this is the first row
-            updated_df = new_row
-            
-        # Write back to Google Sheets
-        conn.update(worksheet=sheet_name, data=updated_df)
-        st.success(f"Successfully saved to '{sheet_name}'!")
+import gspread # Add this to your imports at the top
 
-with col2:
-    st.subheader("Sheet History")
-    # Refresh button to pull latest data
-    if st.button("🔄 Refresh History"):
-        try:
-            df = conn.read(worksheet=sheet_name)
-            st.dataframe(df, use_container_width=True)
-            
-            # Download as CSV option for colleagues
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Download this Sheet", data=csv, file_name=f"{sheet_name}.csv")
-        except:
-            st.warning("No data found in this project yet.")
+if st.button("💾 Save Calculation to Sheet"):
+    new_row = pd.DataFrame([{
+        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "Project": sheet_name,
+        "Value_A": val_a,
+        "Operation": operation,
+        "Value_B": val_b,
+        "Result": res
+    }])
+    
+    # 1. Get the underlying spreadsheet object
+    spreadsheet = conn.client._open_spreadsheet(conn._spreadsheet)
+    
+    try:
+        # 2. Try to find the worksheet
+        worksheet = spreadsheet.worksheet(sheet_name)
+        existing_data = conn.read(worksheet=sheet_name)
+        updated_df = pd.concat([existing_data, new_row], ignore_index=True)
+    except gspread.exceptions.WorksheetNotFound:
+        # 3. If it doesn't exist, create it!
+        spreadsheet.add_worksheet(title=sheet_name, rows="100", cols="20")
+        updated_df = new_row
+        st.info(f"Created new tab: {sheet_name}")
+
+    # 4. Save the data
+    conn.update(worksheet=sheet_name, data=updated_df)
+    st.success(f"Saved to {sheet_name}!")
 
 # --- DELETE FUNCTION ---
 st.sidebar.markdown("---")
