@@ -1,81 +1,87 @@
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 import pandas as pd
+from datetime import datetime
 
-# --- 1. DATA EXTRACTION ---
-data_retail_pria = {
-    "Item": ["CLOSET", "JET WASHER", "WASTAFEL +kran", "Vanity", "Cubicle", "Hand Dryer", "FLOOR DRAIN", "Robe hook & Tissue Holder", "Urinoir", "Partisi Urinoir"],
-    "Unit": [3, 3, 3, 3, 3, 2, 9, 3, 3, 3],
-    "Unit Price (Rp)": [7000000, 900000, 5000000, 6000000, 15000000, 1050000, 400000, 275000, 3500000, 2500000],
-    "Total (Rp)": [21000000, 2700000, 15000000, 18000000, 45000000, 2100000, 3600000, 825000, 10500000, 7500000]
-}
+# --- APP CONFIG ---
+st.set_page_config(page_title="Pro Calculator", layout="wide")
 
-data_retail_wanita = {
-    "Item": ["CLOSET", "JET WASHER", "WASTAFEL +kran", "Vanity", "Cubicle", "Hand Dryer", "FLOOR DRAIN", "Robe hook & Tissue Holder"],
-    "Unit": [5, 5, 3, 3, 5, 2, 8, 5],
-    "Unit Price (Rp)": [7000000, 900000, 5000000, 6000000, 15000000, 1050000, 400000, 275000],
-    "Total (Rp)": [35000000, 4500000, 15000000, 18000000, 75000000, 2100000, 3200000, 1375000]
-}
+# --- CONNECTION ---
+# This looks for credentials in your Streamlit Secrets
+conn = st.connection("gsheets", type=GSheetsConnection)
 
-data_hotel_pria = {
-    "Item": ["CLOSET", "JET WASHER", "WASTAFEL +kran", "Vanity", "Cubicle", "Hand Dryer", "FLOOR DRAIN", "Robe hook & Tissu Holder", "Urinoir", "Partisi Urinoir"],
-    "Unit": [2, 2, 2, 2, 2, 2, 9, 2, 2, 2],
-    "Unit Price (Rp)": [7000000, 900000, 5000000, 6000000, 15000000, 1050000, 400000, 275000, 3500000, 2500000],
-    "Total (Rp)": [14000000, 1800000, 10000000, 12000000, 30000000, 2100000, 3600000, 550000, 7000000, 5000000]
-}
+# --- SIDEBAR: SHEET MANAGEMENT ---
+st.sidebar.title("📁 Project Management")
 
-data_hotel_wanita = {
-    "Item": ["CLOSET", "JET WASHER", "WASTAFEL +kran", "Vanity", "Cubicle", "Hand Dryer", "FLOOR DRAIN", "Robe hook & Tissu Holder"],
-    "Unit": [3, 3, 3, 3, 3, 2, 8, 3],
-    "Unit Price (Rp)": [7000000, 900000, 5000000, 6000000, 15000000, 1050000, 400000, 275000],
-    "Total (Rp)": [21000000, 2700000, 15000000, 18000000, 45000000, 2100000, 3200000, 825000]
-}
+# Let users define the sheet name
+sheet_name = st.sidebar.text_input("Project/Sheet Name", value="General_Calculations")
+st.sidebar.info("If the sheet name doesn't exist, it will be created on save.")
 
-# --- 2. HELPER FUNCTIONS ---
-def format_currency(val):
-    """Formats numbers to standard comma-separated values."""
-    return f"{val:,.0f}"
+# --- CALCULATOR LOGIC ---
+st.title("🔢 Advanced Calculator")
 
-# --- 3. STREAMLIT UI SETUP ---
-st.set_page_config(page_title="Budget Database Toilet", layout="wide")
-st.title("Database Estimasi Biaya Toilet Publik")
+col1, col2 = st.columns(2)
 
-# Sidebar navigation
-st.sidebar.header("Pilih Kategori Toilet")
-category = st.sidebar.radio(
-    "Navigasi Data:",
-    ("Publik Toilet RETAIL - Pria",
-     "Publik Toilet RETAIL - Wanita",
-     "Publik Toilet Hotel - Pria",
-     "Publik Toilet Hotel - Wanita")
-)
-
-# --- 4. LOGIC & DISPLAY ---
-# Map the selection to the correct data and assign the grand total
-if category == "Publik Toilet RETAIL - Pria":
-    df = pd.DataFrame(data_retail_pria)
-    grand_total = df["Total (Rp)"].sum()
+with col1:
+    st.subheader("Inputs")
+    val_a = st.number_input("Value A", value=0.0)
+    val_b = st.number_input("Value B", value=0.0)
+    operation = st.selectbox("Operation", ["Add", "Subtract", "Multiply", "Divide"])
     
-    print(f"Grand Total: Rp {grand_total:,}")
-elif category == "Publik Toilet RETAIL - Wanita":
-    df = pd.DataFrame(data_retail_wanita)
-    grand_total = 154175000
-elif category == "Publik Toilet Hotel - Pria":
-    df = pd.DataFrame(data_hotel_pria)
-    grand_total = 86050000
-else:
-    df = pd.DataFrame(data_hotel_wanita)
-    grand_total = 107825000
+    # Simple calculation logic
+    if operation == "Add":
+        res = val_a + val_b
+    elif operation == "Subtract":
+        res = val_a - val_b
+    elif operation == "Multiply":
+        res = val_a * val_b
+    else:
+        res = val_a / val_b if val_b != 0 else "Error (Div by 0)"
 
-# Format the numerical columns to look like standard currency
-df_display = df.copy()
-df_display['Unit Price (Rp)'] = df_display['Unit Price (Rp)'].apply(format_currency)
-df_display['Total (Rp)'] = df_display['Total (Rp)'].apply(format_currency)
+    st.metric("Result", res)
 
-# Render the layout
-st.subheader(category)
+    # SAVE BUTTON
+    if st.button("💾 Save Calculation to Sheet"):
+        # Prepare the data
+        new_row = pd.DataFrame([{
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Project": sheet_name,
+            "Value_A": val_a,
+            "Operation": operation,
+            "Value_B": val_b,
+            "Result": res
+        }])
+        
+        try:
+            # Read existing data from that specific worksheet
+            existing_data = conn.read(worksheet=sheet_name)
+            updated_df = pd.concat([existing_data, new_row], ignore_index=True)
+        except:
+            # If sheet doesn't exist, this is the first row
+            updated_df = new_row
+            
+        # Write back to Google Sheets
+        conn.update(worksheet=sheet_name, data=updated_df)
+        st.success(f"Successfully saved to '{sheet_name}'!")
 
-# Using st.dataframe allows users to sort columns and scroll if needed
-st.dataframe(df_display, use_container_width=True, hide_index=True)
+with col2:
+    st.subheader("Sheet History")
+    # Refresh button to pull latest data
+    if st.button("🔄 Refresh History"):
+        try:
+            df = conn.read(worksheet=sheet_name)
+            st.dataframe(df, use_container_width=True)
+            
+            # Download as CSV option for colleagues
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Download this Sheet", data=csv, file_name=f"{sheet_name}.csv")
+        except:
+            st.warning("No data found in this project yet.")
 
-# Render the Grand Total at the bottom
-st.markdown(f"### Total Keseluruhan: **Rp {format_currency(grand_total)}**")
+# --- DELETE FUNCTION ---
+st.sidebar.markdown("---")
+if st.sidebar.button("🗑️ Clear Current Sheet"):
+    # In GSheets, we 'clear' by writing an empty header-only dataframe
+    empty_df = pd.DataFrame(columns=["Timestamp", "Project", "Value_A", "Operation", "Value_B", "Result"])
+    conn.update(worksheet=sheet_name, data=empty_df)
+    st.sidebar.success(f"Cleared {sheet_name}")
