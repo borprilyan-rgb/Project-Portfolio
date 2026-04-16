@@ -181,5 +181,20 @@ df_hc = pd.DataFrame(hard_cost_data)
 st.dataframe(
     df_hc.style.format({"Amount": "{:,.2f}"}),
     use_container_width=True,
-    hide_index=True
+    hide_index=True,
+    column_config={
+        "Description": st.column_config.TextColumn(
+            "Description",
+            width="medium",  # Prevents it from taking up the whole screen
+        ),
+        "Basis": st.column_config.TextColumn(
+            "Basis",
+            width="small",   # Keeps the math breakdown compact
+        ),
+        "Amount": st.column_config.NumberColumn(
+            "Amount (Rp)",
+            format="%.2f",
+            width="medium",  # Ensures the full number is visible
+        ),
+    }
 )
