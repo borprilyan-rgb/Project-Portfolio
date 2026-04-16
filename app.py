@@ -241,13 +241,13 @@ hard_cost_data = {
 df_hc = pd.DataFrame(hard_cost_data)
 
 st.header("Hard Cost Table")
-    st.dataframe(
-        df_hc,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Description": st.column_config.TextColumn("Description", width="medium"),
-            "Basis": st.column_config.TextColumn("Basis", width="small"),
-            "Amount": st.column_config.NumberColumn("Amount (Rp)", format="Rp %,.2f", width="medium"),
-        }
-    )
+st.dataframe(
+    df_hc,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "Description": st.column_config.TextColumn("Description", width="medium"),
+        "Basis": st.column_config.TextColumn("Basis", width="small"),
+        "Amount": st.column_config.NumberColumn("Amount (Rp)", format="Rp %,.2f", width="medium"),
+    }
+)
