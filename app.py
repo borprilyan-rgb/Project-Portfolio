@@ -217,80 +217,60 @@ total_lobby = total_gondola = 0.0
 total_unit_typical = total_toil_male = total_toil_female = total_disabled = total_mushola = 0.0
 
 # --- STEP 3: THE CALCULATE BUTTON ---
-t_preliminary = t_earth = t_found = t_struc = t_arch_base = 0.0
-t_precast = t_window = t_double = t_w_door = t_g_door = t_s_door = 0.0
-t_lobby = t_gondola = t_unit_san = t_t_male = t_t_female = t_t_dis = 0.0
-t_mushola = t_kitchen = t_hw_w = t_hw_s = t_ht = t_vinyl = t_marmer = 0.0
-t_carpet = t_glass_work = t_ffe = t_misc = t_mep = t_external = 0.0
-t_pub_fac = t_res_fac = t_proj_fac = t_contingency = 0.0
-grand_total_hc = 0.0
 if st.button("Run Calculation", type="primary", use_container_width=True):
-    # Mapping
-    extra = dict(zip(edit_extra["Description"], edit_extra["Value"]))
-    fac = dict(zip(edit_fac["Description"], edit_fac["Value"]))
-    f_pct = dict(zip(edit_floor_pct["Type"], edit_floor_pct["Ratio (%)"]))
-    
-    # 1. Basic Structure & Arch
-    t_earth = gba * rate_earthwork
-    t_found = gba * rate_foundation
-    t_struc = gba * rate_structural
-    t_arch_base = gfa * rate_architecture
-    
-    # 2. Facade
-    t_precast = facade * (precast_p/100) * rate_precast
-    t_window = facade * (window_p/100) * rate_window
-    t_double = facade * (double_p/100) * rate_double
-    
-    # 3. Doors, Lobby, Gondola
-    t_w_door = w_door * rate_wooden_door
-    t_g_door = g_door * rate_glass_door
-    t_s_door = s_door * rate_steel_door
-    t_lobby = lobby_m2 * rate_lobby
-    t_gondola = gondola_u * rate_gondola
-    
-    # 4. Sanitary
-    t_unit_san = rooms * ratio_typical * rate_unit_typical
-    t_t_male, t_t_female = t_male * rate_toil_male, t_female * rate_toil_female
-    t_t_dis, t_mushola = t_dis * rate_disabled, mushola * rate_mushola
-    
-    # 5. New Architecture Items (Hardware, Kitchen, Flooring)
-    t_kitchen = rooms * extra["Kitchen Equipment (Rate/Room)"]
-    t_hw_w = w_door * extra["Hardware Pintu Kayu (Rate/Door)"]
-    t_hw_s = s_door * extra["Hardware Pintu Besi (Rate/Door)"]
-    
-    f_mult = 1.1 * 1.2 # Waste & Margin
-    t_ht = gfa * (f_pct["Homogenous/Ceramic Tile"]/100) * extra["Homogenous Tile Rate (m2)"] * f_mult
-    t_vinyl = gfa * (f_pct["Vinyl"]/100) * extra["Vinyl Rate (m2)"] * f_mult
-    t_marmer = gfa * (f_pct["Marmer"]/100) * extra["Marmer Rate (m2)"] * f_mult
-    
-    t_carpet = carpet_m2 * extra["Carpet Rate (m2)"]
-    t_glass_work = glass_m2 * extra["Glasses Rate (m2)"]
-    
-    # 6. FF&E, MEP, External, Facilities
-    t_ffe = rooms * extra["FF&E (Rate/Room)"]
-    t_misc = 1 * extra["Misc (Linen/Gym - Lump Sum)"]
-    t_mep = gba * extra["MEP Works (Rate/GBA)"]
-    t_external = land_m2 * fac["External Works (Rate/Landscape)"]
-    t_pub_fac = pub_fac_m2 * fac["Public Facilities (Rate/m2)"]
-    t_res_fac = deck_m2 * fac["Resident Facilities (Rate/Fac Deck)"]
-    t_proj_fac = proj_fac_u * fac["Project Facilities (Rate/Unit)"]
+    # ... (Keep all your t_ calculations here) ...
+    t_preliminary = t_earth = t_found = t_struc = t_arch_base = 0.0
+    t_precast = t_window = t_double = t_w_door = t_g_door = t_s_door = 0.0
+    t_lobby = t_gondola = t_unit_san = t_t_male = t_t_female = t_t_dis = 0.0
+    t_mushola = t_kitchen = t_hw_w = t_hw_s = t_ht = t_vinyl = t_marmer = 0.0
+    t_carpet = t_glass_work = t_ffe = t_misc = t_mep = t_external = 0.0
+    t_pub_fac = t_res_fac = t_proj_fac = t_contingency = 0.0
+    grand_total_hc = None
+    # --- DEFINE DICTIONARY INSIDE BUTTON ---
+    hard_cost_data = {
+        "Description": [
+            "1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work",
+            "5. Basic Architecture", "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin",
+            "9. Wooden Doors", "10. Glass Doors", "11. Steel Doors", "12. Lobby Interior", "13. Gondola",
+            "14. Typical Unit Sanitary", "15. Public Toilet Male", "16. Public Toilet Female", "17. Disabled Toilet", "18. Mushola",
+            "19. Kitchen Equipment", "20. Hardware Pintu Kayu", "21. Hardware Pintu Besi", "22. HT/Ceramic Tile",
+            "23. Vinyl Flooring", "24. Marmer Flooring", "25. Carpet Work", "26. Glass Work", "27. FF&E",
+            "28. Misc. (Linen/Gym)", "29. MEP Works", "30. External Works", "31. Public Facilities",
+            "32. Resident Facilities", "33. Project Facilities", "34. Contingencies"
+        ],
+        "Basis": [
+            "5% Subtotal", f"{gba:,.0f}m2 x {rate_earthwork:,.0f}", f"{gba:,.0f}m2 x {rate_foundation:,.2f}", f"{gba:,.0f}m2 x {rate_structural:,.2f}",
+            f"{gfa:,.0f}m2 x {rate_architecture:,.0f}", "Facade Area %", "Facade Area %", "Facade Area %",
+            f"{w_door} units", f"{g_door} units", f"{s_door} units", f"{lobby_m2} m2", f"{gondola_u} units",
+            f"{rooms} rms x {ratio_typical}", f"{t_male} units", f"{t_female} units", f"{t_dis} units", f"{mushola} units",
+            f"{rooms} rooms", f"{w_door} doors", f"{s_door} doors", "GFA x % x 1.32", "GFA x % x 1.32", "GFA x % x 1.32",
+            f"{carpet_m2} m2", f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2 (GBA)",
+            f"{land_m2} m2", f"{pub_fac_m2} m2", f"{deck_m2} m2", f"{proj_fac_u} units", "3% Subtotal"
+        ],
+        "Amount": [
+            t_preliminary, t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double,
+            t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
+            t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, t_ht, t_vinyl,
+            t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_external,
+            t_pub_fac, t_res_fac, t_proj_fac, t_contingency
+        ]
+    }
 
-    # 7. Totals (Subtotal excluding Item 1 and Item 16)
-    subtotal_for_pct = sum([
-        t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double,
-        t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
-        t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, t_ht, t_vinyl,
-        t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_external,
-        t_pub_fac, t_res_fac, t_proj_fac
-    ])
-    
-    t_contingency = subtotal_for_pct * 0.03
-    t_preliminary = subtotal_for_pct * 0.05
-    
-    grand_total_hc = subtotal_for_pct + t_contingency + t_preliminary
+    # --- DISPLAY TABLE INSIDE BUTTON ---
+    df_hc = pd.DataFrame(hard_cost_data)
+    st.header("Hard Cost Table")
+    st.dataframe(
+        df_hc,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Description": st.column_config.TextColumn("Description", width="medium"),
+            "Basis": st.column_config.TextColumn("Basis", width="small"),
+            "Amount": st.column_config.NumberColumn("Amount (Rp)", format="Rp %,.2f", width="medium"),
+        }
+    )
     
     st.success("Calculations updated successfully!")
-
     # --- STEP 4: HARD COST TABLE ---
     st.header("Hard Cost Table")
 
