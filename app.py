@@ -55,8 +55,14 @@ st.sidebar.header("Project Setup")
 project_type = st.sidebar.selectbox("Select Project Type", ["Hotel", "Retail", "Apartment", "Parking"])
 pt_data = PROJECT_DEFAULTS[project_type]
 
-# --- TABS LAYOUT ---
-tab1, tab2, tab3, tab4 = st.tabs(["🏗️ 1. Project Metrics", "🧮 2. Ratios & Multipliers", "💰 3. Unit Rates", "📊 4. Results & Summary"])
+# --- TABS LAYOUT (UPDATED TO 5 TABS) ---
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "🏗️ 1. Project Metrics", 
+    "🧮 2. Ratios & Multipliers", 
+    "💰 3. Unit Rates", 
+    "💼 4. Soft Costs", 
+    "📊 5. Results & Summary"
+])
 
 # --- TAB 1: PROJECT METRICS ---
 with tab1:
@@ -191,7 +197,8 @@ with tab3:
         fac_res_rate = c1.number_input("Resident Facilities (m2)", value=pt_data["fac_res"])
         fac_proj_rate = c2.number_input("Project Facilities (Unit)", value=pt_data["fac_proj"])
 
-# --- LIVE AUTO-CALCULATIONS ---
+
+# --- LIVE AUTO-CALCULATIONS (HARD COSTS) ---
 t_earth = gba * struc_earth
 t_found = gba * struc_found
 t_struc = gba * struc_work
@@ -218,7 +225,7 @@ t_hw_w    = wooden_door * hw_wood
 t_hw_s    = steel_door * hw_steel
 
 f_mult = 1.32
-t_ht     = gfa * (fl_ht_pct / 100) * fl_ht_rate * f_mult
+t_ht      = gfa * (fl_ht_pct / 100) * fl_ht_rate * f_mult
 t_vinyl  = gfa * (fl_vinyl_pct / 100) * fl_vinyl_rate * f_mult
 t_marmer = gfa * (fl_marmer_pct / 100) * fl_marmer_rate * f_mult
 
@@ -250,7 +257,7 @@ t_contingency = construction_subtotal * 0.03
 grand_total_hc = construction_subtotal + t_preliminary + t_contingency
 
 
-# --- INJECT TOTAL INTO TOP PLACEHOLDER (MOBILE WRAP FIX) ---
+# --- INJECT HARD COST TOTAL INTO TOP PLACEHOLDER (MOBILE WRAP FIX) ---
 with total_cost_placeholder:
     st.markdown(f"""
         <div style="background-color: #262730; padding: 15px; border-radius: 8px; border: 1px solid #4B4C55;">
@@ -262,16 +269,7 @@ with total_cost_placeholder:
     """, unsafe_allow_html=True)
 
 
-# Chart Groupings
-group_structure = t_earth + t_found + t_struc
-group_arch = t_arch_base + t_w_door + t_g_door + t_s_door + t_lobby + t_ht + t_vinyl + t_marmer + t_carpet + t_glass_work + t_kitchen + t_hw_w + t_hw_s + t_railing + t_skylight
-group_facade = t_precast + t_window + t_double + t_gondola
-group_sanitary = t_unit_san + t_t_male + t_t_female + t_t_dis + t_mushola
-group_mep = t_ffe + t_misc + t_mep + t_utility
-group_ext = t_external + t_pub_fac + t_res_fac + t_proj_fac
-group_contingency = t_preliminary + t_contingency
-
-# --- TAB 4: RESULTS & SUMMARY ---
+# --- TAB 4: SOFT COSTS SETUP (NEW TAB) ---
 with tab4:
     st.subheader("Soft Costs Setup")
     sc_col1, sc_col2 = st.columns(2)
@@ -292,18 +290,29 @@ with tab4:
         st.markdown("##### 4. Insurance Coverage")
         insurance_pct = st.number_input("Insurance (% of Hard Cost Exclude Prelim/Contingency)", value=0.12, step=0.01)
 
-    # --- SOFT COST CALCULATIONS ---
-    t_consultancy = gfa * consultancy_rate
-    t_qs = qs_months * qs_rate
-    t_pm = pm_months * pm_rate
-    t_insurance = construction_subtotal * (insurance_pct / 100.0)
-    
-    total_soft_cost = t_consultancy + t_qs + t_pm + t_insurance
-    grand_total_project = grand_total_hc + total_soft_cost
+# --- SOFT COST CALCULATIONS ---
+t_consultancy = gfa * consultancy_rate
+t_qs = qs_months * qs_rate
+t_pm = pm_months * pm_rate
+t_insurance = construction_subtotal * (insurance_pct / 100.0)
 
+total_soft_cost = t_consultancy + t_qs + t_pm + t_insurance
+grand_total_project = grand_total_hc + total_soft_cost
+
+# Chart Groupings
+group_structure = t_earth + t_found + t_struc
+group_arch = t_arch_base + t_w_door + t_g_door + t_s_door + t_lobby + t_ht + t_vinyl + t_marmer + t_carpet + t_glass_work + t_kitchen + t_hw_w + t_hw_s + t_railing + t_skylight
+group_facade = t_precast + t_window + t_double + t_gondola
+group_sanitary = t_unit_san + t_t_male + t_t_female + t_t_dis + t_mushola
+group_mep = t_ffe + t_misc + t_mep + t_utility
+group_ext = t_external + t_pub_fac + t_res_fac + t_proj_fac
+group_contingency = t_preliminary + t_contingency
+
+# --- TAB 5: RESULTS & SUMMARY (WAS TAB 4) ---
+with tab5:
     st.markdown("---")
     
-    # MOBILE WRAP FIX for Subtotal and Grand Totals in Tab 4
+    # MOBILE WRAP FIX for Subtotal and Grand Totals in Tab 5
     st.markdown(f"""
         <div style="margin-bottom: 20px;">
             <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Hard Cost (Exclude Preliminary & Contingency)</div>
@@ -354,7 +363,7 @@ with tab4:
 
     st.markdown("---")
 
-    # Detailed Table Expander (Updated with Soft Costs)
+    # Detailed Table Expander
     with st.expander("View Detailed Project Cost Table"):
         raw_amounts = [
             t_preliminary, t_earth, t_found, t_struc, t_arch_base,
@@ -399,8 +408,7 @@ with tab4:
         st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
 
 # --- IMPORTANT: MOVE YOUR TOTAL COST PLACEHOLDER FILLER DOWN HERE ---
-# Because grand_total_project is calculated in Tab 4, you need to populate 
-# the top-of-page container AFTER Tab 4 finishes executing.
+# Because grand_total_project is calculated AFTER Tab 4 finishes executing.
 with total_cost_placeholder:
     st.markdown(f"""
         <div style="background-color: #262730; padding: 15px; border-radius: 8px; border: 1px solid #4B4C55;">
