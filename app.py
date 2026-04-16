@@ -240,7 +240,7 @@ hard_cost_data = {
 
 df_hc = pd.DataFrame(hard_cost_data)
 
-    st.header("Hard Cost Table")
+st.header("Hard Cost Table")
     st.dataframe(
         df_hc,
         use_container_width=True,
