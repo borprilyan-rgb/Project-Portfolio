@@ -1,55 +1,52 @@
 import streamlit as st
 import pandas as pd
 
-# 1. MUST BE FIRST: Page configuration
+# 1. Page configuration
 st.set_page_config(page_title="Complex Construction Calculator", layout="wide")
 
 st.title("Project Dimension and Cost Calculator")
 st.markdown("---")
 
-# --- STEP 1: INPUT BOXES (Area Metrics) ---
+# --- STEP 1: PROJECT METRICS ---
 st.subheader("Project Metrics Input")
 st.caption("Tip: You can copy values from Excel and paste them directly into this table.")
 
-# Create a default structure for the input
 initial_metrics = {
     "Metric": ["Land Area (m2)", "GBA (m2)", "GFA (m2)", "SGFA (m2)", "Facade (m2)", 
                "Room (unit)", "Glass Door (unit)", "Wooden Door (unit)", 
                "Steel Door (unit)", "Lobby Interior (m2)", "Gondola (unit)"],
     "Value": [0.0] * 11
 }
+df_metrics = pd.DataFrame(initial_metrics)
 
-# Use data_editor to allow Excel-like copy/paste
+# Use data_editor
 edited_df = st.data_editor(
-    df_input, 
+    df_metrics, # Fixed: was df_input
     use_container_width=True, 
     hide_index=True,
     column_config={
-        "Metric": st.column_config.TextColumn(disabled=True), # Prevent editing names
+        "Metric": st.column_config.TextColumn(disabled=True),
         "Value": st.column_config.NumberColumn(format="%.2f")
     }
 )
 
-# --- MAP EDITED VALUES TO YOUR VARIABLES ---
-# This part "unpacks" the table back into your calculation variables
 metrics_dict = dict(zip(edited_df["Metric"], edited_df["Value"]))
 
-land_area = metrics_dict.get("Land Area (m2)", 0.0)
-gba = metrics_dict.get("GBA (m2)", 0.0)
-gfa = metrics_dict.get("GFA (m2)", 0.0)
-sgfa = metrics_dict.get("SGFA (m2)", 0.0)
-facade = metrics_dict.get("Facade (m2)", 0.0)
-rooms = metrics_dict.get("Room (unit)", 0.0)
-glass_door = metrics_dict.get("Glass Door (unit)", 0.0)
-wooden_door = metrics_dict.get("Wooden Door (unit)", 0.0)
-steel_door = metrics_dict.get("Steel Door (unit)", 0.0)
+land_area      = metrics_dict.get("Land Area (m2)", 0.0)
+gba            = metrics_dict.get("GBA (m2)", 0.0)
+gfa            = metrics_dict.get("GFA (m2)", 0.0)
+sgfa           = metrics_dict.get("SGFA (m2)", 0.0)
+facade         = metrics_dict.get("Facade (m2)", 0.0)
+rooms          = metrics_dict.get("Room (unit)", 0.0)
+glass_door     = metrics_dict.get("Glass Door (unit)", 0.0)
+wooden_door    = metrics_dict.get("Wooden Door (unit)", 0.0)
+steel_door     = metrics_dict.get("Steel Door (unit)", 0.0)
 lobby_interior = metrics_dict.get("Lobby Interior (m2)", 0.0)
-gondola_unit = metrics_dict.get("Gondola (unit)", 0.0)
-    
+gondola_unit   = metrics_dict.get("Gondola (unit)", 0.0)
+
 st.markdown("---")
 
-# --- STEP 2: UNIT RATES & ESTIMATIONS ---
-# --- STEP 2: UNIT RATES & ESTIMATIONS ---
+# --- STEP 2: UNIT RATES ---
 st.subheader("Unit Rates and Estimations")
 project_type = st.selectbox("Project Type", ["Hotel", "Retail", "Apartment", "Parking"])
 
@@ -82,42 +79,20 @@ df_arch = pd.DataFrame({
 })
 edit_arch = st.data_editor(df_arch, use_container_width=True, hide_index=True, key="ed_arch")
 
-df_rates = pd.DataFrame(initial_rates)
-
-# Data Editor for Rates
-edited_rates_df = st.data_editor(
-    df_rates,
-    use_container_width=True,
-    hide_index=True,
-    key="rates_editor",
-    column_config={
-        "Rate Description": st.column_config.TextColumn(disabled=True),
-        "Value": st.column_config.NumberColumn(format="%.2f")
-    }
-)
-
 # --- MAP EDITED RATES TO VARIABLES ---
-# Merge all edited dataframes into one dictionary for easy lookup
 all_rates = pd.concat([edit_struc, edit_fac_pct, edit_arch])
 rates_dict = dict(zip(all_rates["Description"], all_rates["Value"]))
 
-# --- 1. STRUCTURE SECTION ---
 rate_earthwork     = rates_dict.get("Earthwork Rate (per GBA m2)", 0.0)
 rate_foundation    = rates_dict.get("Foundation Rate (per GBA m2)", 0.0)
 rate_structural    = rates_dict.get("Structural Work Rate (per GBA m2)", 0.0)
-
-# --- 2. FACADE PERCENTAGE SECTION ---
 precast_p          = rates_dict.get("Precast (%)", 0.0)
 window_p           = rates_dict.get("Window Wall (%)", 0.0)
 double_p           = rates_dict.get("Double Skin (%)", 0.0)
-
-# --- 3. ARCHITECTURE SECTION ---
 rate_architecture  = rates_dict.get("Architecture Rate (per GFA m2)", 0.0)
 rate_precast       = rates_dict.get("Precast Rate (per m2)", 0.0)
 rate_window        = rates_dict.get("Window Wall Rate (per m2)", 0.0)
 rate_double        = rates_dict.get("Double Skin Rate (per m2)", 0.0)
-
-# Project Specifics (Dynamic Keys)
 rate_wooden_door   = rates_dict.get(f"Wooden Door Rate ({project_type})", 0.0)
 rate_glass_door    = rates_dict.get(f"Glass Door Rate ({project_type})", 0.0)
 rate_steel_door    = rates_dict.get(f"Steel Door Rate ({project_type})", 0.0)
@@ -127,20 +102,20 @@ rate_gondola       = rates_dict.get(f"Gondola Rate ({project_type})", 0.0)
 st.markdown("---")
 
 # --- STEP 3: CALCULATIONS ---
-total_earthwork = gba * rate_earthwork
-total_foundation = gba * rate_foundation
-total_structural = gba * rate_structural
+total_earthwork    = gba * rate_earthwork
+total_foundation   = gba * rate_foundation
+total_structural   = gba * rate_structural
 total_architecture = gfa * rate_architecture
-total_precast = facade * (precast_p / 100) * rate_precast
-total_window = facade * (window_p / 100) * rate_window
-total_double_skin = facade * (double_p / 100) * rate_double
+total_precast      = facade * (precast_p / 100) * rate_precast
+total_window       = facade * (window_p / 100) * rate_window
+total_double_skin  = facade * (double_p / 100) * rate_double
 total_wooden_doors = wooden_door * rate_wooden_door
-total_glass_doors = glass_door * rate_glass_door
-total_steel_doors = steel_door * rate_steel_door
-total_lobby = lobby_interior * rate_lobby
-total_gondola = gondola_unit * rate_gondola
+total_glass_doors  = glass_door * rate_glass_door
+total_steel_doors  = steel_door * rate_steel_door
+total_lobby        = lobby_interior * rate_lobby
+total_gondola      = gondola_unit * rate_gondola
 
-# --- STEP 4: HARD COST INFORMATION TABLE ---
+# --- STEP 4: HARD COST TABLE ---
 st.header("Hard Cost Table")
 
 hard_cost_data = {
@@ -171,7 +146,7 @@ hard_cost_data = {
         f"{wooden_door} units x {rate_wooden_door:,.2f}",
         f"{glass_door} units x {rate_glass_door:,.2f}",
         f"{steel_door} units x {rate_steel_door:,.2f}",
-        f"{lobby_interior:,.2f} m2 (Lobby) x {rate_lobby:,.2f}",
+        f"{lobby_interior:,.2f} m2 x {rate_lobby:,.2f}",
         f"{gondola_unit} units x {rate_gondola:,.2f}"
     ],
     "Amount": [
