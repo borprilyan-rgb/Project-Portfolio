@@ -218,7 +218,7 @@ hard_cost_data = {
         total_glass_doors,
         total_steel_doors,
         total_lobby,
-        total_gondola
+        total_gondola,
         total_unit_typical,
         total_toil_male,
         total_toil_female,
