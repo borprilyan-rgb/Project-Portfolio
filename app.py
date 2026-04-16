@@ -90,9 +90,9 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     
     # 2. Facade (Ratio Logic)
     f_recs = edit_fac_std.to_dict('records')
-    t_precast = facade * (f_recs[0]["Ratio"] / 100) * f_recs[0]["Rate"]
-    t_window  = facade * (f_recs[1]["Ratio"] / 100) * f_recs[1]["Rate"]
-    t_double  = facade * (f_recs[2]["Ratio"] / 100) * f_recs[2]["Rate"]
+    t_precast = facade * (f_recs[0]["Ratio (%)"] / 100) * f_recs[0]["Rate"]
+    t_window  = facade * (f_recs[1]["Ratio (%)"] / 100) * f_recs[1]["Rate"]
+    t_double  = facade * (f_recs[2]["Ratio (%)"] / 100) * f_recs[2]["Rate"]
     
     # 3. Doors & Lobby
     t_w_door = wooden_door * rates_dict.get(f"Wooden Door Rate ({project_type})", 0.0)
@@ -116,9 +116,9 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     
     fl_recs = edit_floor_std.to_dict('records')
     f_mult = 1.32
-    t_ht = gfa * (fl_recs[0]["Ratio"] / 100) * fl_recs[0]["Rate"] * f_mult
-    t_vinyl = gfa * (fl_recs[1]["Ratio"] / 100) * fl_recs[1]["Rate"] * f_mult
-    t_marmer = gfa * (fl_recs[2]["Ratio"] / 100) * fl_recs[2]["Rate"] * f_mult
+    t_ht = gfa * (fl_recs[0]["Ratio (%)"] / 100) * fl_recs[0]["Rate"] * f_mult
+    t_vinyl  = gfa * (fl_recs[1]["Ratio (%)"] / 100) * fl_recs[1]["Rate"] * f_mult
+    t_marmer = gfa * (fl_recs[2]["Ratio (%)"] / 100) * fl_recs[2]["Rate"] * f_mult
     
     # 6. MEP & Others
     t_carpet = carpet_m2 * extra.get("Carpet Rate (m2)", 0.0)
