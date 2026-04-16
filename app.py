@@ -149,9 +149,11 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     t_proj_fac = proj_fac_u * fac.get("Project Facilities (Rate/Unit)", 0)
 
     subtotal_for_pct = sum([t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double, t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male, t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, t_ht, t_vinyl, t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_external, t_pub_fac, t_res_fac, t_proj_fac])
-    t_contingency = subtotal_for_pct * 0.03
-    t_preliminary = subtotal_for_pct * 0.05
-    grand_total_hc = subtotal_for_pct + t_contingency + t_preliminary
+    t_subtotal_pure = subtotal_for_pct 
+    
+    t_contingency = t_subtotal_pure * 0.03
+    t_preliminary = t_subtotal_pure * 0.05
+    grand_total_hc = t_subtotal_pure + t_contingency + t_preliminary
 
     hard_cost_data = {
         "Description": ["1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work", "5. Basic Architecture", "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin", "9. Wooden Doors", "10. Glass Doors", "11. Steel Doors", "12. Lobby Interior", "13. Gondola", "14. Typical Unit Sanitary", "15. Public Toilet Male", "16. Public Toilet Female", "17. Disabled Toilet", "18. Mushola", "19. Kitchen Equipment", "20. Hardware Pintu Kayu", "21. Hardware Pintu Besi", "22. HT/Ceramic Tile", "23. Vinyl Flooring", "24. Marmer Flooring", "25. Carpet Work", "26. Glass Work", "27. FF&E", "28. Misc. (Linen/Gym)", "29. MEP Works", "30. External Works", "31. Public Facilities", "32. Resident Facilities", "33. Project Facilities", "34. Contingencies"],
@@ -161,5 +163,9 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
 
     st.header("Hard Cost Table")
     st.dataframe(pd.DataFrame(hard_cost_data), use_container_width=True, hide_index=True, column_config={"Amount": st.column_config.NumberColumn(format="Rp %,.2f")})
-    st.metric("Grand Total Hard Cost", f"Rp {grand_total_hc:,.2f}")
+    col_res1, col_res2 = st.columns(2)
+    with col_res1:
+        st.metric("Subtotal (Excl. Prelim & Cont.)", f"Rp {t_subtotal_pure:,.2f}")
+    with col_res2:
+        st.metric("Grand Total (Incl. Prelim & Cont.)", f"Rp {grand_total_hc:,.2f}")
     st.success("Calculations updated!")
