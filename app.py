@@ -86,6 +86,13 @@ col_int1, col_int2, col_int3 = st.columns(3)
 with col_int1:
     rate_lobby = st.number_input(f"Lobby Interior Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
 
+# --- SUB-SECTION: EQUIPMENT RATES ---
+st.markdown(f"#### {project_type} Equipment Rates")
+col_eq1, col_eq2, col_eq3 = st.columns(3)
+
+with col_eq1:
+    rate_gondola = st.number_input(f"Gondola Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
+
 st.markdown("---")
 
 # --- STEP 3: CALCULATIONS ---
@@ -100,6 +107,7 @@ total_wooden_doors = wooden_door * rate_wooden_door
 total_glass_doors = glass_door * rate_glass_door
 total_steel_doors = steel_door * rate_steel_door
 total_lobby = lobby_interior * rate_lobby
+total_gondola = gondola_unit * rate_gondola
 
 # --- STEP 4: HARD COST INFORMATION TABLE ---
 st.header("Hard Cost Table")
@@ -117,7 +125,8 @@ hard_cost_data = {
         f"9. Wooden Doors ({project_type})",
         f"10. Glass Doors ({project_type})",
         f"11. Steel Doors ({project_type})",
-        f"12. Lobby Interior ({project_type})"
+        f"12. Lobby Interior ({project_type})",
+        f"13. Gondola ({project_type})"
     ],
     "Basis": [
         "5% of Hard Cost", 
@@ -131,7 +140,8 @@ hard_cost_data = {
         f"{wooden_door} units x {rate_wooden_door:,.2f}",
         f"{glass_door} units x {rate_glass_door:,.2f}",
         f"{steel_door} units x {rate_steel_door:,.2f}",
-        f"{lobby_interior:,.2f} m2 (Lobby) x {rate_lobby:,.2f}"
+        f"{lobby_interior:,.2f} m2 (Lobby) x {rate_lobby:,.2f}".
+        f"{gondola_unit} units x {rate_gondola:,.2f}"
     ],
     "Amount": [
         0.0, 
@@ -145,7 +155,8 @@ hard_cost_data = {
         total_wooden_doors,
         total_glass_doors,
         total_steel_doors,
-        total_lobby
+        total_lobby,
+        total_gondola
     ]
 }
 
