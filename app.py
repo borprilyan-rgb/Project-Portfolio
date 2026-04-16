@@ -6,58 +6,33 @@ st.set_page_config(page_title="Complex Construction Calculator", layout="wide")
 
 st.title("Project Dimension and Cost Calculator")
 st.markdown("---")
+
 # --- STEP 1: INPUT BOXES (Area Metrics) ---
 col1, col2, col3 = st.columns(3)
 
-# Helper function to show a formatted label above the input
-def formatted_label(label, value):
-    return f"{label} : {value:,.2f}"
-
 with col1:
     st.subheader("Area Metrics")
-    
-    # Land Area
-    la_val = st.number_input("Land Area (m2)", min_value=0.0, format="%.2f", key="la")
-    st.caption(f"Value: {la_val:,.2f}") # This shows the 1,000 separator below the box
-    
+    land_area = st.number_input("Land Area (m2)", min_value=0.0, format="%.2f")
     gba = st.number_input("GBA (Gross Building Area) (m2)", min_value=0.0, format="%.2f")
-    st.caption(f"Value: {gba:,.2f}")
-    
     gfa = st.number_input("GFA (Gross Floor Area) (m2)", min_value=0.0, format="%.2f")
-    st.caption(f"Value: {gfa:,.2f}")
-    
     sgfa = st.number_input("SGFA (Semi-Gross Floor Area) (m2)", min_value=0.0, format="%.2f")
-    st.caption(f"Value: {sgfa:,.2f}")
-    
     facade = st.number_input("Facade (m2)", min_value=0.0, format="%.2f")
-    st.caption(f"Value: {facade:,.2f}")
 
 with col2:
     st.subheader("Units and Interior")
-    rooms = st.number_input("Room (unit)", min_value=0)
-    door_glass = st.number_input("Door Glass (unit)", min_value=0)
-    pintu_kayu = st.number_input("Pintu Kayu (unit)", min_value=0)
-    pintu_besi = st.number_input("Pintu Besi (unit)", min_value=0)
-    
+    rooms = st.number_input("Room (unit)", min_value=0, format="%d")
+    door_glass = st.number_input("Door Glass (unit)", min_value=0, format="%d")
+    pintu_kayu = st.number_input("Pintu Kayu (unit)", min_value=0, format="%d")
+    pintu_besi = st.number_input("Pintu Besi (unit)", min_value=0, format="%d")
     lobby_interior = st.number_input("Lobby Interior (m2)", min_value=0.0, format="%.2f")
-    st.caption(f"Value: {lobby_interior:,.2f}")
 
 with col3:
-    st.subheader("External & Infrastructure")
+    st.subheader("External and Infrastructure")
     rooftop = st.number_input("Rooftop (m2)", min_value=0.0, format="%.2f")
-    st.caption(f"Value: {rooftop:,.2f}")
-    
     facilities = st.number_input("Facilities (m2)", min_value=0.0, format="%.2f")
-    st.caption(f"Value: {facilities:,.2f}")
-    
     landscape = st.number_input("External/Landscape (m2)", min_value=0.0, format="%.2f")
-    st.caption(f"Value: {landscape:,.2f}")
-    
     boundary_wall = st.number_input("Boundary Wall & Gate (m')", min_value=0.0, format="%.2f")
-    st.caption(f"Value: {boundary_wall:,.2f}")
-    
     access_road = st.number_input("Access Road (m')", min_value=0.0, format="%.2f")
-    st.caption(f"Value: {access_road:,.2f}")
     
 st.markdown("---")
 
