@@ -177,6 +177,6 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     st.dataframe(pd.DataFrame(hard_cost_data), use_container_width=True, hide_index=True, column_config={"Amount": st.column_config.NumberColumn(format="Rp %,.2f")})
     
     c1, c2 = st.columns(2)
-    c1.metric("Construction Subtotal", f"Rp {construction_subtotal:,.2f}")
+    c1.metric("Exclude Preliminary & Contingency", f"Rp {construction_subtotal:,.2f}")
     c2.metric("Total Project Hard Cost", f"Rp {grand_total_hc:,.2f}")
     st.success("Calculations updated successfully!")
