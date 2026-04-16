@@ -238,7 +238,7 @@ hard_cost_data = {
         ]
     }
 
-    df_hc = pd.DataFrame(hard_cost_data)
+df_hc = pd.DataFrame(hard_cost_data)
 
     st.header("Hard Cost Table")
     st.dataframe(
