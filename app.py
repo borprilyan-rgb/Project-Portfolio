@@ -154,4 +154,8 @@ hard_cost_data = {
 }
 
 df_hc = pd.DataFrame(hard_cost_data)
-st.table(df_hc.style.format({"Amount": "{:,.2f}"}))
+st.dataframe(
+    df_hc.style.format({"Amount": "{:,.2f}"}),
+    use_container_width=True,
+    hide_index=True # This removes the extra index column on the left
+)
