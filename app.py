@@ -98,12 +98,15 @@ rate_structural = rates_dict.get("Structural Work Rate (per GBA m2)", 0.0)
 rate_architecture = rates_dict.get("Architecture Rate (per GFA m2)", 0.0)
 
 # Facade
-precast_p = rates_dict.get("Precast (%)", 0.0)
+
 rate_precast = rates_dict.get("Precast Rate (per m2)", 0.0)
-window_p = rates_dict.get("Window Wall (%)", 0.0)
 rate_window = rates_dict.get("Window Wall Rate (per m2)", 0.0)
-double_p = rates_dict.get("Double Skin (%)", 0.0)
 rate_double = rates_dict.get("Double Skin Rate (per m2)", 0.0)
+
+precast_p = rates_dict.get("Precast (%)", 0.0)
+window_p = rates_dict.get("Window Wall (%)", 0.0)
+double_p = rates_dict.get("Double Skin (%)", 0.0)
+
 
 # Project Specifics (using dynamic keys)
 rate_wooden_door = rates_dict.get(f"Wooden Door Rate ({project_type})", 0.0)
