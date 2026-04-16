@@ -50,30 +50,38 @@ gondola_unit = metrics_dict.get("Gondola (unit)", 0.0)
 st.markdown("---")
 
 # --- STEP 2: UNIT RATES & ESTIMATIONS ---
+# --- STEP 2: UNIT RATES & ESTIMATIONS ---
 st.subheader("Unit Rates and Estimations")
-
-# Keep Project Type as a dropdown
 project_type = st.selectbox("Project Type", ["Hotel", "Retail", "Apartment", "Parking"])
 
-st.caption("Input rates below. You can copy and paste directly from your Excel cost sheet.")
+# --- TABLE 1: STRUCTURE SECTION ---
+st.markdown("**Structure Section**")
+df_struc = pd.DataFrame({
+    "Description": ["Earthwork Rate (per GBA m2)", "Foundation Rate (per GBA m2)", "Structural Work Rate (per GBA m2)"],
+    "Value": [0.0] * 3
+})
+edit_struc = st.data_editor(df_struc, use_container_width=True, hide_index=True, key="ed_struc")
 
-# Define the structure for all rates
-initial_rates = {
-    "Rate Description": [
-        "Earthwork Rate (per GBA m2)", 
-        "Foundation Rate (per GBA m2)",
-        "Structural Work Rate (per GBA m2)",
-        "Architecture Rate (per GFA m2)",
-        "Precast (%)", "Precast Rate (per m2)",
-        "Window Wall (%)", "Window Wall Rate (per m2)",
-        "Double Skin (%)", "Double Skin Rate (per m2)",
-        f"Wooden Door Rate ({project_type})",
-        f"Glass Door Rate ({project_type})",
-        f"Steel Door Rate ({project_type})",
-        f"Lobby Interior Rate ({project_type})",
-        f"Gondola Rate ({project_type})"
+# --- TABLE 2: FACADE PERCENTAGE ---
+st.markdown("**Facade Percentage**")
+df_fac_pct = pd.DataFrame({
+    "Description": ["Precast (%)", "Window Wall (%)", "Double Skin (%)"],
+    "Value": [0.0] * 3
+})
+edit_fac_pct = st.data_editor(df_fac_pct, use_container_width=True, hide_index=True, key="ed_fac_pct")
+
+# --- TABLE 3: ARCHITECTURE SECTION ---
+st.markdown("**Architecture Section**")
+df_arch = pd.DataFrame({
+    "Description": [
+        "Architecture Rate (per GFA m2)", "Precast Rate (per m2)", "Window Wall Rate (per m2)", 
+        "Double Skin Rate (per m2)", f"Wooden Door Rate ({project_type})", 
+        f"Glass Door Rate ({project_type})", f"Steel Door Rate ({project_type})", 
+        f"Lobby Interior Rate ({project_type})", f"Gondola Rate ({project_type})"
     ],
-    "Value": [0.0] * 15
+    "Value": [0.0] * 9
+})
+edit_arch = st.data_editor(df_arch, use_container_width=True, hide_index=True, key="ed_arch")
 }
 df_rates = pd.DataFrame(initial_rates)
 
@@ -90,7 +98,9 @@ edited_rates_df = st.data_editor(
 )
 
 # --- MAP EDITED RATES TO VARIABLES ---
-rates_dict = dict(zip(edited_rates_df["Rate Description"], edited_rates_df["Value"]))
+# Merge all edited dataframes into one dictionary for easy lookup
+all_rates = pd.concat([edit_struc, edit_fac_pct, edit_arch])
+rates_dict = dict(zip(all_rates["Description"], all_rates["Value"]))
 
 # --- 1. STRUCTURE SECTION ---
 rate_earthwork     = rates_dict.get("Earthwork Rate (per GBA m2)", 0.0)
@@ -114,6 +124,7 @@ rate_glass_door    = rates_dict.get(f"Glass Door Rate ({project_type})", 0.0)
 rate_steel_door    = rates_dict.get(f"Steel Door Rate ({project_type})", 0.0)
 rate_lobby         = rates_dict.get(f"Lobby Interior Rate ({project_type})", 0.0)
 rate_gondola       = rates_dict.get(f"Gondola Rate ({project_type})", 0.0)
+
 st.markdown("---")
 
 # --- STEP 3: CALCULATIONS ---
