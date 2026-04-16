@@ -65,7 +65,15 @@ edit_floor_std = st.data_editor(df_floor_std, use_container_width=True, hide_ind
 
 st.markdown("**Additional Rates**")
 # Cleaned: Flooring rates removed
-df_extra = pd.DataFrame({"Description": ["Kitchen Equipment (Rate/Room)", "Hardware Pintu Kayu (Rate/Door)", "Hardware Pintu Besi (Rate/Door)", "Carpet Rate (m2)", "Glasses Rate (m2)", "FF&E (Rate/Room)", "Misc (Linen/Gym - Lump Sum)", "MEP Works (Rate/GBA)", "Utility Connection (Rate/GBA)"], "Value": [0.0] * 9})
+df_extra = pd.DataFrame({
+    "Description": [
+        "Kitchen Equipment (Rate/Room)", "Hardware Pintu Kayu (Rate/Door)", 
+        "Hardware Pintu Besi (Rate/Door)", "Carpet Rate (m2)", "Glasses Rate (m2)", 
+        "FF&E (Rate/Room)", "Misc (Linen/Gym - Lump Sum)", "MEP Works (Rate/GBA)", 
+        "Utility Connection (Rate/GBA)", "Railing (m' per Room)", "Skylight (m2)"
+    ], 
+    "Value": [0.0] * 11
+})
 edit_extra = st.data_editor(df_extra, use_container_width=True, hide_index=True, key="ed_extra")
 
 st.markdown("**Facilities & External Rates**")
@@ -131,13 +139,15 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     t_res_fac = deck_m2 * fac_ext.get("Resident Facilities (Rate/Fac Deck)", 0.0)
     t_proj_fac = proj_fac_u * fac_ext.get("Project Facilities (Rate/Unit)", 0.0)
     t_utility = gba * extra.get("Utility Connection (Rate/GBA)", 0.0)
+    t_railing = rooms * extra.get("Railing (m' per Room)", 0.0) * rates_dict.get("Architecture Rate (per GFA m2)", 1.0) # Adjust logic if you need a separate rate
+    t_skylight = extra.get("Skylight (m2)", 0.0) * rates_dict.get("Architecture Rate (per GFA m2)", 1.0) # Adjust logic if you need a separate rate
 
     # 7. Final Totals
     construction_subtotal = sum([
         t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double,
         t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
         t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, t_ht, t_vinyl,
-        t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_external,
+        t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_utility, t_railing, t_skylight, t_external,
         t_pub_fac, t_res_fac, t_proj_fac
     ])
     
@@ -154,7 +164,8 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
             "16. Public Toilet Female", "17. Disabled Toilet", "18. Mushola", "19. Kitchen Equipment", "20. Hardware Pintu Kayu",
             "21. Hardware Pintu Besi", "22. HT/Ceramic Tile", "23. Vinyl Flooring", "24. Marmer Flooring", "25. Carpet Work",
             "26. Glass Work", "27. FF&E", "28. Misc. (Linen/Gym)", "29. MEP Works", "30. Utility Connection",
-            "31. External Works", "32. Public Facilities", "33. Resident Facilities", "34. Project Facilities", "35. Contingencies"
+            "31. Railing Work", "32. Skylight Work", "33. External Works", "34. Public Facilities", "35. Resident Facilities",
+            "36. Project Facilities", "37. Contingencies"
         ],
         "Basis": [
             "5% Subtotal", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gfa:,.0f} m2",
@@ -162,8 +173,9 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
             f"{steel_door} units", f"{lobby_interior} m2", f"{gondola_unit} units", f"{rooms} rms", f"{toilet_male} units",
             f"{toilet_female} units", f"{disabled_toil} units", f"{mushola_unit} units", f"{rooms} rooms", f"{wooden_door} doors",
             f"{steel_door} doors", f"{fl_recs[0]['Ratio (%)']}% x 1.32", f"{fl_recs[1]['Ratio (%)']}% x 1.32", f"{fl_recs[2]['Ratio (%)']}% x 1.32", f"{carpet_m2} m2",
-            f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2", f"{gba:,.0f} m2 (GBA)",
-            f"{land_m2} m2", f"{pub_fac_m2} m2", f"{deck_m2} m2", f"{proj_fac_u} units", "3% Subtotal"
+            f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2", f"{gba:,.0f} m2",
+            f"{rooms} rms x m'", "Total m2", f"{land_m2} m2", f"{pub_fac_m2} m2", f"{deck_m2} m2",
+            f"{proj_fac_u} units", "3% Subtotal"
         ],
         "Amount": [
             t_preliminary, t_earth, t_found, t_struc, t_arch_base,
@@ -172,7 +184,8 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
             t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w,
             t_hw_s, t_ht, t_vinyl, t_marmer, t_carpet,
             t_glass_work, t_ffe, t_misc, t_mep, t_utility,
-            t_external, t_pub_fac, t_res_fac, t_proj_fac, t_contingency
+            t_railing, t_skylight, t_external, t_pub_fac, t_res_fac,
+            t_proj_fac, t_contingency
         ]
     }
     
