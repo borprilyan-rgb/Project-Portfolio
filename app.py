@@ -174,7 +174,7 @@ total_unit_typical = total_toil_male = total_toil_female = total_disabled = tota
 
 # --- STEP 3: THE CALCULATE BUTTON ---
 if st.button("Run Calculation", type="primary", use_container_width=True):
-    # Math is performed inside the button trigger
+    # Perform Calculations
     total_earthwork    = gba * rate_earthwork
     total_foundation   = gba * rate_foundation
     total_structural   = gba * rate_structural
@@ -187,6 +187,8 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     total_steel_doors  = steel_door * rate_steel_door
     total_lobby        = lobby_interior * rate_lobby
     total_gondola      = gondola_unit * rate_gondola
+    
+    # Sanitary Math (Fixed variable names)
     total_unit_typical = rooms * ratio_typical * rate_typical
     total_toil_male    = toilet_male * rate_toil_male
     total_toil_female  = toilet_female * rate_toil_female
@@ -199,62 +201,53 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
 st.header("Hard Cost Table")
 
 hard_cost_data = {
-    "Description": [
-        "1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work",
-        f"5. Basic Architecture ({project_type})", "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin",
-        f"9. Wooden Doors ({project_type})", f"10. Glass Doors ({project_type})", f"11. Steel Doors ({project_type})",
-        f"12. Lobby Interior ({project_type})", f"13. Gondola ({project_type})",
-        f"14. Typical Unit Sanitary ({project_type})", f"15. Public Toilet Male ({project_type})",
-        f"16. Public Toilet Female ({project_type})", f"17. Disabled Toilet ({project_type})", f"18. Mushola/Prayer Room ({project_type})"
-    ],
-    "Basis": [
-        "5% of Hard Cost", 
-        f"{gba:,.2f} m2 (GBA) x {rate_earthwork:,.2f}", 
-        f"{gba:,.2f} m2 (GBA) x {rate_foundation:,.2f}",
-        f"{gba:,.2f} m2 (GBA) x {rate_structural:,.2f}",
-        f"{gfa:,.2f} m2 (GFA) x {rate_architecture:,.2f}",
-        f"{facade * (precast_p/100):,.2f} m2 x {rate_precast:,.2f}",
-        f"{facade * (window_p/100):,.2f} m2 x {rate_window:,.2f}",
-        f"{facade * (double_p/100):,.2f} m2 x {rate_double:,.2f}",
-        f"{wooden_door} units x {rate_wooden_door:,.2f}",
-        f"{glass_door} units x {rate_glass_door:,.2f}",
-        f"{steel_door} units x {rate_steel_door:,.2f}",
-        f"{lobby_interior:,.2f} m2 x {rate_lobby:,.2f}",
-        f"{gondola_unit} units x {rate_gondola:,.2f}",
-        f"{rooms} rooms x {ratio_typical} qty x {rate_typical:,.2f}",
-        f"{toilet_male} units x {rate_toil_male:,.2f}",              
-        f"{toilet_female} units x {rate_toil_female:,.2f}",           
-        f"{disabled_toil} units x {rate_disabled:,.2f}",         
-        f"{mushola_unit} units x {rate_mushola:,.2f}" 
-    ],
-    "Amount": [
-        0.0, total_earthwork, total_foundation, total_structural,
-        total_architecture, total_precast, total_window, total_double_skin,
-        total_wooden_doors, total_glass_doors, total_steel_doors,
-        total_lobby, total_gondola, total_unit_typical, 
-        total_toil_male, total_toil_female, total_disabled, total_mushola
-    ]
-}
-
-df_hc = pd.DataFrame(hard_cost_data)
-
-st.dataframe(
-    df_hc, # No need for .style.format here if using column_config
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "Description": st.column_config.TextColumn(
-            "Description",
-            width="medium",
-        ),
-        "Basis": st.column_config.TextColumn(
-            "Basis",
-            width="small",
-        ),
-        "Amount": st.column_config.NumberColumn(
-            "Amount (Rp)",
-            format="Rp %,.2f",
-            width="medium",
-        ),
+        "Description": [
+            "1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work",
+            f"5. Basic Architecture ({project_type})", "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin",
+            f"9. Wooden Doors ({project_type})", f"10. Glass Doors ({project_type})", f"11. Steel Doors ({project_type})",
+            f"12. Lobby Interior ({project_type})", f"13. Gondola ({project_type})",
+            f"14. Typical Unit Sanitary ({project_type})", f"15. Public Toilet Male ({project_type})",
+            f"16. Public Toilet Female ({project_type})", f"17. Disabled Toilet ({project_type})", f"18. Mushola/Prayer Room ({project_type})"
+        ],
+        "Basis": [
+            "5% of Hard Cost", 
+            f"{gba:,.2f} m2 (GBA) x {rate_earthwork:,.2f}", 
+            f"{gba:,.2f} m2 (GBA) x {rate_foundation:,.2f}",
+            f"{gba:,.2f} m2 (GBA) x {rate_structural:,.2f}",
+            f"{gfa:,.2f} m2 (GFA) x {rate_architecture:,.2f}",
+            f"{facade * (precast_p/100):,.2f} m2 x {rate_precast:,.2f}",
+            f"{facade * (window_p/100):,.2f} m2 x {rate_window:,.2f}",
+            f"{facade * (double_p/100):,.2f} m2 x {rate_double:,.2f}",
+            f"{wooden_door} units x {rate_wooden_door:,.2f}",
+            f"{glass_door} units x {rate_glass_door:,.2f}",
+            f"{steel_door} units x {rate_steel_door:,.2f}",
+            f"{lobby_interior:,.2f} m2 x {rate_lobby:,.2f}",
+            f"{gondola_unit} units x {rate_gondola:,.2f}",
+            f"{rooms} rooms x {ratio_typical} qty x {rate_typical:,.2f}",
+            f"{toilet_male} units x {rate_toil_male:,.2f}",                      
+            f"{toilet_female} units x {rate_toil_female:,.2f}",            
+            f"{disabled_toil} units x {rate_disabled:,.2f}",          
+            f"{mushola_unit} units x {rate_mushola:,.2f}" 
+        ],
+        "Amount": [
+            0.0, total_earthwork, total_foundation, total_structural,
+            total_architecture, total_precast, total_window, total_double_skin,
+            total_wooden_doors, total_glass_doors, total_steel_doors,
+            total_lobby, total_gondola, total_unit_typical, 
+            total_toil_male, total_toil_female, total_disabled, total_mushola
+        ]
     }
-)
+
+    df_hc = pd.DataFrame(hard_cost_data)
+
+    st.header("Hard Cost Table")
+    st.dataframe(
+        df_hc,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Description": st.column_config.TextColumn("Description", width="medium"),
+            "Basis": st.column_config.TextColumn("Basis", width="small"),
+            "Amount": st.column_config.NumberColumn("Amount (Rp)", format="Rp %,.2f", width="medium"),
+        }
+    )
