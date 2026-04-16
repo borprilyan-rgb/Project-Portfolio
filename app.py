@@ -140,7 +140,7 @@ hard_cost_data = {
         f"{wooden_door} units x {rate_wooden_door:,.2f}",
         f"{glass_door} units x {rate_glass_door:,.2f}",
         f"{steel_door} units x {rate_steel_door:,.2f}",
-        f"{lobby_interior:,.2f} m2 (Lobby) x {rate_lobby:,.2f}".
+        f"{lobby_interior:,.2f} m2 (Lobby) x {rate_lobby:,.2f}",
         f"{gondola_unit} units x {rate_gondola:,.2f}"
     ],
     "Amount": [
