@@ -82,7 +82,7 @@ df_arch = pd.DataFrame({
     "Value": [0.0] * 9
 })
 edit_arch = st.data_editor(df_arch, use_container_width=True, hide_index=True, key="ed_arch")
-}
+
 df_rates = pd.DataFrame(initial_rates)
 
 # Data Editor for Rates
