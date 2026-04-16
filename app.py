@@ -222,7 +222,7 @@ hard_cost_data = {
             f"{steel_door} units x {rate_steel_door:,.2f}",
             f"{lobby_interior:,.2f} m2 x {rate_lobby:,.2f}",
             f"{gondola_unit} units x {rate_gondola:,.2f}",
-            f"{rooms} rooms x {ratio_typical} qty x {rate_typical:,.2f}",
+            f"{rooms} rooms x {ratio_typical} qty x {rate_unit_typical:,.2f}",
             f"{toilet_male} units x {rate_toil_male:,.2f}",                      
             f"{toilet_female} units x {rate_toil_female:,.2f}",            
             f"{disabled_toil} units x {rate_disabled:,.2f}",          
