@@ -112,7 +112,7 @@ rate_lobby = rates_dict.get(f"Lobby Interior Rate ({project_type})", 0.0)
 rate_gondola = rates_dict.get(f"Gondola Rate ({project_type})", 0.0)
 
 sanitary_dict = edit_sanitary.to_dict('records')
-ratio_typical = sanitary_dict[0]["Ratio/Qty"]
+ratio_typical = sanitary_dict[0]["Qty (e.g 3 Typical Unit per Room"]
 rate_unit_typical = sanitary_dict[0]["Rate"]
 rate_toil_male = sanitary_dict[1]["Rate"]
 rate_toil_female = sanitary_dict[2]["Rate"]
