@@ -43,7 +43,7 @@ with col2:
     st.caption(f"Value: {lobby_interior:,.2f}")
 
 with col3:
-    st.subheader("External and Infrastructure")
+    st.subheader("External & Infrastructure")
     rooftop = st.number_input("Rooftop (m2)", min_value=0.0, format="%.2f")
     st.caption(f"Value: {rooftop:,.2f}")
     
