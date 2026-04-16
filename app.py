@@ -10,21 +10,21 @@ st.markdown("---")
 # --- DATA: PROJECT TYPE PRESETS ---
 PROJECT_DEFAULTS = {
     "Hotel": {
-        "struc_earth": 150000, "struc_found": 500000, "struc_work": 3500000,
-        "facade_precast_pct": 20.0, "facade_precast_rate": 800000,
-        "facade_window_pct": 60.0, "facade_window_rate": 1200000,
-        "facade_double_pct": 20.0, "facade_double_rate": 2500000,
-        "arch_base": 4000000, "door_wood": 3000000, "door_glass": 5000000,
-        "door_steel": 4500000, "lobby": 8000000, "gondola": 500000000,
-        "san_room_qty": 1.0, "san_room_rate": 15000000, "san_pub_m": 25000000, 
-        "san_pub_f": 25000000, "san_dis": 30000000, "san_mushola": 10000000,
-        "fl_ht_pct": 30.0, "fl_ht_rate": 300000, "fl_vinyl_pct": 50.0, "fl_vinyl_rate": 250000,
-        "fl_marmer_pct": 20.0, "fl_marmer_rate": 1500000,
-        "kitchen": 50000000, "hw_wood": 500000, "hw_steel": 800000, "carpet": 350000,
-        "glass": 600000, "ffe": 75000000, "misc": 200000000, "mep": 4500000,
-        "utility": 100000, "railing_qty": 3.5, "railing_rate": 800000, 
-        "skylight_rate": 2000000,
-        "ext_land": 500000, "fac_pub": 1500000, "fac_res": 2000000, "fac_proj": 5000000
+        "struc_earth": 25000, "struc_found": 400000, "struc_work": 1933000,
+        "facade_precast_pct": 60.0, "facade_precast_rate": 800000,
+        "facade_window_pct": 30.0, "facade_window_rate": 1250000,
+        "facade_double_pct": 10.0, "facade_double_rate": 2500000,
+        "arch_base": 1058000, "door_wood": 3500000, "door_glass": 1000000,
+        "door_steel": 7000000, "lobby": 1500000, "gondola": 600000000,
+        "san_room_qty": 3.0, "san_room_rate": 26875000, "san_pub_m": 98075000, 
+        "san_pub_f": 77050000, "san_dis": 30275000, "san_mushola": 36500000,
+        "fl_ht_pct": 90.0, "fl_ht_rate": 150000, "fl_vinyl_pct": 0.0, "fl_vinyl_rate": 750000,
+        "fl_marmer_pct": 10.0, "fl_marmer_rate": 750000,
+        "kitchen": 0.0, "hw_wood": 750000, "hw_steel": 1850000, "carpet": 0.0,
+        "glass": 0.0, "ffe": 32000000, "misc": 32000000, "mep": 2810941.24,
+        "utility": 92098, "railing_qty": 6.305, "railing_rate": 0.0, 
+        "skylight_rate": 0.0,
+        "ext_land": 1563000, "fac_pub": 31000000, "fac_res": 10000000, "fac_proj": 2000000000
     },
     "Retail": {
         "struc_earth": 120000, "struc_found": 450000, "struc_work": 3000000,
@@ -64,14 +64,14 @@ with col_m1:
     st.markdown("**A. Area Measurement**")
     df_area = pd.DataFrame({
         "Metric": ["Land Area (m2)", "GBA (m2)", "GFA (m2)", "SGFA (m2)"],
-        "Value": [0.0] * 4
+        "Value": [49424.40, 179970.69, 152658.99, 124336.77]
     })
     ed_area = st.data_editor(df_area, use_container_width=True, hide_index=True)
 
     st.markdown("**B. Architecture**")
     df_arch_metric = pd.DataFrame({
         "Metric": ["Facade (m2)", "Room (unit)", "Lobby Interior (m2)", "Gondola (unit)", "Carpet (m2)", "Glass (m2)", "Skylight (m2)"],
-        "Value": [0.0] * 7
+        "Value": [107127.10, 1261.00, 15347.92, 15.00, 0.0, 0.0, 0.0]
     })
     ed_arch_metric = st.data_editor(df_arch_metric, use_container_width=True, hide_index=True)
 
@@ -79,21 +79,21 @@ with col_m2:
     st.markdown("**C. Door**")
     df_door = pd.DataFrame({
         "Metric": ["Glass Door", "Wooden Door", "Steel Door"],
-        "Value": [0.0] * 3
+        "Value": [344.00, 8992.00, 1032.00]
     })
     ed_door = st.data_editor(df_door, use_container_width=True, hide_index=True)
 
     st.markdown("**D. Toilet**")
     df_toilet = pd.DataFrame({
         "Metric": ["Typical Unit (qty/room)", "Public Toilet Male (whole area)", "Public Toilet Female (whole area)", "Disabled Toilet (whole area)", "Mushola (unit)"],
-        "Value": [pt_data["san_room_qty"], 0.0, 0.0, 0.0, 0.0]
+        "Value": [pt_data["san_room_qty"], 15.00, 15.00, 0.0, 2.00]
     })
     ed_toilet = st.data_editor(df_toilet, use_container_width=True, hide_index=True)
 
     st.markdown("**E. Facilities**")
     df_fac_metric = pd.DataFrame({
         "Metric": ["Residential Facility (m2)", "Public Facility (m2)", "Project Facility (unit)", "Landscape Area (m2)"],
-        "Value": [0.0] * 4
+        "Value": [0.0, 2000.00, 0.0, 22496.94]
     })
     ed_fac_metric = st.data_editor(df_fac_metric, use_container_width=True, hide_index=True)
 
@@ -320,8 +320,8 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
         "Basis": [
             "5% Subtotal", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gfa:,.0f} m2", 
             f"{r_fac_ratio[0]['Ratio (%)']}%", f"{r_fac_ratio[1]['Ratio (%)']}%", f"{r_fac_ratio[2]['Ratio (%)']}%", f"{wooden_door} units", f"{glass_door} units", 
-            f"{steel_door} units", f"{lobby_interior} m2", f"{gondola_unit} units", f"{rooms} rms", f"{toilet_male} units/m2", 
-            f"{toilet_female} units/m2", f"{disabled_toil} units/m2", f"{mushola_unit} units", f"{rooms} rooms", f"{wooden_door} doors", 
+            f"{steel_door} units", f"{lobby_interior} m2", f"{gondola_unit} units", f"{rooms} rms", f"{toilet_male} units", 
+            f"{toilet_female} units", f"{disabled_toil} units", f"{mushola_unit} units", f"{rooms} rooms", f"{wooden_door} doors", 
             f"{steel_door} doors", f"{r_fl_ratio[0]['Ratio (%)']}% x 1.32", f"{r_fl_ratio[1]['Ratio (%)']}% x 1.32", f"{r_fl_ratio[2]['Ratio (%)']}% x 1.32", f"{carpet_m2} m2", 
             f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2", 
             f"{gba:,.0f} m2 (Utility)", 
