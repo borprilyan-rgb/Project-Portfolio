@@ -67,19 +67,15 @@ with col_fac3:
     double_p = st.number_input("Double Skin (%)", min_value=0.0, max_value=100.0, value=0.0, key="fac_double_display")
     rate_double = st.number_input("Double Skin Rate (per m2)", min_value=0.0, value=0.0, key="rate_double")
 
-# --- SUB-SECTION: PROJECT SPECIFIC RATES ---
-st.markdown(f"#### {project_type} Specific Rates")
+# --- SUB-SECTION: PROJECT SPECIFIC DOORS ---
+st.markdown(f"#### {project_type} Door Rates")
 col_spec1, col_spec2, col_spec3 = st.columns(3)
 
 with col_spec1:
     rate_wooden_door = st.number_input(f"Wooden Door Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-    rate_boundary = st.number_input(f"Boundary Wall Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-    rate_interior = st.number_input(f"Lobby Interior Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
 
 with col_spec2:
     rate_glass_door = st.number_input(f"Glass Door Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-    rate_road = st.number_input(f"Access Road Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-    rate_landscape = st.number_input(f"Landscape Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
 
 with col_spec3:
     rate_steel_door = st.number_input(f"Steel Door Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
@@ -98,10 +94,6 @@ total_double_skin = facade * (double_p / 100) * rate_double
 total_wooden_doors = wooden_door * rate_wooden_door
 total_glass_doors = glass_door * rate_glass_door
 total_steel_doors = steel_door * rate_steel_door
-total_boundary = boundary_wall * rate_boundary
-total_road_cost = access_road * rate_road
-total_interior_cost = lobby_interior * rate_interior
-total_landscape_cost = landscape * rate_landscape
 
 # --- STEP 4: HARD COST INFORMATION TABLE ---
 st.header("Hard Cost Table")
@@ -118,11 +110,7 @@ hard_cost_data = {
         "8. Facade - Double Skin",
         f"9. Wooden Doors ({project_type})",
         f"10. Glass Doors ({project_type})",
-        f"11. Steel Doors ({project_type})",
-        f"12. Boundary Wall & Gate ({project_type})",
-        f"13. Access Road ({project_type})",
-        f"14. Lobby Interior ({project_type})",
-        f"15. Landscape & External ({project_type})"
+        f"11. Steel Doors ({project_type})"
     ],
     "Basis": [
         "5% of Hard Cost", 
@@ -135,11 +123,7 @@ hard_cost_data = {
         f"{facade * (double_p/100):,.2f} m2 x {rate_double:,.2f}",
         f"{wooden_door} units x {rate_wooden_door:,.2f}",
         f"{glass_door} units x {rate_glass_door:,.2f}",
-        f"{steel_door} units x {rate_steel_door:,.2f}",
-        f"{boundary_wall:,.2f} m' x {rate_boundary:,.2f}",
-        f"{access_road:,.2f} m' x {rate_road:,.2f}",
-        f"{lobby_interior:,.2f} m2 x {rate_interior:,.2f}",
-        f"{landscape:,.2f} m2 x {rate_landscape:,.2f}"
+        f"{steel_door} units x {rate_steel_door:,.2f}"
     ],
     "Amount": [
         0.0, 
@@ -152,17 +136,12 @@ hard_cost_data = {
         total_double_skin,
         total_wooden_doors,
         total_glass_doors,
-        total_steel_doors,
-        total_boundary,
-        total_road_cost,
-        total_interior_cost,
-        total_landscape_cost
+        total_steel_doors
     ]
 }
 
 df_hc = pd.DataFrame(hard_cost_data)
 
-# Displaying with st.dataframe for the better look and to avoid clipping
 st.dataframe(
     df_hc.style.format({"Amount": "{:,.2f}"}),
     use_container_width=True,
