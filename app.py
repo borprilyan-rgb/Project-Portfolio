@@ -49,63 +49,68 @@ gondola_unit = metrics_dict.get("Gondola (unit)", 0.0)
     
 st.markdown("---")
 
-# --- STEP 2: UNIT RATES ---
+# --- STEP 2: UNIT RATES & ESTIMATIONS ---
 st.subheader("Unit Rates and Estimations")
-col_rate1, col_rate2, col_rate3 = st.columns(3)
 
-with col_rate1:
-    rate_earthwork = st.number_input("Earthwork Rate (per GBA m2)", min_value=0.0, value=0.0)
-    rate_foundation = st.number_input("Foundation Rate (per GBA m2)", min_value=0.0, value=0.0)
+# Keep Project Type as a dropdown
+project_type = st.selectbox("Project Type", ["Hotel", "Retail", "Apartment", "Parking"])
 
-with col_rate2:
-    rate_structural = st.number_input("Structural Work Rate (per GBA m2)", min_value=0.0, value=0.0)
+st.caption("Input rates below. You can copy and paste directly from your Excel cost sheet.")
 
-with col_rate3:
-    project_type = st.selectbox("Project Type", ["Hotel", "Retail", "Apartment", "Parking"])
-    rate_architecture = st.number_input("Architecture Rate (per GFA m2)", min_value=0.0, value=0.0)
+# Define the structure for all rates
+initial_rates = {
+    "Rate Description": [
+        "Earthwork Rate (per GBA m2)", 
+        "Foundation Rate (per GBA m2)",
+        "Structural Work Rate (per GBA m2)",
+        "Architecture Rate (per GFA m2)",
+        "Precast (%)", "Precast Rate (per m2)",
+        "Window Wall (%)", "Window Wall Rate (per m2)",
+        "Double Skin (%)", "Double Skin Rate (per m2)",
+        f"Wooden Door Rate ({project_type})",
+        f"Glass Door Rate ({project_type})",
+        f"Steel Door Rate ({project_type})",
+        f"Lobby Interior Rate ({project_type})",
+        f"Gondola Rate ({project_type})"
+    ],
+    "Value": [0.0] * 15
+}
+df_rates = pd.DataFrame(initial_rates)
 
-# --- SUB-SECTION: FACADE ---
-st.markdown("#### Facade Breakdown")
-col_fac1, col_fac2, col_fac3 = st.columns(3)
+# Data Editor for Rates
+edited_rates_df = st.data_editor(
+    df_rates,
+    use_container_width=True,
+    hide_index=True,
+    key="rates_editor",
+    column_config={
+        "Rate Description": st.column_config.TextColumn(disabled=True),
+        "Value": st.column_config.NumberColumn(format="%.2f")
+    }
+)
 
-with col_fac1:
-    precast_p = st.number_input("Precast (%)", min_value=0.0, max_value=100.0, value=0.0, key="fac_pre")
-    rate_precast = st.number_input("Precast Rate (per m2)", min_value=0.0, value=0.0, key="rate_pre")
+# --- MAP EDITED RATES TO VARIABLES ---
+rates_dict = dict(zip(edited_rates_df["Rate Description"], edited_rates_df["Value"]))
 
-with col_fac2:
-    window_p = st.number_input("Window Wall (%)", min_value=0.0, max_value=100.0, value=0.0, key="fac_win")
-    rate_window = st.number_input("Window Wall Rate (per m2)", min_value=0.0, value=0.0, key="rate_win")
+rate_earthwork = rates_dict.get("Earthwork Rate (per GBA m2)", 0.0)
+rate_foundation = rates_dict.get("Foundation Rate (per GBA m2)", 0.0)
+rate_structural = rates_dict.get("Structural Work Rate (per GBA m2)", 0.0)
+rate_architecture = rates_dict.get("Architecture Rate (per GFA m2)", 0.0)
 
-with col_fac3:
-    double_p = st.number_input("Double Skin (%)", min_value=0.0, max_value=100.0, value=0.0, key="fac_double_display")
-    rate_double = st.number_input("Double Skin Rate (per m2)", min_value=0.0, value=0.0, key="rate_double")
+# Facade
+precast_p = rates_dict.get("Precast (%)", 0.0)
+rate_precast = rates_dict.get("Precast Rate (per m2)", 0.0)
+window_p = rates_dict.get("Window Wall (%)", 0.0)
+rate_window = rates_dict.get("Window Wall Rate (per m2)", 0.0)
+double_p = rates_dict.get("Double Skin (%)", 0.0)
+rate_double = rates_dict.get("Double Skin Rate (per m2)", 0.0)
 
-# --- SUB-SECTION: PROJECT SPECIFIC DOORS ---
-st.markdown(f"#### {project_type} Door Rates")
-col_spec1, col_spec2, col_spec3 = st.columns(3)
-
-with col_spec1:
-    rate_wooden_door = st.number_input(f"Wooden Door Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-
-with col_spec2:
-    rate_glass_door = st.number_input(f"Glass Door Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-
-with col_spec3:
-    rate_steel_door = st.number_input(f"Steel Door Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-
-st.markdown(f"#### {project_type} Interior Rates")
-col_int1, col_int2, col_int3 = st.columns(3)
-
-with col_int1:
-    rate_lobby = st.number_input(f"Lobby Interior Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-
-# --- SUB-SECTION: EQUIPMENT RATES ---
-st.markdown(f"#### {project_type} Equipment Rates")
-col_eq1, col_eq2, col_eq3 = st.columns(3)
-
-with col_eq1:
-    rate_gondola = st.number_input(f"Gondola Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-
+# Project Specifics (using dynamic keys)
+rate_wooden_door = rates_dict.get(f"Wooden Door Rate ({project_type})", 0.0)
+rate_glass_door = rates_dict.get(f"Glass Door Rate ({project_type})", 0.0)
+rate_steel_door = rates_dict.get(f"Steel Door Rate ({project_type})", 0.0)
+rate_lobby = rates_dict.get(f"Lobby Interior Rate ({project_type})", 0.0)
+rate_gondola = rates_dict.get(f"Gondola Rate ({project_type})", 0.0)
 st.markdown("---")
 
 # --- STEP 3: CALCULATIONS ---
