@@ -65,7 +65,8 @@ edit_floor_std = st.data_editor(df_floor_std, use_container_width=True, hide_ind
 
 st.markdown("**Additional Rates**")
 # Cleaned: Flooring rates removed
-df_extra = pd.DataFrame({"Description": ["Kitchen Equipment (Rate/Room)", "Hardware Pintu Kayu (Rate/Door)", "Hardware Pintu Besi (Rate/Door)", "Carpet Rate (m2)", "Glasses Rate (m2)", "FF&E (Rate/Room)", "Misc (Linen/Gym - Lump Sum)", "MEP Works (Rate/GBA)", "Utility Connection (Rate/GBA)"], "Value": [0.0] * 9})edit_extra = st.data_editor(df_extra, use_container_width=True, hide_index=True, key="ed_extra")
+df_extra = pd.DataFrame({"Description": ["Kitchen Equipment (Rate/Room)", "Hardware Pintu Kayu (Rate/Door)", "Hardware Pintu Besi (Rate/Door)", "Carpet Rate (m2)", "Glasses Rate (m2)", "FF&E (Rate/Room)", "Misc (Linen/Gym - Lump Sum)", "MEP Works (Rate/GBA)", "Utility Connection (Rate/GBA)"], "Value": [0.0] * 9})
+edit_extra = st.data_editor(df_extra, use_container_width=True, hide_index=True, key="ed_extra")
 
 st.markdown("**Facilities & External Rates**")
 df_fac = pd.DataFrame({"Description": ["External Works (Rate/Landscape)", "Public Facilities (Rate/m2)", "Resident Facilities (Rate/Fac Deck)", "Project Facilities (Rate/Unit)"], "Value": [0.0] * 4})
