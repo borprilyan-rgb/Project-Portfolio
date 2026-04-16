@@ -70,7 +70,7 @@ with col2:
     edit_arch = st.data_editor(df_arch, use_container_width=True, hide_index=True, key="ed_arch")
 
 st.markdown(f"**{project_type} Sanitary Section**")
-df_sanitary = pd.DataFrame({"Description": ["Typical Unit (Ratio per Room)", "Public Toilet Male", "Public Toilet Female", "Disabled Toilet", "Mushola/Prayer Room"], "Ratio/Qty": [0.0, 1.0, 1.0, 1.0, 1.0], "Rate": [0.0] * 5})
+df_sanitary = pd.DataFrame({"Description": ["Typical Unit (Ratio per Room)", "Public Toilet Male", "Public Toilet Female", "Disabled Toilet", "Mushola/Prayer Room"], "Qty (e.g 3 Typical Unit per Room": [0.0, 1.0, 1.0, 1.0, 1.0], "Rate": [0.0] * 5})
 edit_sanitary = st.data_editor(df_sanitary, use_container_width=True, hide_index=True, key="ed_sanitary")
 
 st.markdown("**Flooring Selection (Ratio/Rate)**")
