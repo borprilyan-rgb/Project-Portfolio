@@ -6,6 +6,10 @@ import altair as alt
 st.set_page_config(page_title="Complex Construction Calculator", layout="wide")
 
 st.title("Project Dimension and Cost Calculator")
+
+# --- MOBILE FIX: RESERVE SPACE AT THE TOP ---
+# This creates a container at the top of the app that we will fill later
+total_cost_placeholder = st.container()
 st.markdown("---")
 
 # --- DATA: PROJECT TYPE PRESETS ---
@@ -23,7 +27,7 @@ PROJECT_DEFAULTS = {
         "fl_marmer_pct": 10.0, "fl_marmer_rate": 750000.0,
         "kitchen": 0.0, "hw_wood": 750000.0, "hw_steel": 1850000.0, "carpet": 0.0,
         "glass": 0.0, "ffe": 32000000.0, "misc": 0.0, "mep": 2810941.24,
-        "utility": 92098.0, "railing_qty": 5.0, "railing_rate": 2200000.0, # Updated from Image
+        "utility": 92098.0, "railing_qty": 5.0, "railing_rate": 2200000.0, 
         "skylight_rate": 0.0,
         "ext_land": 1563000.0, "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0
     },
@@ -57,7 +61,6 @@ tab1, tab2, tab3, tab4 = st.tabs(["🏗️ 1. Project Metrics", "🧮 2. Ratios 
 
 # --- TAB 1: PROJECT METRICS ---
 with tab1:
-    st.header("Project Metrics Input")
     col_m1, col_m2 = st.columns(2)
     
     with col_m1:
@@ -89,7 +92,6 @@ with tab1:
         mushola_unit = st.number_input("Mushola (units)", value=2.0, step=1.0)
 
         st.subheader("E. Facilities")
-        # Updated based on screenshot
         res_fac_m2 = st.number_input("Residential Facility (m2)", value=2000.0, step=10.0) 
         pub_fac_m2 = st.number_input("Public Facility (m2)", value=0.0, step=10.0)
         proj_fac_u = st.number_input("Project Facility (unit)", value=2.0, step=1.0)
@@ -97,7 +99,6 @@ with tab1:
 
 # --- TAB 2: RATIOS & MULTIPLIERS ---
 with tab2:
-    st.header("Item Ratios & Multipliers")
     st.info("Adjust the material splits and per-room multiplier ratios below.")
     
     col_r1, col_r2, col_r3 = st.columns(3)
@@ -120,7 +121,6 @@ with tab2:
 
 # --- TAB 3: UNIT RATES ---
 with tab3:
-    st.header("Unit Rates (Rp)")
     st.info("These values are pre-filled based on your selected Project Type. Expand a section to override the defaults.")
     
     with st.expander("🏗️ Structural & Foundation Rates"):
@@ -183,32 +183,27 @@ with tab3:
         fac_proj_rate = c2.number_input("Project Facilities (Unit)", value=pt_data["fac_proj"])
 
 # --- LIVE AUTO-CALCULATIONS ---
-# Structure & Arch Base
 t_earth = gba * struc_earth
 t_found = gba * struc_found
 t_struc = gba * struc_work
 t_arch_base = gfa * arch_base
 
-# Facade
 t_precast = facade * (facade_precast_pct / 100) * fac_precast_rate
 t_window  = facade * (facade_window_pct / 100) * fac_window_rate
 t_double  = facade * (facade_double_pct / 100) * fac_double_rate
 
-# Doors & Lobby
 t_w_door = wooden_door * door_wood
 t_g_door = glass_door * door_glass
 t_s_door = steel_door * door_steel
 t_lobby  = lobby_interior * lobby_rate
 t_gondola = gondola_unit * gondola_rate
 
-# Sanitary
 t_unit_san = rooms * san_qty_room * san_room_rate
 t_t_male   = toilet_male * san_pub_m
 t_t_female = toilet_female * san_pub_f
 t_t_dis    = disabled_toil * san_dis
 t_mushola  = mushola_unit * san_mushola
 
-# Extra Items
 t_kitchen = rooms * kitchen_rate
 t_hw_w    = wooden_door * hw_wood
 t_hw_s    = steel_door * hw_steel
@@ -228,13 +223,11 @@ t_utility    = gba * utility_rate
 t_railing    = (rooms * railing_qty) * railing_rate
 t_skylight   = skylight_area * skylight_rate
 
-# Facilities
 t_external = land_m2 * ext_land_rate
 t_pub_fac  = pub_fac_m2 * fac_pub_rate
 t_res_fac  = res_fac_m2 * fac_res_rate
 t_proj_fac = proj_fac_u * fac_proj_rate
 
-# Final Totals
 construction_subtotal = sum([
     t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double,
     t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
@@ -247,6 +240,12 @@ t_preliminary = construction_subtotal * 0.05
 t_contingency = construction_subtotal * 0.03
 grand_total_hc = construction_subtotal + t_preliminary + t_contingency
 
+
+# --- INJECT TOTAL INTO TOP PLACEHOLDER ---
+with total_cost_placeholder:
+    st.info(f"### Total Project Hard Cost: **Rp {grand_total_hc:,.2f}**")
+
+
 # Chart Groupings
 group_structure = t_earth + t_found + t_struc
 group_arch = t_arch_base + t_w_door + t_g_door + t_s_door + t_lobby + t_ht + t_vinyl + t_marmer + t_carpet + t_glass_work + t_kitchen + t_hw_w + t_hw_s + t_railing + t_skylight
@@ -258,12 +257,13 @@ group_contingency = t_preliminary + t_contingency
 
 # --- TAB 4: RESULTS & SUMMARY ---
 with tab4:
-    st.header("Project Cost Summary")
     
-    # Top Level Metrics
-    c1, c2 = st.columns(2)
-    c1.metric("Exclude Preliminary & Contingency", f"Rp {construction_subtotal:,.2f}")
-    c2.metric("Total Project Hard Cost", f"Rp {grand_total_hc:,.2f}")
+    # MOBILE FIX: Replace st.metric with Markdown to prevent truncation "..."
+    st.markdown("##### Exclude Preliminary & Contingency")
+    st.markdown(f"### Rp {construction_subtotal:,.2f}")
+    
+    st.markdown("##### Total Project Hard Cost")
+    st.markdown(f"## Rp {grand_total_hc:,.2f}")
     
     st.markdown("---")
     
@@ -287,8 +287,6 @@ with tab4:
 
     # Detailed Table Expander
     with st.expander("View Detailed Hard Cost Table"):
-        
-        # We process the raw amounts into beautifully formatted strings here
         raw_amounts = [
             t_preliminary, t_earth, t_found, t_struc, t_arch_base,
             t_precast, t_window, t_double, t_w_door, t_g_door,
@@ -323,7 +321,6 @@ with tab4:
                 f"{skylight_area:,.0f} m2 (Total)", 
                 f"{land_m2} m2", f"{pub_fac_m2} m2", f"{res_fac_m2} m2", f"{proj_fac_u} units", "3% Subtotal" 
             ],
-            # Formats each number as a string with "Rp" and commas BEFORE hitting Streamlit
             "Amount": [f"Rp {val:,.2f}" for val in raw_amounts]
         }
         
