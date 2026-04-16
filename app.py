@@ -21,8 +21,8 @@ PROJECT_DEFAULTS = {
         "fl_ht_pct": 90.0, "fl_ht_rate": 150000, "fl_vinyl_pct": 0.0, "fl_vinyl_rate": 750000,
         "fl_marmer_pct": 10.0, "fl_marmer_rate": 750000,
         "kitchen": 0.0, "hw_wood": 750000, "hw_steel": 1850000, "carpet": 0.0,
-        "glass": 0.0, "ffe": 32000000, "misc": 32000000, "mep": 2810941.24,
-        "utility": 92098, "railing_qty": 6.305, "railing_rate": 0.0, 
+        "glass": 0.0, "ffe": 32000000, "misc": 0.0, "mep": 2810941.24, # Updated Linen to 0.0
+        "utility": 92098, "railing_qty": 5.0, "railing_rate": 0.0, # Updated Railing to 5.0
         "skylight_rate": 0.0,
         "ext_land": 1563000, "fac_pub": 31000000, "fac_res": 10000000, "fac_proj": 2000000000
     },
