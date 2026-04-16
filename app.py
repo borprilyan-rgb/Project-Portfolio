@@ -70,6 +70,28 @@ with col_fac3:
     double_p = st.number_input("Double Skin (%)", min_value=0.0, max_value=100.0, value=0.0, key="fac_double_display")
     rate_double = st.number_input("Double Skin Rate (per m2)", min_value=0.0, value=0.0, key="rate_double")
 
+# --- SUB-SECTION: PROJECT SPECIFIC RATES ---
+st.markdown(f"#### {project_type} Specific Rates")
+col_spec1, col_spec2, col_spec3 = st.columns(3)
+
+with col_spec1:
+    rate_wooden_door = st.number_input(f"Wooden Door Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
+    st.caption(f"Value: {rate_wooden_door:,.2f} per unit")
+    
+    rate_boundary = st.number_input(f"Boundary Wall Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
+    st.caption(f"Value: {rate_boundary:,.2f} per m'")
+
+with col_spec2:
+    rate_glass_door = st.number_input(f"Glass Door Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
+    st.caption(f"Value: {rate_glass_door:,.2f} per unit")
+    
+    rate_road = st.number_input(f"Access Road Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
+    st.caption(f"Value: {rate_road:,.2f} per m'")
+
+with col_spec3:
+    rate_steel_door = st.number_input(f"Steel Door Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
+    st.caption(f"Value: {rate_steel_door:,.2f} per unit")
+
 st.markdown("---")
 
 # --- STEP 3: CALCULATIONS ---
@@ -80,6 +102,13 @@ total_architecture = gfa * rate_architecture
 total_precast = facade * (precast_p / 100) * rate_precast
 total_window = facade * (window_p / 100) * rate_window
 total_double_skin = facade * (double_p / 100) * rate_double
+
+# Door and Infrastructure Math
+total_wooden_doors = wooden_door * rate_wooden_door
+total_glass_doors = glass_door * rate_glass_door
+total_steel_doors = steel_door * rate_steel_door
+total_boundary = boundary_wall * rate_boundary
+total_road_cost = access_road * rate_road
 
 # --- STEP 4: HARD COST INFORMATION TABLE ---
 st.header("Hard Cost Table")
@@ -93,7 +122,12 @@ hard_cost_data = {
         f"5. Basic Architecture ({project_type})",
         "6. Facade - Precast",
         "7. Facade - Window Wall",
-        "8. Facade - Double Skin"
+        "8. Facade - Double Skin",
+        f"9. Wooden Doors ({project_type})",
+        f"10. Glass Doors ({project_type})",
+        f"11. Steel Doors ({project_type})",
+        f"12. Boundary Wall & Gate ({project_type})",
+        f"13. Access Road ({project_type})"
     ],
     "Basis": [
         "5% of Hard Cost", 
@@ -103,7 +137,12 @@ hard_cost_data = {
         f"{gfa:,.2f} m2 (GFA) x {rate_architecture:,.2f}",
         f"{facade * (precast_p/100):,.2f} m2 ({precast_p}%) x {rate_precast:,.2f}",
         f"{facade * (window_p/100):,.2f} m2 ({window_p}%) x {rate_window:,.2f}",
-        f"{facade * (double_p/100):,.2f} m2 ({double_p}%) x {rate_double:,.2f}"
+        f"{facade * (double_p/100):,.2f} m2 ({double_p}%) x {rate_double:,.2f}",
+        f"{wooden_door} units x {rate_wooden_door:,.2f}",
+        f"{glass_door} units x {rate_glass_door:,.2f}",
+        f"{steel_door} units x {rate_steel_door:,.2f}",
+        f"{boundary_wall:,.2f} m' x {rate_boundary:,.2f}",
+        f"{access_road:,.2f} m' x {rate_road:,.2f}"
     ],
     "Amount": [
         0.0, 
@@ -113,7 +152,12 @@ hard_cost_data = {
         total_architecture,
         total_precast,
         total_window,
-        total_double_skin
+        total_double_skin,
+        total_wooden_doors,
+        total_glass_doors,
+        total_steel_doors,
+        total_boundary,
+        total_road_cost
     ]
 }
 
