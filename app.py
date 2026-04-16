@@ -101,19 +101,29 @@ rate_gondola       = rates_dict.get(f"Gondola Rate ({project_type})", 0.0)
 
 st.markdown("---")
 
-# --- STEP 3: CALCULATIONS ---
-total_earthwork    = gba * rate_earthwork
-total_foundation   = gba * rate_foundation
-total_structural   = gba * rate_structural
-total_architecture = gfa * rate_architecture
-total_precast      = facade * (precast_p / 100) * rate_precast
-total_window       = facade * (window_p / 100) * rate_window
-total_double_skin  = facade * (double_p / 100) * rate_double
-total_wooden_doors = wooden_door * rate_wooden_door
-total_glass_doors  = glass_door * rate_glass_door
-total_steel_doors  = steel_door * rate_steel_door
-total_lobby        = lobby_interior * rate_lobby
-total_gondola      = gondola_unit * rate_gondola
+# Initialize variables to avoid "Variable not defined" errors
+total_earthwork = total_foundation = total_structural = 0.0
+total_architecture = total_precast = total_window = total_double_skin = 0.0
+total_wooden_doors = total_glass_doors = total_steel_doors = 0.0
+total_lobby = total_gondola = 0.0
+
+# --- STEP 3: THE CALCULATE BUTTON ---
+if st.button("Run Calculation", type="primary", use_container_width=True):
+    # Math is performed inside the button trigger
+    total_earthwork    = gba * rate_earthwork
+    total_foundation   = gba * rate_foundation
+    total_structural   = gba * rate_structural
+    total_architecture = gfa * rate_architecture
+    total_precast      = facade * (precast_p / 100) * rate_precast
+    total_window       = facade * (window_p / 100) * rate_window
+    total_double_skin  = facade * (double_p / 100) * rate_double
+    total_wooden_doors = wooden_door * rate_wooden_door
+    total_glass_doors  = glass_door * rate_glass_door
+    total_steel_doors  = steel_door * rate_steel_door
+    total_lobby        = lobby_interior * rate_lobby
+    total_gondola      = gondola_unit * rate_gondola
+    
+    st.success("Calculations updated successfully!")
 
 # --- STEP 4: HARD COST TABLE ---
 st.header("Hard Cost Table")
