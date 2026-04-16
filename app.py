@@ -32,7 +32,7 @@ with col3:
     facilities = st.number_input("Facilities (m2)", min_value=0.0, step=1.0)
     landscape = st.number_input("External/Landscape (m2)", min_value=0.0, step=1.0)
     boundary_wall = st.number_input("Boundary Wall & Gate (m')", min_value=0.0, step=1.0)
-    access_road = st.number_input("Access Road (m')", min_value=0.0, step=1.0)
+    access_road = st.number_input("Access Road (m')", min_value=0.0)
 
 st.markdown("---")
 
