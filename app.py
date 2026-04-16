@@ -217,6 +217,13 @@ total_lobby = total_gondola = 0.0
 total_unit_typical = total_toil_male = total_toil_female = total_disabled = total_mushola = 0.0
 
 # --- STEP 3: THE CALCULATE BUTTON ---
+t_preliminary = t_earth = t_found = t_struc = t_arch_base = 0.0
+t_precast = t_window = t_double = t_w_door = t_g_door = t_s_door = 0.0
+t_lobby = t_gondola = t_unit_san = t_t_male = t_t_female = t_t_dis = 0.0
+t_mushola = t_kitchen = t_hw_w = t_hw_s = t_ht = t_vinyl = t_marmer = 0.0
+t_carpet = t_glass_work = t_ffe = t_misc = t_mep = t_external = 0.0
+t_pub_fac = t_res_fac = t_proj_fac = t_contingency = 0.0
+grand_total_hc = 0.0
 if st.button("Run Calculation", type="primary", use_container_width=True):
     # Mapping
     extra = dict(zip(edit_extra["Description"], edit_extra["Value"]))
@@ -284,10 +291,10 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     
     st.success("Calculations updated successfully!")
 
-# --- STEP 4: HARD COST TABLE ---
-st.header("Hard Cost Table")
+    # --- STEP 4: HARD COST TABLE ---
+    st.header("Hard Cost Table")
 
-hard_cost_data = {
+    hard_cost_data = {
         "Description": [
             "1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work",
             "5. Basic Architecture", "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin",
