@@ -273,7 +273,6 @@ group_contingency = t_preliminary + t_contingency
 
 # --- TAB 4: RESULTS & SUMMARY ---
 with tab4:
-    
     st.subheader("Soft Costs Setup")
     sc_col1, sc_col2 = st.columns(2)
     
@@ -282,12 +281,12 @@ with tab4:
         consultancy_rate = st.number_input("Consultancy Rate (per GFA)", value=174000.0, step=1000.0)
         
         st.markdown("##### 2. Quantity Surveyor Service")
-        qs_months = st.number_input("QS Duration (Months)", value=12.0, step=1.0)
+        qs_months = st.number_input("QS Duration (Months)", value=36.0, step=1.0)
         qs_rate = st.number_input("QS Rate (per Month)", value=75000000.0, step=1000000.0)
         
     with sc_col2:
         st.markdown("##### 3. Project Management Service")
-        pm_months = st.number_input("PM Duration (Months)", value=12.0, step=1.0)
+        pm_months = st.number_input("PM Duration (Months)", value=36.0, step=1.0)
         pm_rate = st.number_input("PM Rate (per Month)", value=250000000.0, step=1000000.0)
         
         st.markdown("##### 4. Insurance Coverage")
