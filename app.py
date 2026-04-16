@@ -92,28 +92,28 @@ edited_rates_df = st.data_editor(
 # --- MAP EDITED RATES TO VARIABLES ---
 rates_dict = dict(zip(edited_rates_df["Rate Description"], edited_rates_df["Value"]))
 
-rate_earthwork = rates_dict.get("Earthwork Rate (per GBA m2)", 0.0)
-rate_foundation = rates_dict.get("Foundation Rate (per GBA m2)", 0.0)
-rate_structural = rates_dict.get("Structural Work Rate (per GBA m2)", 0.0)
-rate_architecture = rates_dict.get("Architecture Rate (per GFA m2)", 0.0)
+# --- 1. STRUCTURE SECTION ---
+rate_earthwork     = rates_dict.get("Earthwork Rate (per GBA m2)", 0.0)
+rate_foundation    = rates_dict.get("Foundation Rate (per GBA m2)", 0.0)
+rate_structural    = rates_dict.get("Structural Work Rate (per GBA m2)", 0.0)
 
-# Facade
+# --- 2. FACADE PERCENTAGE SECTION ---
+precast_p          = rates_dict.get("Precast (%)", 0.0)
+window_p           = rates_dict.get("Window Wall (%)", 0.0)
+double_p           = rates_dict.get("Double Skin (%)", 0.0)
 
-rate_precast = rates_dict.get("Precast Rate (per m2)", 0.0)
-rate_window = rates_dict.get("Window Wall Rate (per m2)", 0.0)
-rate_double = rates_dict.get("Double Skin Rate (per m2)", 0.0)
+# --- 3. ARCHITECTURE SECTION ---
+rate_architecture  = rates_dict.get("Architecture Rate (per GFA m2)", 0.0)
+rate_precast       = rates_dict.get("Precast Rate (per m2)", 0.0)
+rate_window        = rates_dict.get("Window Wall Rate (per m2)", 0.0)
+rate_double        = rates_dict.get("Double Skin Rate (per m2)", 0.0)
 
-precast_p = rates_dict.get("Precast (%)", 0.0)
-window_p = rates_dict.get("Window Wall (%)", 0.0)
-double_p = rates_dict.get("Double Skin (%)", 0.0)
-
-
-# Project Specifics (using dynamic keys)
-rate_wooden_door = rates_dict.get(f"Wooden Door Rate ({project_type})", 0.0)
-rate_glass_door = rates_dict.get(f"Glass Door Rate ({project_type})", 0.0)
-rate_steel_door = rates_dict.get(f"Steel Door Rate ({project_type})", 0.0)
-rate_lobby = rates_dict.get(f"Lobby Interior Rate ({project_type})", 0.0)
-rate_gondola = rates_dict.get(f"Gondola Rate ({project_type})", 0.0)
+# Project Specifics (Dynamic Keys)
+rate_wooden_door   = rates_dict.get(f"Wooden Door Rate ({project_type})", 0.0)
+rate_glass_door    = rates_dict.get(f"Glass Door Rate ({project_type})", 0.0)
+rate_steel_door    = rates_dict.get(f"Steel Door Rate ({project_type})", 0.0)
+rate_lobby         = rates_dict.get(f"Lobby Interior Rate ({project_type})", 0.0)
+rate_gondola       = rates_dict.get(f"Gondola Rate ({project_type})", 0.0)
 st.markdown("---")
 
 # --- STEP 3: CALCULATIONS ---
