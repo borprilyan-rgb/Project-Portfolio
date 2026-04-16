@@ -12,7 +12,6 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Area Metrics")
-    # format="%.2f" adds the thousands separator and 2 decimal places
     land_area = st.number_input("Land Area (m2)", min_value=0.0, format="%.2f")
     gba = st.number_input("GBA (Gross Building Area) (m2)", min_value=0.0, format="%.2f")
     gfa = st.number_input("GFA (Gross Floor Area) (m2)", min_value=0.0, format="%.2f")
@@ -21,7 +20,6 @@ with col1:
 
 with col2:
     st.subheader("Units and Interior")
-    # For units, we use %d for integers or %,d for thousands separators in integers
     rooms = st.number_input("Room (unit)", min_value=0, format="%d")
     door_glass = st.number_input("Door Glass (unit)", min_value=0, format="%d")
     pintu_kayu = st.number_input("Pintu Kayu (unit)", min_value=0, format="%d")
