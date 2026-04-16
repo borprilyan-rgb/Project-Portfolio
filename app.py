@@ -56,9 +56,13 @@ with col1:
     df_struc = pd.DataFrame({"Description": ["Earthwork Rate (per GBA m2)", "Foundation Rate (per GBA m2)", "Structural Work Rate (per GBA m2)"], "Value": [0.0] * 3})
     edit_struc = st.data_editor(df_struc, use_container_width=True, hide_index=True, key="ed_struc")
 
-    st.markdown("**Facade Percentage**")
-    df_fac_pct = pd.DataFrame({"Description": ["Precast (%)", "Window Wall (%)", "Double Skin (%)"], "Value": [0.0] * 3})
-    edit_fac_pct = st.data_editor(df_fac_pct, use_container_width=True, hide_index=True, key="ed_fac_pct")
+    st.markdown("**Facade Selection (Ratio/Rate)**")
+    df_fac_std = pd.DataFrame({
+        "Description": ["Precast", "Window Wall", "Double Skin"],
+        "Ratio": [0.0] * 3,
+        "Rate": [0.0] * 3
+    })
+    edit_fac_pct = st.data_editor(df_fac_std, use_container_width=True, hide_index=True, key="ed_fac_std")
 
 with col2:
     st.markdown("**Architecture Section**")
@@ -69,9 +73,13 @@ st.markdown(f"**{project_type} Sanitary Section**")
 df_sanitary = pd.DataFrame({"Description": ["Typical Unit (Ratio per Room)", "Public Toilet Male", "Public Toilet Female", "Disabled Toilet", "Mushola/Prayer Room"], "Ratio/Qty": [0.0, 1.0, 1.0, 1.0, 1.0], "Rate": [0.0] * 5})
 edit_sanitary = st.data_editor(df_sanitary, use_container_width=True, hide_index=True, key="ed_sanitary")
 
-st.markdown("**Flooring Selection (%)**")
-df_floor_pct = pd.DataFrame({"Type": ["Homogenous/Ceramic Tile", "Vinyl", "Marmer"], "Ratio (%)": [0.0] * 3})
-edit_floor_pct = st.data_editor(df_floor_pct, use_container_width=True, hide_index=True, key="ed_floor_pct")
+st.markdown("**Flooring Selection (Ratio/Rate)**")
+df_floor_std = pd.DataFrame({
+    "Description": ["Homogenous/Ceramic Tile", "Vinyl", "Marmer"],
+    "Ratio": [0.0] * 3,
+    "Rate": [0.0] * 3
+})
+edit_floor_pct = st.data_editor(df_floor_std, use_container_width=True, hide_index=True, key="ed_floor_std")
 
 st.markdown("**Additional Rates**")
 df_extra = pd.DataFrame({"Description": ["Kitchen Equipment (Rate/Room)", "Hardware Pintu Kayu (Rate/Door)", "Hardware Pintu Besi (Rate/Door)", "Homogenous Tile Rate (m2)", "Vinyl Rate (m2)", "Marmer Rate (m2)", "Carpet Rate (m2)", "Glasses Rate (m2)", "FF&E (Rate/Room)", "Misc (Linen/Gym - Lump Sum)", "MEP Works (Rate/GBA)"], "Value": [0.0] * 11})
@@ -120,9 +128,10 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     t_found = gba * rate_foundation
     t_struc = gba * rate_structural
     t_arch_base = gfa * rate_architecture
-    t_precast = facade * (precast_p/100) * rate_precast
-    t_window = facade * (window_p/100) * rate_window
-    t_double = facade * (double_p/100) * rate_double
+    fac_records = edit_fac_pct.to_dict('records')
+    t_precast = facade * fac_records[0]["Ratio"] * fac_records[0]["Rate"]
+    t_window  = facade * fac_records[1]["Ratio"] * fac_records[1]["Rate"]
+    t_double  = facade * fac_records[2]["Ratio"] * fac_records[2]["Rate"]
     t_w_door = wooden_door * rate_wooden_door
     t_g_door = glass_door * rate_glass_door
     t_s_door = steel_door * rate_steel_door
@@ -135,9 +144,11 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     t_hw_w = wooden_door * extra.get("Hardware Pintu Kayu (Rate/Door)", 0.0)
     t_hw_s = steel_door * extra.get("Hardware Pintu Besi (Rate/Door)", 0.0)
     f_mult = 1.1 * 1.2 
-    t_ht = gfa * (f_pct.get("Homogenous/Ceramic Tile", 0)/100) * extra.get("Homogenous Tile Rate (m2)", 0) * f_mult
-    t_vinyl = gfa * (f_pct.get("Vinyl", 0)/100) * extra.get("Vinyl Rate (m2)", 0) * f_mult
-    t_marmer = gfa * (f_pct.get("Marmer", 0)/100) * extra.get("Marmer Rate (m2)", 0) * f_mult
+    floor_records = edit_floor_pct.to_dict('records')
+    f_mult = 1.32 
+    t_ht     = gfa * floor_records[0]["Ratio"] * floor_records[0]["Rate"] * f_mult
+    t_vinyl  = gfa * floor_records[1]["Ratio"] * floor_records[1]["Rate"] * f_mult
+    t_marmer = gfa * floor_records[2]["Ratio"] * floor_records[2]["Rate"] * f_mult
     t_carpet = carpet_m2 * extra.get("Carpet Rate (m2)", 0)
     t_glass_work = glass_m2 * extra.get("Glasses Rate (m2)", 0)
     t_ffe = rooms * extra.get("FF&E (Rate/Room)", 0)
@@ -157,7 +168,7 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
 
     hard_cost_data = {
         "Description": ["1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work", "5. Basic Architecture", "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin", "9. Wooden Doors", "10. Glass Doors", "11. Steel Doors", "12. Lobby Interior", "13. Gondola", "14. Typical Unit Sanitary", "15. Public Toilet Male", "16. Public Toilet Female", "17. Disabled Toilet", "18. Mushola", "19. Kitchen Equipment", "20. Hardware Pintu Kayu", "21. Hardware Pintu Besi", "22. HT/Ceramic Tile", "23. Vinyl Flooring", "24. Marmer Flooring", "25. Carpet Work", "26. Glass Work", "27. FF&E", "28. Misc. (Linen/Gym)", "29. MEP Works", "30. External Works", "31. Public Facilities", "32. Resident Facilities", "33. Project Facilities", "34. Contingencies"],
-        "Basis": ["5% Subtotal", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gfa:,.0f} m2", "Facade %", "Facade %", "Facade %", f"{wooden_door} units", f"{glass_door} units", f"{steel_door} units", f"{lobby_interior} m2", f"{gondola_unit} units", f"{rooms} rms", f"{toilet_male} units", f"{toilet_female} units", f"{disabled_toil} units", f"{mushola_unit} units", f"{rooms} rooms", f"{wooden_door} doors", f"{steel_door} doors", "1.32 x %", "1.32 x %", "1.32 x %", f"{carpet_m2} m2", f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2", f"{land_m2} m2", f"{pub_fac_m2} m2", f"{deck_m2} m2", f"{proj_fac_u} units", "3% Subtotal"],
+        "Basis": ["5% Subtotal", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gfa:,.0f} m2", "f"{facade:,.0f} m2 x {fac_records[0]['Ratio']} ratio"", "f"{facade:,.0f} m2 x {fac_records[0]['Ratio']} ratio"", "f"{facade:,.0f} m2 x {fac_records[0]['Ratio']} ratio"", f"{wooden_door} units", f"{glass_door} units", f"{steel_door} units", f"{lobby_interior} m2", f"{gondola_unit} units", f"{rooms} rms", f"{toilet_male} units", f"{toilet_female} units", f"{disabled_toil} units", f"{mushola_unit} units", f"{rooms} rooms", f"{wooden_door} doors", f"{steel_door} doors", f"{gfa:,.0f} m2 x {floor_records[0]['Ratio']} ratio x 1.32", f"{gfa:,.0f} m2 x {floor_records[0]['Ratio']} ratio x 1.32", f"{gfa:,.0f} m2 x {floor_records[0]['Ratio']} ratio x 1.32", f"{carpet_m2} m2", f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2", f"{land_m2} m2", f"{pub_fac_m2} m2", f"{deck_m2} m2", f"{proj_fac_u} units", "3% Subtotal"],
         "Amount": [t_preliminary, t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double, t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male, t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, t_ht, t_vinyl, t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_external, t_pub_fac, t_res_fac, t_proj_fac, t_contingency]
     }
 
