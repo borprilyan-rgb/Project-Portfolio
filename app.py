@@ -23,7 +23,7 @@ PROJECT_DEFAULTS = {
         "fl_marmer_pct": 10.0, "fl_marmer_rate": 750000.0,
         "kitchen": 0.0, "hw_wood": 750000.0, "hw_steel": 1850000.0, "carpet": 0.0,
         "glass": 0.0, "ffe": 32000000.0, "misc": 0.0, "mep": 2810941.24,
-        "utility": 92098.0, "railing_qty": 5.0, "railing_rate": 0.0, 
+        "utility": 92098.0, "railing_qty": 5.0, "railing_rate": 2200000.0, # Updated from Image
         "skylight_rate": 0.0,
         "ext_land": 1563000.0, "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0
     },
@@ -89,9 +89,10 @@ with tab1:
         mushola_unit = st.number_input("Mushola (units)", value=2.0, step=1.0)
 
         st.subheader("E. Facilities")
-        res_fac_m2 = st.number_input("Residential Facility (m2)", value=0.0, step=10.0)
-        pub_fac_m2 = st.number_input("Public Facility (m2)", value=2000.0, step=10.0)
-        proj_fac_u = st.number_input("Project Facility (unit)", value=0.0, step=1.0)
+        # Updated based on screenshot
+        res_fac_m2 = st.number_input("Residential Facility (m2)", value=2000.0, step=10.0) 
+        pub_fac_m2 = st.number_input("Public Facility (m2)", value=0.0, step=10.0)
+        proj_fac_u = st.number_input("Project Facility (unit)", value=2.0, step=1.0)
         land_m2 = st.number_input("Landscape Area (m2)", value=22496.94, step=100.0)
 
 # --- TAB 2: RATIOS & MULTIPLIERS ---
@@ -326,5 +327,4 @@ with tab4:
             "Amount": [f"Rp {val:,.2f}" for val in raw_amounts]
         }
         
-        # We removed the column_config entirely since the numbers are already strings!
         st.dataframe(pd.DataFrame(hard_cost_data), use_container_width=True, hide_index=True)
