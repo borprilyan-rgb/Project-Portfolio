@@ -3,3 +3,4 @@ st-gsheets-connection
 gspread
 pandas
 plotly
+altair
