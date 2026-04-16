@@ -12,12 +12,12 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Area Metrics")
-    # format="%,.2f" adds the thousands separator and 2 decimal places
-    land_area = st.number_input("Land Area (m2)", min_value=0.0, format="%,.2f")
-    gba = st.number_input("GBA (Gross Building Area) (m2)", min_value=0.0, format="%,.2f")
-    gfa = st.number_input("GFA (Gross Floor Area) (m2)", min_value=0.0, format="%,.2f")
-    sgfa = st.number_input("SGFA (Semi-Gross Floor Area) (m2)", min_value=0.0, format="%,.2f")
-    facade = st.number_input("Facade (m2)", min_value=0.0, format="%,.2f")
+    # format="%.2f" adds the thousands separator and 2 decimal places
+    land_area = st.number_input("Land Area (m2)", min_value=0.0, format="%.2f")
+    gba = st.number_input("GBA (Gross Building Area) (m2)", min_value=0.0, format="%.2f")
+    gfa = st.number_input("GFA (Gross Floor Area) (m2)", min_value=0.0, format="%.2f")
+    sgfa = st.number_input("SGFA (Semi-Gross Floor Area) (m2)", min_value=0.0, format="%.2f")
+    facade = st.number_input("Facade (m2)", min_value=0.0, format="%.2f")
 
 with col2:
     st.subheader("Units and Interior")
@@ -26,15 +26,15 @@ with col2:
     door_glass = st.number_input("Door Glass (unit)", min_value=0, format="%d")
     pintu_kayu = st.number_input("Pintu Kayu (unit)", min_value=0, format="%d")
     pintu_besi = st.number_input("Pintu Besi (unit)", min_value=0, format="%d")
-    lobby_interior = st.number_input("Lobby Interior (m2)", min_value=0.0, format="%,.2f")
+    lobby_interior = st.number_input("Lobby Interior (m2)", min_value=0.0, format="%.2f")
 
 with col3:
     st.subheader("External and Infrastructure")
-    rooftop = st.number_input("Rooftop (m2)", min_value=0.0, format="%,.2f")
-    facilities = st.number_input("Facilities (m2)", min_value=0.0, format="%,.2f")
-    landscape = st.number_input("External/Landscape (m2)", min_value=0.0, format="%,.2f")
-    boundary_wall = st.number_input("Boundary Wall & Gate (m')", min_value=0.0, format="%,.2f")
-    access_road = st.number_input("Access Road (m')", min_value=0.0, format="%,.2f")
+    rooftop = st.number_input("Rooftop (m2)", min_value=0.0, format="%.2f")
+    facilities = st.number_input("Facilities (m2)", min_value=0.0, format="%.2f")
+    landscape = st.number_input("External/Landscape (m2)", min_value=0.0, format="%.2f")
+    boundary_wall = st.number_input("Boundary Wall & Gate (m')", min_value=0.0, format="%.2f")
+    access_road = st.number_input("Access Road (m')", min_value=0.0, format="%.2f")
     
 st.markdown("---")
 
