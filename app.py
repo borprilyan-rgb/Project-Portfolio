@@ -13,15 +13,29 @@ st.caption("Tip: You can copy values from Excel and paste them directly into thi
 # --- STEP 1: PROJECT METRICS ---
 st.subheader("Project Metrics Input")
 
+# --- STEP 1: COMPREHENSIVE METRICS ---
 initial_metrics = {
     "Metric": [
         "Land Area (m2)", "GBA (m2)", "GFA (m2)", "SGFA (m2)", "Facade (m2)", 
-        "Room (unit)", "Glass Door (unit)", "Wooden Door (unit)", 
-        "Steel Door (unit)", "Lobby Interior (m2)", "Gondola (unit)",
-        "Public Toilet Male (unit)", "Public Toilet Female (unit)", 
-        "Disabled Toilet (unit)", "Mushola (unit)"
+        "Room (unit)", "Glass Door (unit)", "Wooden Door (unit)", "Steel Door (unit)", 
+        "Lobby Interior (m2)", "Gondola (unit)", "Public Toilet Male (unit)", 
+        "Public Toilet Female (unit)", "Disabled Toilet (unit)", "Mushola (unit)",
+        "Carpet Area (m2)", "Glass Area (m2)", "Landscape Area (m2)", 
+        "Facility Deck Area (m2)", "Public Facilities (m2)", "Project Facilities (unit)"
     ],
-    "Value": [0.0] * 15  # Changed from 11 to 15 to match the list above
+    "Value": [0.0] * 21 
+}
+df_metrics = pd.DataFrame(initial_metrics)
+edited_df = st.data_editor(df_metrics, use_container_width=True, hide_index=True)
+
+# Unpacking
+m = dict(zip(edited_df["Metric"], edited_df["Value"]))
+land_area, gba, gfa, sgfa, facade = m["Land Area (m2)"], m["GBA (m2)"], m["GFA (m2)"], m["SGFA (m2)"], m["Facade (m2)"]
+rooms, g_door, w_door, s_door = m["Room (unit)"], m["Glass Door (unit)"], m["Wooden Door (unit)"], m["Steel Door (unit)"]
+lobby_m2, gondola_u = m["Lobby Interior (m2)"], m["Gondola (unit)"]
+t_male, t_female, t_dis, mushola = m["Public Toilet Male (unit)"], m["Public Toilet Female (unit)"], m["Disabled Toilet (unit)"], m["Mushola (unit)"]
+carpet_m2, glass_m2, land_m2 = m["Carpet Area (m2)"], m["Glass Area (m2)"], m["Landscape Area (m2)"]
+deck_m2, pub_fac_m2, proj_fac_u = m["Facility Deck Area (m2)"], m["Public Facilities (m2)"], m["Project Facilities (unit)"]
 }
 df_metrics = pd.DataFrame(initial_metrics)
 
@@ -90,7 +104,6 @@ df_arch = pd.DataFrame({
 edit_arch = st.data_editor(df_arch, use_container_width=True, hide_index=True, key="ed_arch")
 
 # --- TABLE 4: SANITARY SECTION ---
-# --- TABLE 4: SANITARY SECTION ---
 st.markdown(f"**{project_type} Sanitary Section**")
 
 # Prepare the data
@@ -121,6 +134,38 @@ edit_sanitary = st.data_editor(
         "Rate": st.column_config.NumberColumn("Rate per Unit", format="%.2f")
     }
 )
+
+# --- TABLE 5: FLOORING RATIO (%) ---
+st.markdown("**Flooring Selection (%)**")
+df_floor_pct = pd.DataFrame({
+    "Type": ["Homogenous/Ceramic Tile", "Vinyl", "Marmer"],
+    "Ratio (%)": [0.0] * 3
+})
+edit_floor_pct = st.data_editor(df_floor_pct, use_container_width=True, hide_index=True, key="ed_floor_pct")
+
+# --- TABLE 6: ADDITIONAL ARCH & FF&E ---
+st.markdown("**Architecture, FF&E & MEP Rates**")
+df_extra = pd.DataFrame({
+    "Description": [
+        "Kitchen Equipment (Rate/Room)", "Hardware Pintu Kayu (Rate/Door)", "Hardware Pintu Besi (Rate/Door)",
+        "Homogenous Tile Rate (m2)", "Vinyl Rate (m2)", "Marmer Rate (m2)", 
+        "Carpet Rate (m2)", "Glasses Rate (m2)", 
+        "FF&E (Rate/Room)", "Misc (Linen/Gym - Lump Sum)", "MEP Works (Rate/GBA)"
+    ],
+    "Value": [0.0] * 11
+})
+edit_extra = st.data_editor(df_extra, use_container_width=True, hide_index=True, key="ed_extra")
+
+# --- TABLE 7: FACILITIES & EXTERNAL ---
+st.markdown("**Facilities & External Rates**")
+df_fac = pd.DataFrame({
+    "Description": [
+        "External Works (Rate/Landscape)", "Public Facilities (Rate/m2)", 
+        "Resident Facilities (Rate/Fac Deck)", "Project Facilities (Rate/Unit)"
+    ],
+    "Value": [0.0] * 4
+})
+edit_fac = st.data_editor(df_fac, use_container_width=True, hide_index=True, key="ed_fac")
 
 # --- MAP EDITED RATES TO VARIABLES ---
 all_rates = pd.concat([edit_struc, edit_fac_pct, edit_arch])
@@ -173,26 +218,69 @@ total_unit_typical = total_toil_male = total_toil_female = total_disabled = tota
 
 # --- STEP 3: THE CALCULATE BUTTON ---
 if st.button("Run Calculation", type="primary", use_container_width=True):
-    # Math inside the button uses the variables we mapped above
-    total_earthwork    = gba * rate_earthwork
-    total_foundation   = gba * rate_foundation
-    total_structural   = gba * rate_structural
-    total_architecture = gfa * rate_architecture
-    total_precast      = facade * (precast_p / 100) * rate_precast
-    total_window       = facade * (window_p / 100) * rate_window
-    total_double_skin  = facade * (double_p / 100) * rate_double
-    total_wooden_doors = wooden_door * rate_wooden_door
-    total_glass_doors  = glass_door * rate_glass_door
-    total_steel_doors  = steel_door * rate_steel_door
-    total_lobby        = lobby_interior * rate_lobby
-    total_gondola      = gondola_unit * rate_gondola
+    # Mapping
+    extra = dict(zip(edit_extra["Description"], edit_extra["Value"]))
+    fac = dict(zip(edit_fac["Description"], edit_fac["Value"]))
+    f_pct = dict(zip(edit_floor_pct["Type"], edit_floor_pct["Ratio (%)"]))
     
-    # Sanitary Math (Using the correct name now)
-    total_unit_typical = rooms * ratio_typical * rate_unit_typical
-    total_toil_male    = toilet_male * rate_toil_male
-    total_toil_female  = toilet_female * rate_toil_female
-    total_disabled     = disabled_toil * rate_disabled
-    total_mushola      = mushola_unit * rate_mushola
+    # 1. Basic Structure & Arch
+    t_earth = gba * rate_earthwork
+    t_found = gba * rate_foundation
+    t_struc = gba * rate_structural
+    t_arch_base = gfa * rate_architecture
+    
+    # 2. Facade
+    t_precast = facade * (precast_p/100) * rate_precast
+    t_window = facade * (window_p/100) * rate_window
+    t_double = facade * (double_p/100) * rate_double
+    
+    # 3. Doors, Lobby, Gondola
+    t_w_door = w_door * rate_wooden_door
+    t_g_door = g_door * rate_glass_door
+    t_s_door = s_door * rate_steel_door
+    t_lobby = lobby_m2 * rate_lobby
+    t_gondola = gondola_u * rate_gondola
+    
+    # 4. Sanitary
+    t_unit_san = rooms * ratio_typical * rate_unit_typical
+    t_t_male, t_t_female = t_male * rate_toil_male, t_female * rate_toil_female
+    t_t_dis, t_mushola = t_dis * rate_disabled, mushola * rate_mushola
+    
+    # 5. New Architecture Items (Hardware, Kitchen, Flooring)
+    t_kitchen = rooms * extra["Kitchen Equipment (Rate/Room)"]
+    t_hw_w = w_door * extra["Hardware Pintu Kayu (Rate/Door)"]
+    t_hw_s = s_door * extra["Hardware Pintu Besi (Rate/Door)"]
+    
+    f_mult = 1.1 * 1.2 # Waste & Margin
+    t_ht = gfa * (f_pct["Homogenous/Ceramic Tile"]/100) * extra["Homogenous Tile Rate (m2)"] * f_mult
+    t_vinyl = gfa * (f_pct["Vinyl"]/100) * extra["Vinyl Rate (m2)"] * f_mult
+    t_marmer = gfa * (f_pct["Marmer"]/100) * extra["Marmer Rate (m2)"] * f_mult
+    
+    t_carpet = carpet_m2 * extra["Carpet Rate (m2)"]
+    t_glass_work = glass_m2 * extra["Glasses Rate (m2)"]
+    
+    # 6. FF&E, MEP, External, Facilities
+    t_ffe = rooms * extra["FF&E (Rate/Room)"]
+    t_misc = 1 * extra["Misc (Linen/Gym - Lump Sum)"]
+    t_mep = gba * extra["MEP Works (Rate/GBA)"]
+    t_external = land_m2 * fac["External Works (Rate/Landscape)"]
+    t_pub_fac = pub_fac_m2 * fac["Public Facilities (Rate/m2)"]
+    t_res_fac = deck_m2 * fac["Resident Facilities (Rate/Fac Deck)"]
+    t_proj_fac = proj_fac_u * fac["Project Facilities (Rate/Unit)"]
+
+    # 7. Totals (Subtotal excluding Item 1 and Item 16)
+    subtotal_for_pct = sum([
+        t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double,
+        t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
+        t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, t_ht, t_vinyl,
+        t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_external,
+        t_pub_fac, t_res_fac, t_proj_fac
+    ])
+    
+    t_contingency = subtotal_for_pct * 0.03
+    t_preliminary = subtotal_for_pct * 0.05
+    
+    grand_total_hc = subtotal_hc + total_contingency + total_preliminary
     
     st.success("Calculations updated successfully!")
 
@@ -202,38 +290,29 @@ st.header("Hard Cost Table")
 hard_cost_data = {
         "Description": [
             "1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work",
-            f"5. Basic Architecture ({project_type})", "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin",
-            f"9. Wooden Doors ({project_type})", f"10. Glass Doors ({project_type})", f"11. Steel Doors ({project_type})",
-            f"12. Lobby Interior ({project_type})", f"13. Gondola ({project_type})",
-            f"14. Typical Unit Sanitary ({project_type})", f"15. Public Toilet Male ({project_type})",
-            f"16. Public Toilet Female ({project_type})", f"17. Disabled Toilet ({project_type})", f"18. Mushola/Prayer Room ({project_type})"
+            "5. Basic Architecture", "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin",
+            "9. Wooden Doors", "10. Glass Doors", "11. Steel Doors", "12. Lobby Interior", "13. Gondola",
+            "14. Typical Unit Sanitary", "15. Public Toilet Male", "16. Public Toilet Female", "17. Disabled Toilet", "18. Mushola",
+            "19. Kitchen Equipment", "20. Hardware Pintu Kayu", "21. Hardware Pintu Besi", "22. HT/Ceramic Tile",
+            "23. Vinyl Flooring", "24. Marmer Flooring", "25. Carpet Work", "26. Glass Work", "27. FF&E",
+            "28. Misc. (Linen/Gym)", "29. MEP Works", "30. External Works", "31. Public Facilities",
+            "32. Resident Facilities", "33. Project Facilities", "34. Contingencies"
         ],
         "Basis": [
-            "5% of Hard Cost", 
-            f"{gba:,.2f} m2 (GBA) x {rate_earthwork:,.2f}", 
-            f"{gba:,.2f} m2 (GBA) x {rate_foundation:,.2f}",
-            f"{gba:,.2f} m2 (GBA) x {rate_structural:,.2f}",
-            f"{gfa:,.2f} m2 (GFA) x {rate_architecture:,.2f}",
-            f"{facade * (precast_p/100):,.2f} m2 x {rate_precast:,.2f}",
-            f"{facade * (window_p/100):,.2f} m2 x {rate_window:,.2f}",
-            f"{facade * (double_p/100):,.2f} m2 x {rate_double:,.2f}",
-            f"{wooden_door} units x {rate_wooden_door:,.2f}",
-            f"{glass_door} units x {rate_glass_door:,.2f}",
-            f"{steel_door} units x {rate_steel_door:,.2f}",
-            f"{lobby_interior:,.2f} m2 x {rate_lobby:,.2f}",
-            f"{gondola_unit} units x {rate_gondola:,.2f}",
-            f"{rooms} rooms x {ratio_typical} qty x {rate_unit_typical:,.2f}",
-            f"{toilet_male} units x {rate_toil_male:,.2f}",                      
-            f"{toilet_female} units x {rate_toil_female:,.2f}",            
-            f"{disabled_toil} units x {rate_disabled:,.2f}",          
-            f"{mushola_unit} units x {rate_mushola:,.2f}" 
+            "5% Subtotal", f"{gba:,.0f}m2 x {rate_earthwork:,.0f}", f"{gba:,.0f}m2 x {rate_foundation:,.0f}", f"{gba:,.0f}m2 x {rate_structural:,.0f}",
+            f"{gfa:,.0f}m2 x {rate_architecture:,.0f}", "Facade Area %", "Facade Area %", "Facade Area %",
+            f"{w_door} units", f"{g_door} units", f"{s_door} units", f"{lobby_m2} m2", f"{gondola_u} units",
+            f"{rooms} rms x {ratio_typical}", f"{t_male} units", f"{t_female} units", f"{t_dis} units", f"{mushola} units",
+            f"{rooms} rooms", f"{w_door} doors", f"{s_door} doors", "GFA x % x 1.32", "GFA x % x 1.32", "GFA x % x 1.32",
+            f"{carpet_m2} m2", f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2 (GBA)",
+            f"{land_m2} m2", f"{pub_fac_m2} m2", f"{deck_m2} m2", f"{proj_fac_u} units", "3% Subtotal"
         ],
         "Amount": [
-            0.0, total_earthwork, total_foundation, total_structural,
-            total_architecture, total_precast, total_window, total_double_skin,
-            total_wooden_doors, total_glass_doors, total_steel_doors,
-            total_lobby, total_gondola, total_unit_typical, 
-            total_toil_male, total_toil_female, total_disabled, total_mushola
+            t_preliminary, t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double,
+            t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
+            t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, t_ht, t_vinyl,
+            t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_external,
+            t_pub_fac, t_res_fac, t_proj_fac, t_contingency
         ]
     }
 
