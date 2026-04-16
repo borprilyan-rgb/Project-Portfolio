@@ -160,7 +160,7 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
             f"Ratio {f_recs[0]['Ratio']}", f"Ratio {f_recs[1]['Ratio']}", f"Ratio {f_recs[2]['Ratio']}", f"{wooden_door} units", f"{glass_door} units",
             f"{steel_door} units", f"{lobby_interior} m2", f"{gondola_unit} units", f"{rooms} rms", f"{toilet_male} units",
             f"{toilet_female} units", f"{disabled_toil} units", f"{mushola_unit} units", f"{rooms} rooms", f"{wooden_door} units",
-            f"{steel_door} units", f"{fl_recs[0]['Ratio (%)']}% x 1.32", f"{fl_recs[0]['Ratio (%)']}% x 1.32", f"{fl_recs[0]['Ratio (%)']}% x 1.32", f"{carpet_m2} m2",
+            f"{steel_door} units", f"{fl_recs[0]['Ratio (%)']}% x 1.32", f"{fl_recs[1]['Ratio (%)']}% x 1.32", f"{fl_recs[2]['Ratio (%)']}% x 1.32", f"{carpet_m2} m2",
             f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2", f"{land_m2} m2",
             f"{pub_fac_m2} m2", f"{deck_m2} m2", f"{proj_fac_u} units", "3% Subtotal"
         ],
