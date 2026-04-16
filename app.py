@@ -142,6 +142,7 @@ total_earthwork = total_foundation = total_structural = 0.0
 total_architecture = total_precast = total_window = total_double_skin = 0.0
 total_wooden_doors = total_glass_doors = total_steel_doors = 0.0
 total_lobby = total_gondola = 0.0
+total_unit_typical = total_toil_male = total_toil_female = total_disabled = total_mushola = 0.0
 
 # --- STEP 3: THE CALCULATE BUTTON ---
 if st.button("Run Calculation", type="primary", use_container_width=True):
@@ -158,6 +159,11 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     total_steel_doors  = steel_door * rate_steel_door
     total_lobby        = lobby_interior * rate_lobby
     total_gondola      = gondola_unit * rate_gondola
+    total_unit_typical = rooms * rate_unit_typical
+    total_toil_male    = toilet_male * rate_toil_male
+    total_toil_female  = toilet_female * rate_toil_female
+    total_disabled     = disabled_toil * rate_disabled
+    total_mushola      = mushola_unit * rate_mushola
     
     st.success("Calculations updated successfully!")
 
@@ -166,24 +172,12 @@ st.header("Hard Cost Table")
 
 hard_cost_data = {
     "Description": [
-        "1. Preliminary Works", 
-        "2. Earthwork", 
-        "3. Foundation",
-        "4. Structural Work",
-        f"5. Basic Architecture ({project_type})",
-        "6. Facade - Precast",
-        "7. Facade - Window Wall",
-        "8. Facade - Double Skin",
-        f"9. Wooden Doors ({project_type})",
-        f"10. Glass Doors ({project_type})",
-        f"11. Steel Doors ({project_type})",
-        f"12. Lobby Interior ({project_type})",
-        f"13. Gondola ({project_type})",
-        f"14. Typical Unit Sanitary ({project_type})",
-        f"15. Public Toilet Male ({project_type})",
-        f"16. Public Toilet Female ({project_type})",
-        f"17. Disabled Toilet ({project_type})",
-        f"18. Mushola/Prayer Room ({project_type})"
+        "1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work",
+        f"5. Basic Architecture ({project_type})", "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin",
+        f"9. Wooden Doors ({project_type})", f"10. Glass Doors ({project_type})", f"11. Steel Doors ({project_type})",
+        f"12. Lobby Interior ({project_type})", f"13. Gondola ({project_type})",
+        f"14. Typical Unit Sanitary ({project_type})", f"15. Public Toilet Male ({project_type})",
+        f"16. Public Toilet Female ({project_type})", f"17. Disabled Toilet ({project_type})", f"18. Mushola/Prayer Room ({project_type})"
     ],
     "Basis": [
         "5% of Hard Cost", 
@@ -198,7 +192,7 @@ hard_cost_data = {
         f"{glass_door} units x {rate_glass_door:,.2f}",
         f"{steel_door} units x {rate_steel_door:,.2f}",
         f"{lobby_interior:,.2f} m2 x {rate_lobby:,.2f}",
-        f"{gondola_unit} units x {rate_gondola:,.2f}"
+        f"{gondola_unit} units x {rate_gondola:,.2f}", # <--- ADDED COMMA HERE
         f"{rooms} rooms x {rate_unit_typical:,.2f}",
         f"{toilet_male} units x {rate_toil_male:,.2f}",
         f"{toilet_female} units x {rate_toil_female:,.2f}",
@@ -206,24 +200,11 @@ hard_cost_data = {
         f"{mushola_unit} units x {rate_mushola:,.2f}"
     ],
     "Amount": [
-        0.0, 
-        total_earthwork, 
-        total_foundation,
-        total_structural,
-        total_architecture,
-        total_precast,
-        total_window,
-        total_double_skin,
-        total_wooden_doors,
-        total_glass_doors,
-        total_steel_doors,
-        total_lobby,
-        total_gondola,
-        total_unit_typical,
-        total_toil_male,
-        total_toil_female,
-        total_disabled,
-        total_mushola
+        0.0, total_earthwork, total_foundation, total_structural,
+        total_architecture, total_precast, total_window, total_double_skin,
+        total_wooden_doors, total_glass_doors, total_steel_doors,
+        total_lobby, total_gondola, total_unit_typical, 
+        total_toil_male, total_toil_female, total_disabled, total_mushola
     ]
 }
 
