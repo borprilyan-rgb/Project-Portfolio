@@ -76,21 +76,14 @@ col_spec1, col_spec2, col_spec3 = st.columns(3)
 
 with col_spec1:
     rate_wooden_door = st.number_input(f"Wooden Door Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-    st.caption(f"Value: {rate_wooden_door:,.2f} per unit")
-    
     rate_boundary = st.number_input(f"Boundary Wall Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-    st.caption(f"Value: {rate_boundary:,.2f} per m'")
 
 with col_spec2:
     rate_glass_door = st.number_input(f"Glass Door Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-    st.caption(f"Value: {rate_glass_door:,.2f} per unit")
-    
     rate_road = st.number_input(f"Access Road Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-    st.caption(f"Value: {rate_road:,.2f} per m'")
 
 with col_spec3:
     rate_steel_door = st.number_input(f"Steel Door Rate ({project_type})", min_value=0.0, value=0.0, format="%.2f")
-    st.caption(f"Value: {rate_steel_door:,.2f} per unit")
 
 st.markdown("---")
 
@@ -103,7 +96,6 @@ total_precast = facade * (precast_p / 100) * rate_precast
 total_window = facade * (window_p / 100) * rate_window
 total_double_skin = facade * (double_p / 100) * rate_double
 
-# Door and Infrastructure Math
 total_wooden_doors = wooden_door * rate_wooden_door
 total_glass_doors = glass_door * rate_glass_door
 total_steel_doors = steel_door * rate_steel_door
