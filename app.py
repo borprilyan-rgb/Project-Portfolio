@@ -209,13 +209,6 @@ total_mushola      = mushola_unit * rate_mushola
 
 st.markdown("---")
 
-# Initialize variables to avoid "Variable not defined" errors
-t_earthk = t_found = t_struc = 0.0
-t_arch_base = total_precast = total_window = total_double_skin = 0.0
-total_wooden_doors = total_glass_doors = total_steel_doors = 0.0
-total_lobby = total_gondola = 0.0
-total_unit_typical = total_toil_male = total_toil_female = total_disabled = total_mushola = 0.0
-
 # --- STEP 3: THE CALCULATE BUTTON ---
 if st.button("Run Calculation", type="primary", use_container_width=True):
     # ... (Keep all your t_ calculations here) ...
