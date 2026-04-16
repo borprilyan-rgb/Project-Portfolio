@@ -179,22 +179,22 @@ hard_cost_data = {
 df_hc = pd.DataFrame(hard_cost_data)
 
 st.dataframe(
-    df_hc.style.format({"Amount": "{:,.2f}"}),
+    df_hc, # No need for .style.format here if using column_config
     use_container_width=True,
     hide_index=True,
     column_config={
         "Description": st.column_config.TextColumn(
             "Description",
-            width="medium",  # Prevents it from taking up the whole screen
+            width="medium",
         ),
         "Basis": st.column_config.TextColumn(
             "Basis",
-            width="small",   # Keeps the math breakdown compact
+            width="small",
         ),
         "Amount": st.column_config.NumberColumn(
             "Amount (Rp)",
-            format="%.2f",
-            width="medium",  # Ensures the full number is visible
+            format="#,##0.00",  # This adds the 1,000 separator (comma) and 2 decimals
+            width="medium",
         ),
     }
 )
