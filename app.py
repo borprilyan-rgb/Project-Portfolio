@@ -190,7 +190,6 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
             f"{ex_recs[10]['Qty/Ratio']:,.0f} m2 (Total)", # 32: Skylight Work
             f"{land_m2} m2", f"{pub_fac_m2} m2", f"{deck_m2} m2", f"{proj_fac_u} units", "3% Subtotal" # 33-37
         ],
-        ],
         "Amount": [
             t_preliminary, t_earth, t_found, t_struc, t_arch_base,
             t_precast, t_window, t_double, t_w_door, t_g_door,
