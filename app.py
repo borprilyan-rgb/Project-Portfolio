@@ -106,12 +106,22 @@ with tab2:
         facade_precast_pct = st.number_input("Precast (%)", value=pt_data["facade_precast_pct"])
         facade_window_pct = st.number_input("Window Wall (%)", value=pt_data["facade_window_pct"])
         facade_double_pct = st.number_input("Double Skin (%)", value=pt_data["facade_double_pct"])
+        
+        # 100% Safety Check for Facade
+        facade_total = facade_precast_pct + facade_window_pct + facade_double_pct
+        if facade_total != 100.0:
+            st.warning(f"⚠️ **Total: {facade_total}%**. Facade splits should equal 100%.")
     
     with col_r2:
         st.subheader("Flooring Ratio (%)")
         fl_ht_pct = st.number_input("HT/Ceramic Tile (%)", value=pt_data["fl_ht_pct"])
         fl_vinyl_pct = st.number_input("Vinyl (%)", value=pt_data["fl_vinyl_pct"])
         fl_marmer_pct = st.number_input("Marmer (%)", value=pt_data["fl_marmer_pct"])
+        
+        # 100% Safety Check for Flooring
+        fl_total = fl_ht_pct + fl_vinyl_pct + fl_marmer_pct
+        if fl_total != 100.0:
+            st.warning(f"⚠️ **Total: {fl_total}%**. Flooring splits should equal 100%.")
         
     with col_r3:
         st.subheader("Per-Room Multipliers")
@@ -239,15 +249,6 @@ t_preliminary = construction_subtotal * 0.05
 t_contingency = construction_subtotal * 0.03
 grand_total_hc = construction_subtotal + t_preliminary + t_contingency
 
-# Chart Groupings
-group_structure = t_earth + t_found + t_struc
-group_arch = t_arch_base + t_w_door + t_g_door + t_s_door + t_lobby + t_ht + t_vinyl + t_marmer + t_carpet + t_glass_work + t_kitchen + t_hw_w + t_hw_s + t_railing + t_skylight
-group_facade = t_precast + t_window + t_double + t_gondola
-group_sanitary = t_unit_san + t_t_male + t_t_female + t_t_dis + t_mushola
-group_mep = t_ffe + t_misc + t_mep + t_utility
-group_ext = t_external + t_pub_fac + t_res_fac + t_proj_fac
-group_contingency = t_preliminary + t_contingency
-
 
 # --- INJECT TOTAL INTO TOP PLACEHOLDER (MOBILE WRAP FIX) ---
 with total_cost_placeholder:
@@ -261,8 +262,21 @@ with total_cost_placeholder:
     """, unsafe_allow_html=True)
 
 
+# Chart Groupings
+group_structure = t_earth + t_found + t_struc
+group_arch = t_arch_base + t_w_door + t_g_door + t_s_door + t_lobby + t_ht + t_vinyl + t_marmer + t_carpet + t_glass_work + t_kitchen + t_hw_w + t_hw_s + t_railing + t_skylight
+group_facade = t_precast + t_window + t_double + t_gondola
+group_sanitary = t_unit_san + t_t_male + t_t_female + t_t_dis + t_mushola
+group_mep = t_ffe + t_misc + t_mep + t_utility
+group_ext = t_external + t_pub_fac + t_res_fac + t_proj_fac
+group_contingency = t_preliminary + t_contingency
+
 # --- TAB 4: RESULTS & SUMMARY ---
 with tab4:
+    
+    # 0.00 Check and Guidance Prompt
+    if grand_total_hc == 0:
+        st.info("👈 **Your project total is currently Rp 0.00.** Head over to **Tab 1: Project Metrics** to input your building dimensions and start calculating!")
     
     # MOBILE WRAP FIX for Subtotal and Grand Total in Tab 4
     st.markdown(f"""
