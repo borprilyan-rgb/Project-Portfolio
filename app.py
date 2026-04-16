@@ -210,8 +210,8 @@ total_mushola      = mushola_unit * rate_mushola
 st.markdown("---")
 
 # Initialize variables to avoid "Variable not defined" errors
-total_earthwork = total_foundation = total_structural = 0.0
-total_architecture = total_precast = total_window = total_double_skin = 0.0
+t_earthk = t_found = t_struc = 0.0
+t_arch_base = total_precast = total_window = total_double_skin = 0.0
 total_wooden_doors = total_glass_doors = total_steel_doors = 0.0
 total_lobby = total_gondola = 0.0
 total_unit_typical = total_toil_male = total_toil_female = total_disabled = total_mushola = 0.0
@@ -280,7 +280,7 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     t_contingency = subtotal_for_pct * 0.03
     t_preliminary = subtotal_for_pct * 0.05
     
-    grand_total_hc = subtotal_hc + total_contingency + total_preliminary
+    grand_total_hc = subtotal_for_pct + t_contingency + t_preliminary
     
     st.success("Calculations updated successfully!")
 
