@@ -18,7 +18,6 @@ initial_metrics = {
                "Steel Door (unit)", "Lobby Interior (m2)", "Gondola (unit)"],
     "Value": [0.0] * 11
 }
-df_input = pd.DataFrame(initial_metrics)
 
 # Use data_editor to allow Excel-like copy/paste
 edited_df = st.data_editor(
