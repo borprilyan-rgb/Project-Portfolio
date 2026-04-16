@@ -167,11 +167,35 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     grand_total_hc = t_subtotal_pure + t_contingency + t_preliminary
 
     hard_cost_data = {
-        "Description": ["1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work", "5. Basic Architecture", "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin", "9. Wooden Doors", "10. Glass Doors", "11. Steel Doors", "12. Lobby Interior", "13. Gondola", "14. Typical Unit Sanitary", "15. Public Toilet Male", "16. Public Toilet Female", "17. Disabled Toilet", "18. Mushola", "19. Kitchen Equipment", "20. Hardware Pintu Kayu", "21. Hardware Pintu Besi", "22. HT/Ceramic Tile", "23. Vinyl Flooring", "24. Marmer Flooring", "25. Carpet Work", "26. Glass Work", "27. FF&E", "28. Misc. (Linen/Gym)", "29. MEP Works", "30. External Works", "31. Public Facilities", "32. Resident Facilities", "33. Project Facilities", "34. Contingencies"],
-        "Basis": ["5% Subtotal", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gfa:,.0f} m2", "f"{facade:,.0f} m2 x {fac_records[0]['Ratio']} ratio"", "f"{facade:,.0f} m2 x {fac_records[0]['Ratio']} ratio"", "f"{facade:,.0f} m2 x {fac_records[0]['Ratio']} ratio"", f"{wooden_door} units", f"{glass_door} units", f"{steel_door} units", f"{lobby_interior} m2", f"{gondola_unit} units", f"{rooms} rms", f"{toilet_male} units", f"{toilet_female} units", f"{disabled_toil} units", f"{mushola_unit} units", f"{rooms} rooms", f"{wooden_door} doors", f"{steel_door} doors", f"{gfa:,.0f} m2 x {floor_records[0]['Ratio']} ratio x 1.32", f"{gfa:,.0f} m2 x {floor_records[0]['Ratio']} ratio x 1.32", f"{gfa:,.0f} m2 x {floor_records[0]['Ratio']} ratio x 1.32", f"{carpet_m2} m2", f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2", f"{land_m2} m2", f"{pub_fac_m2} m2", f"{deck_m2} m2", f"{proj_fac_u} units", "3% Subtotal"],
-        "Amount": [t_preliminary, t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double, t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male, t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, t_ht, t_vinyl, t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_external, t_pub_fac, t_res_fac, t_proj_fac, t_contingency]
+        "Description": [
+            "1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work",
+            "5. Basic Architecture", "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin",
+            "9. Wooden Doors", "10. Glass Doors", "11. Steel Doors", "12. Lobby Interior", "13. Gondola",
+            "14. Typical Unit Sanitary", "15. Public Toilet Male", "16. Public Toilet Female", "17. Disabled Toilet", "18. Mushola",
+            "19. Kitchen Equipment", "20. Hardware Pintu Kayu", "21. Hardware Pintu Besi", "22. HT/Ceramic Tile",
+            "23. Vinyl Flooring", "24. Marmer Flooring", "25. Carpet Work", "26. Glass Work", "27. FF&E",
+            "28. Misc. (Linen/Gym)", "29. MEP Works", "30. External Works", "31. Public Facilities",
+            "32. Resident Facilities", "33. Project Facilities", "34. Contingencies"
+        ],
+        "Basis": [
+            "5% Subtotal", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gfa:,.0f} m2", 
+            f"{facade:,.0f} m2 x {fac_records[0]['Ratio']}", f"{facade:,.0f} m2 x {fac_records[1]['Ratio']}", f"{facade:,.0f} m2 x {fac_records[2]['Ratio']}",
+            f"{wooden_door} units", f"{glass_door} units", f"{steel_door} units", f"{lobby_interior} m2", f"{gondola_unit} units",
+            f"{rooms} rms x {ratio_typical}", f"{toilet_male} units", f"{toilet_female} units", f"{disabled_toil} units", f"{mushola_unit} units",
+            f"{rooms} rooms", f"{wooden_door} doors", f"{steel_door} doors", 
+            f"{gfa:,.0f} m2 x {floor_records[0]['Ratio']} x 1.32", f"{gfa:,.0f} m2 x {floor_records[1]['Ratio']} x 1.32", f"{gfa:,.0f} m2 x {floor_records[2]['Ratio']} x 1.32",
+            f"{carpet_m2} m2", f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2",
+            f"{land_m2} m2", f"{pub_fac_m2} m2", f"{deck_m2} m2", f"{proj_fac_u} units", "3% Subtotal"
+        ],
+        "Amount": [
+            t_preliminary, t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double,
+            t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
+            t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, t_ht, t_vinyl,
+            t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_external,
+            t_pub_fac, t_res_fac, t_proj_fac, t_contingency
+        ]
     }
-
+    
     st.header("Hard Cost Table")
     st.dataframe(pd.DataFrame(hard_cost_data), use_container_width=True, hide_index=True, column_config={"Amount": st.column_config.NumberColumn(format="Rp %,.2f")})
     col_res1, col_res2 = st.columns(2)
