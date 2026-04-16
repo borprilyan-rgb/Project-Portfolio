@@ -51,42 +51,80 @@ PROJECT_DEFAULTS = {
     }
 }
 
+# Fetch the active project type early to set the default quantity for Sanitary
+project_type = st.sidebar.selectbox("Select Project Type", ["Hotel", "Retail", "Apartment", "Parking"])
+pt_data = PROJECT_DEFAULTS[project_type]
+
 # --- STEP 1: PROJECT METRICS ---
 st.subheader("1. Project Metrics Input")
-# Added Skylight Area here as a pure quantity
-initial_metrics = {
-    "Metric": [
-        "Land Area (m2)", "GBA (m2)", "GFA (m2)", "SGFA (m2)", "Facade (m2)", 
-        "Room (unit)", "Glass Door (unit)", "Wooden Door (unit)", "Steel Door (unit)", 
-        "Lobby Interior (m2)", "Gondola (unit)", "Public Toilet Male (unit)", 
-        "Public Toilet Female (unit)", "Disabled Toilet (unit)", "Mushola (unit)",
-        "Carpet Area (m2)", "Glass Area (m2)", "Landscape Area (m2)", 
-        "Facility Deck Area (m2)", "Public Facilities (m2)", "Project Facilities (unit)",
-        "Skylight Area (m2)" 
-    ],
-    "Value": [0.0] * 22 
-}
-df_metrics = pd.DataFrame(initial_metrics)
-edited_df = st.data_editor(df_metrics, use_container_width=True, hide_index=True)
 
-# Unpacking Metrics
-m = dict(zip(edited_df["Metric"], edited_df["Value"]))
-land_area, gba, gfa, facade = m["Land Area (m2)"], m["GBA (m2)"], m["GFA (m2)"], m["Facade (m2)"]
-rooms, glass_door, wooden_door, steel_door = m["Room (unit)"], m["Glass Door (unit)"], m["Wooden Door (unit)"], m["Steel Door (unit)"]
+col_m1, col_m2 = st.columns(2)
+
+with col_m1:
+    st.markdown("**A. Area Measurement**")
+    df_area = pd.DataFrame({
+        "Metric": ["Land Area (m2)", "GBA (m2)", "GFA (m2)", "SGFA (m2)"],
+        "Value": [0.0] * 4
+    })
+    ed_area = st.data_editor(df_area, use_container_width=True, hide_index=True)
+
+    st.markdown("**B. Architecture**")
+    df_arch_metric = pd.DataFrame({
+        "Metric": ["Facade (m2)", "Room (unit)", "Lobby Interior (m2)", "Gondola (unit)", "Carpet (m2)", "Glass (m2)", "Skylight (m2)"],
+        "Value": [0.0] * 7
+    })
+    ed_arch_metric = st.data_editor(df_arch_metric, use_container_width=True, hide_index=True)
+
+with col_m2:
+    st.markdown("**C. Door**")
+    df_door = pd.DataFrame({
+        "Metric": ["Glass Door", "Wooden Door", "Steel Door"],
+        "Value": [0.0] * 3
+    })
+    ed_door = st.data_editor(df_door, use_container_width=True, hide_index=True)
+
+    st.markdown("**D. Toilet**")
+    df_toilet = pd.DataFrame({
+        "Metric": ["Typical Unit (qty/room)", "Public Toilet Male (whole area)", "Public Toilet Female (whole area)", "Disabled Toilet (whole area)", "Mushola (unit)"],
+        "Value": [pt_data["san_room_qty"], 0.0, 0.0, 0.0, 0.0]
+    })
+    ed_toilet = st.data_editor(df_toilet, use_container_width=True, hide_index=True)
+
+    st.markdown("**E. Facilities**")
+    df_fac_metric = pd.DataFrame({
+        "Metric": ["Residential Facility (m2)", "Public Facility (m2)", "Project Facility (unit)", "Landscape Area (m2)"],
+        "Value": [0.0] * 4
+    })
+    ed_fac_metric = st.data_editor(df_fac_metric, use_container_width=True, hide_index=True)
+
+# Combine all metrics into one dictionary for easy mapping
+all_metrics = pd.concat([ed_area, ed_arch_metric, ed_door, ed_toilet, ed_fac_metric])
+m = dict(zip(all_metrics["Metric"], all_metrics["Value"]))
+
+# Map values to variables
+land_area, gba, gfa = m["Land Area (m2)"], m["GBA (m2)"], m["GFA (m2)"]
+facade, rooms = m["Facade (m2)"], m["Room (unit)"]
 lobby_interior, gondola_unit = m["Lobby Interior (m2)"], m["Gondola (unit)"]
-toilet_male, toilet_female, disabled_toil, mushola_unit = m["Public Toilet Male (unit)"], m["Public Toilet Female (unit)"], m["Disabled Toilet (unit)"], m["Mushola (unit)"]
-carpet_m2, glass_m2, land_m2 = m["Carpet Area (m2)"], m["Glass Area (m2)"], m["Landscape Area (m2)"]
-deck_m2, pub_fac_m2, proj_fac_u = m["Facility Deck Area (m2)"], m["Public Facilities (m2)"], m["Project Facilities (unit)"]
-skylight_area = m["Skylight Area (m2)"]
+carpet_m2, glass_m2, skylight_area = m["Carpet (m2)"], m["Glass (m2)"], m["Skylight (m2)"]
+glass_door, wooden_door, steel_door = m["Glass Door"], m["Wooden Door"], m["Steel Door"]
+
+san_qty_room = m["Typical Unit (qty/room)"]
+toilet_male = m["Public Toilet Male (whole area)"]
+toilet_female = m["Public Toilet Female (whole area)"]
+disabled_toil = m["Disabled Toilet (whole area)"]
+mushola_unit = m["Mushola (unit)"]
+
+res_fac_m2 = m["Residential Facility (m2)"]
+pub_fac_m2 = m["Public Facility (m2)"]
+proj_fac_u = m["Project Facility (unit)"]
+land_m2 = m["Landscape Area (m2)"]
 
 st.markdown("---")
 
-# --- STEP 2: PROJECT TYPE & ITEM RATIOS ---
-st.subheader("2. Project Type & Item Ratios")
-project_type = st.selectbox("Select Project Type", ["Hotel", "Retail", "Apartment", "Parking"])
-pt_data = PROJECT_DEFAULTS[project_type]
-
+# --- STEP 2: ITEM RATIOS ---
+st.subheader("2. Item Ratios & Multipliers")
 st.markdown("Adjust the material splits and per-room multiplier ratios below:")
+
 col_r1, col_r2, col_r3 = st.columns(3)
 
 with col_r1:
@@ -106,10 +144,10 @@ with col_r2:
     edit_floor_ratio = st.data_editor(df_floor_ratio, use_container_width=True, hide_index=True)
 
 with col_r3:
-    st.markdown("**Per-Room Multipliers (Qty)**")
+    st.markdown("**Per-Room Multipliers**")
     df_room_mult = pd.DataFrame({
-        "Description": ["Sanitary Typical Unit", "Railing Length (m')"],
-        "Qty per Room": [pt_data["san_room_qty"], pt_data["railing_qty"]]
+        "Description": ["Railing Length (m')"],
+        "Qty per Room": [pt_data["railing_qty"]]
     })
     edit_room_mult = st.data_editor(df_room_mult, use_container_width=True, hide_index=True)
 
@@ -195,8 +233,7 @@ st.markdown("---")
 # --- STEP 4: CALCULATION ---
 
 if st.button("Run Calculation", type="primary", use_container_width=True):
-    # --- 1. DATA EXTRACTION ---
-    # Extract list of dicts for tables
+    # Data extraction
     r_fac_ratio = edit_fac_ratio.to_dict('records')
     r_fl_ratio = edit_floor_ratio.to_dict('records')
     r_room_mult = edit_room_mult.to_dict('records')
@@ -210,33 +247,28 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     rates_dict = dict(zip(pd.concat([edit_struc, edit_arch])["Description"], 
                          pd.concat([edit_struc, edit_arch])["Rate"]))
 
-    # --- 2. CALCULATIONS ---
-    # Structure & Arch Base
+    # Calculations
     t_earth = gba * rates_dict.get("Earthwork Rate (per GBA m2)", 0.0)
     t_found = gba * rates_dict.get("Foundation Rate (per GBA m2)", 0.0)
     t_struc = gba * rates_dict.get("Structural Work Rate (per GBA m2)", 0.0)
     t_arch_base = gfa * rates_dict.get("Architecture Base (per GFA m2)", 0.0)
     
-    # Facade (Facade Metric * Ratio * Rate)
     t_precast = facade * (r_fac_ratio[0]["Ratio (%)"] / 100) * r_fac_rate[0]["Rate"]
     t_window  = facade * (r_fac_ratio[1]["Ratio (%)"] / 100) * r_fac_rate[1]["Rate"]
     t_double  = facade * (r_fac_ratio[2]["Ratio (%)"] / 100) * r_fac_rate[2]["Rate"]
     
-    # Doors & Lobby
     t_w_door = wooden_door * rates_dict.get("Wooden Door Rate", 0.0)
     t_g_door = glass_door * rates_dict.get("Glass Door Rate", 0.0)
     t_s_door = steel_door * rates_dict.get("Steel Door Rate", 0.0)
     t_lobby  = lobby_interior * rates_dict.get("Lobby Interior Rate", 0.0)
     t_gondola = gondola_unit * rates_dict.get("Gondola Rate", 0.0)
 
-    # Sanitary
-    t_unit_san = rooms * r_room_mult[0]["Qty per Room"] * r_san[0]["Rate"]
+    t_unit_san = rooms * san_qty_room * r_san[0]["Rate"]
     t_t_male   = toilet_male * r_san[1]["Rate"]
     t_t_female = toilet_female * r_san[2]["Rate"]
     t_t_dis    = disabled_toil * r_san[3]["Rate"]
     t_mushola  = mushola_unit * r_san[4]["Rate"]
 
-    # Extra Items (Hardware, Flooring, MEP, Railing, etc.)
     t_kitchen = rooms * r_ex[0]["Rate"]
     t_hw_w    = wooden_door * r_ex[1]["Rate"]
     t_hw_s    = steel_door * r_ex[2]["Rate"]
@@ -253,17 +285,14 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     t_mep        = gba * r_ex[7]["Rate"]
     t_utility    = gba * r_ex[8]["Rate"]
     
-    # Using the multiplier per room for Railing, and absolute metric for Skylight
-    t_railing    = (rooms * r_room_mult[1]["Qty per Room"]) * r_ex[9]["Rate"]
+    t_railing    = (rooms * r_room_mult[0]["Qty per Room"]) * r_ex[9]["Rate"]
     t_skylight   = skylight_area * r_ex[10]["Rate"]
 
-    # Facilities
     t_external = land_m2 * r_fac[0]["Rate"]
     t_pub_fac  = pub_fac_m2 * r_fac[1]["Rate"]
-    t_res_fac  = deck_m2 * r_fac[2]["Rate"]
+    t_res_fac  = res_fac_m2 * r_fac[2]["Rate"]
     t_proj_fac = proj_fac_u * r_fac[3]["Rate"]
 
-    # Final Totals
     construction_subtotal = sum([
         t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double,
         t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
@@ -276,7 +305,7 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     t_contingency = construction_subtotal * 0.03
     grand_total_hc = construction_subtotal + t_preliminary + t_contingency
 
-    # --- STEP 5: TABLE DISPLAY ---
+    # Table Display
     hard_cost_data = {
         "Description": [
             "1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work", "5. Basic Architecture",
@@ -291,14 +320,14 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
         "Basis": [
             "5% Subtotal", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gfa:,.0f} m2", 
             f"{r_fac_ratio[0]['Ratio (%)']}%", f"{r_fac_ratio[1]['Ratio (%)']}%", f"{r_fac_ratio[2]['Ratio (%)']}%", f"{wooden_door} units", f"{glass_door} units", 
-            f"{steel_door} units", f"{lobby_interior} m2", f"{gondola_unit} units", f"{rooms} rms", f"{toilet_male} units", 
-            f"{toilet_female} units", f"{disabled_toil} units", f"{mushola_unit} units", f"{rooms} rooms", f"{wooden_door} doors", 
+            f"{steel_door} units", f"{lobby_interior} m2", f"{gondola_unit} units", f"{rooms} rms", f"{toilet_male} units/m2", 
+            f"{toilet_female} units/m2", f"{disabled_toil} units/m2", f"{mushola_unit} units", f"{rooms} rooms", f"{wooden_door} doors", 
             f"{steel_door} doors", f"{r_fl_ratio[0]['Ratio (%)']}% x 1.32", f"{r_fl_ratio[1]['Ratio (%)']}% x 1.32", f"{r_fl_ratio[2]['Ratio (%)']}% x 1.32", f"{carpet_m2} m2", 
             f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2", 
             f"{gba:,.0f} m2 (Utility)", 
-            f"{rooms * r_room_mult[1]['Qty per Room']:,.0f} m' (Total)", 
+            f"{rooms * r_room_mult[0]['Qty per Room']:,.0f} m' (Total)", 
             f"{skylight_area:,.0f} m2 (Total)", 
-            f"{land_m2} m2", f"{pub_fac_m2} m2", f"{deck_m2} m2", f"{proj_fac_u} units", "3% Subtotal" 
+            f"{land_m2} m2", f"{pub_fac_m2} m2", f"{res_fac_m2} m2", f"{proj_fac_u} units", "3% Subtotal" 
         ],
         "Amount": [
             t_preliminary, t_earth, t_found, t_struc, t_arch_base,
