@@ -122,11 +122,11 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
 
     # 4. Sanitary
     ex_recs = edit_extra.to_dict('records')
-    t_unit_san = rooms * s_recs[0]["Ratio/Qty"] * s_recs[0]["Rate"]
-    t_t_male = toilet_male * s_recs[1]["Rate"]
-    t_t_female = toilet_female * s_recs[2]["Rate"]
-    t_t_dis = disabled_toil * s_recs[3]["Rate"]
-    t_mushola = mushola_unit * s_recs[4]["Rate"]
+    t_unit_san = rooms * sanitary_dict[0]["Ratio/Qty"] * sanitary_dict[0]["Rate"]
+    t_t_male   = toilet_male * sanitary_dict[1]["Rate"]
+    t_t_female = toilet_female * sanitary_dict[2]["Rate"]
+    t_t_dis    = disabled_toil * sanitary_dict[3]["Rate"]
+    t_mushola  = mushola_unit * sanitary_dict[4]["Rate"]
 
     # 5. Hardware & Flooring (Waste 1.1 x Margin 1.2 = 1.32)
     t_kitchen = rooms * ex_recs[0]["Rate"]
