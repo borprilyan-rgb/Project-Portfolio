@@ -8,32 +8,44 @@ st.title("Project Dimension and Cost Calculator")
 st.markdown("---")
 
 # --- STEP 1: INPUT BOXES (Area Metrics) ---
-col1, col2, col3 = st.columns(3)
+st.subheader("Project Metrics Input")
+st.caption("Tip: You can copy values from Excel and paste them directly into this table.")
 
-with col1:
-    st.subheader("Area Metrics")
-    land_area = st.number_input("Land Area (m2)", min_value=0.0, format="%.2f")
-    gba = st.number_input("GBA (Gross Building Area) (m2)", min_value=0.0, format="%.2f")
-    gfa = st.number_input("GFA (Gross Floor Area) (m2)", min_value=0.0, format="%.2f")
-    sgfa = st.number_input("SGFA (Semi-Gross Floor Area) (m2)", min_value=0.0, format="%.2f")
-    facade = st.number_input("Facade (m2)", min_value=0.0, format="%.2f")
+# Create a default structure for the input
+initial_metrics = {
+    "Metric": ["Land Area (m2)", "GBA (m2)", "GFA (m2)", "SGFA (m2)", "Facade (m2)", 
+               "Room (unit)", "Glass Door (unit)", "Wooden Door (unit)", 
+               "Steel Door (unit)", "Lobby Interior (m2)", "Gondola (unit)"],
+    "Value": [0.0] * 11
+}
+df_input = pd.DataFrame(initial_metrics)
 
-with col2:
-    st.subheader("Units and Interior")
-    rooms = st.number_input("Room (unit)", min_value=0, format="%d")
-    glass_door = st.number_input("Glass Door (unit)", min_value=0, format="%d")
-    wooden_door = st.number_input("Wooden Door (unit)", min_value=0, format="%d")
-    steel_door = st.number_input("Steel Door (unit)", min_value=0, format="%d")
-    lobby_interior = st.number_input("Lobby Interior (m2)", min_value=0.0, format="%.2f")
-    gondola_unit = st.number_input("Gondola (unit)", min_value=0, format="%d")
+# Use data_editor to allow Excel-like copy/paste
+edited_df = st.data_editor(
+    df_input, 
+    use_container_width=True, 
+    hide_index=True,
+    column_config={
+        "Metric": st.column_config.TextColumn(disabled=True), # Prevent editing names
+        "Value": st.column_config.NumberColumn(format="%.2f")
+    }
+)
 
-with col3:
-    st.subheader("External & Infrastructure")
-    rooftop = st.number_input("Rooftop (m2)", min_value=0.0, format="%.2f")
-    facilities = st.number_input("Facilities (m2)", min_value=0.0, format="%.2f")
-    landscape = st.number_input("External/Landscape (m2)", min_value=0.0, format="%.2f")
-    boundary_wall = st.number_input("Boundary Wall & Gate (m')", min_value=0.0, format="%.2f")
-    access_road = st.number_input("Access Road (m')", min_value=0.0, format="%.2f")
+# --- MAP EDITED VALUES TO YOUR VARIABLES ---
+# This part "unpacks" the table back into your calculation variables
+metrics_dict = dict(zip(edited_df["Metric"], edited_df["Value"]))
+
+land_area = metrics_dict.get("Land Area (m2)", 0.0)
+gba = metrics_dict.get("GBA (m2)", 0.0)
+gfa = metrics_dict.get("GFA (m2)", 0.0)
+sgfa = metrics_dict.get("SGFA (m2)", 0.0)
+facade = metrics_dict.get("Facade (m2)", 0.0)
+rooms = metrics_dict.get("Room (unit)", 0.0)
+glass_door = metrics_dict.get("Glass Door (unit)", 0.0)
+wooden_door = metrics_dict.get("Wooden Door (unit)", 0.0)
+steel_door = metrics_dict.get("Steel Door (unit)", 0.0)
+lobby_interior = metrics_dict.get("Lobby Interior (m2)", 0.0)
+gondola_unit = metrics_dict.get("Gondola (unit)", 0.0)
     
 st.markdown("---")
 
