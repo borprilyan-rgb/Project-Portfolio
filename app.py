@@ -63,8 +63,7 @@ st.markdown("**Flooring Selection (Ratio & Rate)**")
 df_floor_std = pd.DataFrame({"Description": ["HT/Ceramic Tile", "Vinyl", "Marmer"], "Ratio (%)": [0.0] * 3, "Rate": [0.0] * 3})
 edit_floor_std = st.data_editor(df_floor_std, use_container_width=True, hide_index=True, key="ed_floor_std")
 
-st.markdown("**Additional Rates**")
-# Cleaned: Flooring rates removed
+st.markdown("**Architecture, FF&E & MEP Rates**")
 df_extra = pd.DataFrame({
     "Description": [
         "Kitchen Equipment (Rate/Room)", "Hardware Pintu Kayu (Rate/Door)", 
@@ -72,9 +71,21 @@ df_extra = pd.DataFrame({
         "FF&E (Rate/Room)", "Misc (Linen/Gym - Lump Sum)", "MEP Works (Rate/GBA)", 
         "Utility Connection (Rate/GBA)", "Railing (m' per Room)", "Skylight (m2)"
     ], 
-    "Value": [0.0] * 11
+    "Qty/Ratio": [0.0] * 11,
+    "Rate": [0.0] * 11
 })
-edit_extra = st.data_editor(df_extra, use_container_width=True, hide_index=True, key="ed_extra")
+
+edit_extra = st.data_editor(
+    df_extra, 
+    use_container_width=True, 
+    hide_index=True, 
+    key="ed_extra",
+    column_config={
+        "Description": st.column_config.TextColumn(disabled=True),
+        "Qty/Ratio": st.column_config.NumberColumn("Qty/Ratio", format="%.2f"),
+        "Rate": st.column_config.NumberColumn("Rate (Rp)", format="%.2f")
+    }
+)
 
 st.markdown("**Facilities & External Rates**")
 df_fac = pd.DataFrame({"Description": ["External Works (Rate/Landscape)", "Public Facilities (Rate/m2)", "Resident Facilities (Rate/Fac Deck)", "Project Facilities (Rate/Unit)"], "Value": [0.0] * 4})
@@ -110,7 +121,7 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     t_gondola = gondola_unit * rates_dict.get(f"Gondola Rate ({project_type})", 0.0)
 
     # 4. Sanitary
-    s_recs = edit_sanitary.to_dict('records')
+    ex_recs = edit_extra.to_dict('records')
     t_unit_san = rooms * s_recs[0]["Ratio/Qty"] * s_recs[0]["Rate"]
     t_t_male = toilet_male * s_recs[1]["Rate"]
     t_t_female = toilet_female * s_recs[2]["Rate"]
@@ -118,9 +129,9 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     t_mushola = mushola_unit * s_recs[4]["Rate"]
 
     # 5. Hardware & Flooring (Waste 1.1 x Margin 1.2 = 1.32)
-    t_kitchen = rooms * extra.get("Kitchen Equipment (Rate/Room)", 0.0)
-    t_hw_w = wooden_door * extra.get("Hardware Pintu Kayu (Rate/Door)", 0.0)
-    t_hw_s = steel_door * extra.get("Hardware Pintu Besi (Rate/Door)", 0.0)
+    t_kitchen = rooms * ex_recs[0]["Rate"]
+    t_hw_w    = wooden_door * ex_recs[1]["Rate"]
+    t_hw_s    = steel_door * ex_recs[2]["Rate"]
     
     fl_recs = edit_floor_std.to_dict('records')
     f_mult = 1.32
@@ -129,18 +140,18 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     t_marmer = gfa * (fl_recs[2]["Ratio (%)"] / 100) * fl_recs[2]["Rate"] * f_mult
     
     # 6. MEP & Others
-    t_carpet = carpet_m2 * extra.get("Carpet Rate (m2)", 0.0)
-    t_glass_work = glass_m2 * extra.get("Glasses Rate (m2)", 0.0)
-    t_ffe = rooms * extra.get("FF&E (Rate/Room)", 0.0)
-    t_misc = extra.get("Misc (Linen/Gym - Lump Sum)", 0.0)
-    t_mep = gba * extra.get("MEP Works (Rate/GBA)", 0.0)
+    t_carpet  = carpet_m2 * ex_recs[3]["Rate"]
+    t_glass_work = glass_m2 * ex_recs[4]["Rate"]
+    t_ffe     = rooms * ex_recs[5]["Rate"]
+    t_misc    = ex_recs[6]["Rate"] # Lump sum
+    t_mep     = gba * ex_recs[7]["Rate"]
     t_external = land_m2 * fac_ext.get("External Works (Rate/Landscape)", 0.0)
     t_pub_fac = pub_fac_m2 * fac_ext.get("Public Facilities (Rate/m2)", 0.0)
     t_res_fac = deck_m2 * fac_ext.get("Resident Facilities (Rate/Fac Deck)", 0.0)
     t_proj_fac = proj_fac_u * fac_ext.get("Project Facilities (Rate/Unit)", 0.0)
-    t_utility = gba * extra.get("Utility Connection (Rate/GBA)", 0.0)
-    t_railing = rooms * extra.get("Railing (m' per Room)", 0.0) * rates_dict.get("Architecture Rate (per GFA m2)", 1.0) # Adjust logic if you need a separate rate
-    t_skylight = extra.get("Skylight (m2)", 0.0) * rates_dict.get("Architecture Rate (per GFA m2)", 1.0) # Adjust logic if you need a separate rate
+    t_utility = gba * ex_recs[8]["Rate"]
+    t_railing = (rooms * ex_recs[9]["Qty/Ratio"]) * ex_recs[9]["Rate"]
+    t_skylight = ex_recs[10]["Qty/Ratio"] * ex_recs[10]["Rate"]
 
     # 7. Final Totals
     construction_subtotal = sum([
@@ -168,14 +179,17 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
             "36. Project Facilities", "37. Contingencies"
         ],
         "Basis": [
-            "5% Subtotal", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gfa:,.0f} m2",
-            f"{f_recs[0]['Ratio (%)']}%", f"{f_recs[1]['Ratio (%)']}%", f"{f_recs[2]['Ratio (%)']}%", f"{wooden_door} units", f"{glass_door} units",
-            f"{steel_door} units", f"{lobby_interior} m2", f"{gondola_unit} units", f"{rooms} rms", f"{toilet_male} units",
-            f"{toilet_female} units", f"{disabled_toil} units", f"{mushola_unit} units", f"{rooms} rooms", f"{wooden_door} doors",
-            f"{steel_door} doors", f"{fl_recs[0]['Ratio (%)']}% x 1.32", f"{fl_recs[1]['Ratio (%)']}% x 1.32", f"{fl_recs[2]['Ratio (%)']}% x 1.32", f"{carpet_m2} m2",
-            f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2", f"{gba:,.0f} m2",
-            f"{rooms} rms x m'", "Total m2", f"{land_m2} m2", f"{pub_fac_m2} m2", f"{deck_m2} m2",
-            f"{proj_fac_u} units", "3% Subtotal"
+            "5% Subtotal", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gfa:,.0f} m2", # 1-5
+            f"{f_recs[0]['Ratio (%)']}%", f"{f_recs[1]['Ratio (%)']}%", f"{f_recs[2]['Ratio (%)']}%", f"{wooden_door} units", f"{glass_door} units", # 6-10
+            f"{steel_door} units", f"{lobby_interior} m2", f"{gondola_unit} units", f"{rooms} rms", f"{toilet_male} units", # 11-15
+            f"{toilet_female} units", f"{disabled_toil} units", f"{mushola_unit} units", f"{rooms} rooms", f"{wooden_door} doors", # 16-20
+            f"{steel_door} doors", f"{fl_recs[0]['Ratio (%)']}% x 1.32", f"{fl_recs[1]['Ratio (%)']}% x 1.32", f"{fl_recs[2]['Ratio (%)']}% x 1.32", f"{carpet_m2} m2", # 21-25
+            f"{glass_m2} m2", f"{rooms} rooms", "1 LS", f"{gba:,.0f} m2", # 26-29
+            f"{gba:,.0f} m2 (Utility)", # 30: Utility Connection
+            f"{rooms * ex_recs[9]['Qty/Ratio']:,.0f} m' (Total)", # 31: Railing Work
+            f"{ex_recs[10]['Qty/Ratio']:,.0f} m2 (Total)", # 32: Skylight Work
+            f"{land_m2} m2", f"{pub_fac_m2} m2", f"{deck_m2} m2", f"{proj_fac_u} units", "3% Subtotal" # 33-37
+        ],
         ],
         "Amount": [
             t_preliminary, t_earth, t_found, t_struc, t_arch_base,
