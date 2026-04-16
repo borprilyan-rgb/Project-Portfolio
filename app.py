@@ -147,7 +147,7 @@ sanitary_dict = edit_sanitary.to_dict('records')
 
 # 1. Typical Unit (Ratio Logic)
 ratio_typical = sanitary_dict[0]["Ratio/Qty"]
-rate_typical  = sanitary_dict[0]["Rate"]
+rate_unit_typical = sanitary_dict[0]["Rate"]
 
 # 2. Public Units (Direct Logic)
 rate_toil_male   = sanitary_dict[1]["Rate"]
@@ -157,7 +157,6 @@ rate_mushola     = sanitary_dict[4]["Rate"]
 
 # --- SANITARY MATH ---
 # Unit Typical = Rate * Rooms (from Step 1)
-total_unit_typical = rooms * rate_unit_typical
 total_toil_male    = toilet_male * rate_toil_male
 total_toil_female  = toilet_female * rate_toil_female
 total_disabled     = disabled_toil * rate_disabled
@@ -174,7 +173,7 @@ total_unit_typical = total_toil_male = total_toil_female = total_disabled = tota
 
 # --- STEP 3: THE CALCULATE BUTTON ---
 if st.button("Run Calculation", type="primary", use_container_width=True):
-    # Perform Calculations
+    # Math inside the button uses the variables we mapped above
     total_earthwork    = gba * rate_earthwork
     total_foundation   = gba * rate_foundation
     total_structural   = gba * rate_structural
@@ -188,8 +187,8 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     total_lobby        = lobby_interior * rate_lobby
     total_gondola      = gondola_unit * rate_gondola
     
-    # Sanitary Math (Fixed variable names)
-    total_unit_typical = rooms * ratio_typical * rate_typical
+    # Sanitary Math (Using the correct name now)
+    total_unit_typical = rooms * ratio_typical * rate_unit_typical
     total_toil_male    = toilet_male * rate_toil_male
     total_toil_female  = toilet_female * rate_toil_female
     total_disabled     = disabled_toil * rate_disabled
