@@ -145,7 +145,7 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     grand_total_hc = construction_subtotal + t_preliminary + t_contingency
 
     # --- STEP 4: TABLE DISPLAY ---
-hard_cost_data = {
+    hard_cost_data = {
         "Description": [
             "1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work", "5. Basic Architecture", # 1-5
             "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin", "9. Wooden Doors", "10. Glass Doors", # 6-10
