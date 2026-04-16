@@ -98,8 +98,8 @@ st.markdown("---")
 if st.button("Run Calculation", type="primary", use_container_width=True):
     # Mapping Basic Rates
     rates_dict = dict(zip(pd.concat([edit_struc, edit_arch])["Description"], pd.concat([edit_struc, edit_arch])["Value"]))
-    extra = dict(zip(edit_extra["Description"], edit_extra["Value"]))
-    fac_ext = dict(zip(edit_fac["Description"], edit_fac["Value"]))
+    ex_recs = edit_extra.to_dict('records')
+    fac_recs = edit_fac.to_dict('records')
     
     # 1. Structure & Arch Base
     t_earth = gba * rates_dict.get("Earthwork Rate (per GBA m2)", 0.0)
@@ -145,13 +145,15 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     t_ffe     = rooms * ex_recs[5]["Rate"]
     t_misc    = ex_recs[6]["Rate"] # Lump sum
     t_mep     = gba * ex_recs[7]["Rate"]
-    t_external = land_m2 * fac_ext.get("External Works (Rate/Landscape)", 0.0)
-    t_pub_fac = pub_fac_m2 * fac_ext.get("Public Facilities (Rate/m2)", 0.0)
-    t_res_fac = deck_m2 * fac_ext.get("Resident Facilities (Rate/Fac Deck)", 0.0)
-    t_proj_fac = proj_fac_u * fac_ext.get("Project Facilities (Rate/Unit)", 0.0)
     t_utility = gba * ex_recs[8]["Rate"]
     t_railing = (rooms * ex_recs[9]["Qty/Ratio"]) * ex_recs[9]["Rate"]
     t_skylight = ex_recs[10]["Qty/Ratio"] * ex_recs[10]["Rate"]
+
+    # Facilities Section (Using fac_recs)
+    t_external = land_m2 * fac_recs[0]["Rate"]
+    t_pub_fac  = pub_fac_m2 * fac_recs[1]["Rate"]
+    t_res_fac  = deck_m2 * fac_recs[2]["Rate"]
+    t_proj_fac = proj_fac_u * fac_recs[3]["Rate"]
 
     # 7. Final Totals
     construction_subtotal = sum([
