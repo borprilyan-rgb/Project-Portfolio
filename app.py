@@ -21,9 +21,9 @@ with col1:
 with col2:
     st.subheader("Units and Interior")
     rooms = st.number_input("Room (unit)", min_value=0, format="%d")
-    door_glass = st.number_input("Door Glass (unit)", min_value=0, format="%d")
-    pintu_kayu = st.number_input("Pintu Kayu (unit)", min_value=0, format="%d")
-    pintu_besi = st.number_input("Pintu Besi (unit)", min_value=0, format="%d")
+    glass_door = st.number_input("Glass Door (unit)", min_value=0, format="%d")
+    wooden_door = st.number_input("Wooden Door (unit)", min_value=0, format="%d")
+    steel_door = st.number_input("Steel Door (unit)", min_value=0, format="%d")
     lobby_interior = st.number_input("Lobby Interior (m2)", min_value=0.0, format="%.2f")
 
 with col3:
