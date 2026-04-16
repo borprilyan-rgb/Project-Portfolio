@@ -88,7 +88,7 @@ edit_extra = st.data_editor(
 )
 
 st.markdown("**Facilities & External Rates**")
-df_fac = pd.DataFrame({"Description": ["External Works (Rate/Landscape)", "Public Facilities (Rate/m2)", "Resident Facilities (Rate/Fac Deck)", "Project Facilities (Rate/Unit)"], "Value": [0.0] * 4})
+df_fac = pd.DataFrame({"Description": ["External Works (Rate/Landscape)", "Public Facilities (Rate/m2)", "Resident Facilities (Rate/Fac Deck)", "Project Facilities (Rate/Unit)"], "Rate": [0.0] * 4})
 edit_fac = st.data_editor(df_fac, use_container_width=True, hide_index=True, key="ed_fac")
 
 st.markdown("---")
@@ -96,19 +96,27 @@ st.markdown("---")
 # --- STEP 3: CALCULATION ---
 
 if st.button("Run Calculation", type="primary", use_container_width=True):
-    # Mapping Basic Rates
-    rates_dict = dict(zip(pd.concat([edit_struc, edit_arch])["Description"], pd.concat([edit_struc, edit_arch])["Value"]))
+    # --- 1. DATA EXTRACTION ---
+    # Extract records from all editors
     ex_recs = edit_extra.to_dict('records')
     fac_recs = edit_fac.to_dict('records')
+    san_recs = edit_sanitary.to_dict('records')
+    f_recs = edit_fac_std.to_dict('records')
+    fl_recs = edit_floor_std.to_dict('records')
     
+    # Extract rates from the standard architecture/structure editor
+    # We combine them into a dictionary for easy lookup
+    rates_dict = dict(zip(pd.concat([edit_struc, edit_arch])["Description"], 
+                         pd.concat([edit_struc, edit_arch])["Value"]))
+
+    # --- 2. CALCULATIONS ---
     # 1. Structure & Arch Base
     t_earth = gba * rates_dict.get("Earthwork Rate (per GBA m2)", 0.0)
     t_found = gba * rates_dict.get("Foundation Rate (per GBA m2)", 0.0)
     t_struc = gba * rates_dict.get("Structural Work Rate (per GBA m2)", 0.0)
     t_arch_base = gfa * rates_dict.get("Architecture Rate (per GFA m2)", 0.0)
     
-    # 2. Facade (Ratio Logic)
-    f_recs = edit_fac_std.to_dict('records')
+    # 2. Facade (Ratio / 100)
     t_precast = facade * (f_recs[0]["Ratio (%)"] / 100) * f_recs[0]["Rate"]
     t_window  = facade * (f_recs[1]["Ratio (%)"] / 100) * f_recs[1]["Rate"]
     t_double  = facade * (f_recs[2]["Ratio (%)"] / 100) * f_recs[2]["Rate"]
@@ -121,35 +129,32 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     t_gondola = gondola_unit * rates_dict.get(f"Gondola Rate ({project_type})", 0.0)
 
     # 4. Sanitary
-    san_recs = edit_sanitary.to_dict('records')
     t_unit_san = rooms * san_recs[0]["Ratio/Qty"] * san_recs[0]["Rate"]
     t_t_male   = toilet_male * san_recs[1]["Rate"]
     t_t_female = toilet_female * san_recs[2]["Rate"]
     t_t_dis    = disabled_toil * san_recs[3]["Rate"]
     t_mushola  = mushola_unit * san_recs[4]["Rate"]
 
-    # 5. Hardware & Flooring (Waste 1.1 x Margin 1.2 = 1.32)
+    # 5. Extra Items (Hardware, Flooring, MEP, Railing, etc.)
     t_kitchen = rooms * ex_recs[0]["Rate"]
     t_hw_w    = wooden_door * ex_recs[1]["Rate"]
     t_hw_s    = steel_door * ex_recs[2]["Rate"]
     
-    fl_recs = edit_floor_std.to_dict('records')
     f_mult = 1.32
-    t_ht = gfa * (fl_recs[0]["Ratio (%)"] / 100) * fl_recs[0]["Rate"] * f_mult
+    t_ht     = gfa * (fl_recs[0]["Ratio (%)"] / 100) * fl_recs[0]["Rate"] * f_mult
     t_vinyl  = gfa * (fl_recs[1]["Ratio (%)"] / 100) * fl_recs[1]["Rate"] * f_mult
     t_marmer = gfa * (fl_recs[2]["Ratio (%)"] / 100) * fl_recs[2]["Rate"] * f_mult
     
-    # 6. MEP & Others
-    t_carpet  = carpet_m2 * ex_recs[3]["Rate"]
+    t_carpet     = carpet_m2 * ex_recs[3]["Rate"]
     t_glass_work = glass_m2 * ex_recs[4]["Rate"]
-    t_ffe     = rooms * ex_recs[5]["Rate"]
-    t_misc    = ex_recs[6]["Rate"] # Lump sum
-    t_mep     = gba * ex_recs[7]["Rate"]
-    t_utility = gba * ex_recs[8]["Rate"]
-    t_railing = (rooms * ex_recs[9]["Qty/Ratio"]) * ex_recs[9]["Rate"]
-    t_skylight = ex_recs[10]["Qty/Ratio"] * ex_recs[10]["Rate"]
+    t_ffe        = rooms * ex_recs[5]["Rate"]
+    t_misc       = ex_recs[6]["Rate"]
+    t_mep        = gba * ex_recs[7]["Rate"]
+    t_utility    = gba * ex_recs[8]["Rate"]
+    t_railing    = (rooms * ex_recs[9]["Qty/Ratio"]) * ex_recs[9]["Rate"]
+    t_skylight   = ex_recs[10]["Qty/Ratio"] * ex_recs[10]["Rate"]
 
-    # Facilities Section (Using fac_recs)
+    # 6. Facilities
     t_external = land_m2 * fac_recs[0]["Rate"]
     t_pub_fac  = pub_fac_m2 * fac_recs[1]["Rate"]
     t_res_fac  = deck_m2 * fac_recs[2]["Rate"]
