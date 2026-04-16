@@ -66,8 +66,12 @@ with col1:
 
 with col2:
     st.markdown("**Architecture Section**")
-    df_arch = pd.DataFrame({"Description": ["Architecture Rate (per GFA m2)", "Precast Rate (per m2)", "Window Wall Rate (per m2)", "Double Skin Rate (per m2)", f"Wooden Door Rate ({project_type})", f"Glass Door Rate ({project_type})", f"Steel Door Rate ({project_type})", f"Lobby Interior Rate ({project_type})", f"Gondola Rate ({project_type})"], "Value": [0.0] * 9})
+    df_arch = pd.DataFrame({"Description": ["Architecture Rate (per GFA m2)", f"Wooden Door Rate ({project_type})", f"Glass Door Rate ({project_type})", f"Steel Door Rate ({project_type})", f"Lobby Interior Rate ({project_type})", f"Gondola Rate ({project_type})"], "Value": [0.0] * 6})
     edit_arch = st.data_editor(df_arch, use_container_width=True, hide_index=True, key="ed_arch")
+
+# Update the rate mapping to include only what remains in Table 3
+all_rates = pd.concat([edit_struc, edit_arch]) 
+rates_dict = dict(zip(all_rates["Description"], all_rates["Value"]))
 
 st.markdown(f"**{project_type} Sanitary Section**")
 df_sanitary = pd.DataFrame({"Description": ["Typical Unit (Ratio per Room)", "Public Toilet Male", "Public Toilet Female", "Disabled Toilet", "Mushola/Prayer Room"], "Qty (e.g 3 Typical Unit per Room": [0.0, 1.0, 1.0, 1.0, 1.0], "Rate": [0.0] * 5})
@@ -82,7 +86,11 @@ df_floor_std = pd.DataFrame({
 edit_floor_pct = st.data_editor(df_floor_std, use_container_width=True, hide_index=True, key="ed_floor_std")
 
 st.markdown("**Additional Rates**")
-df_extra = pd.DataFrame({"Description": ["Kitchen Equipment (Rate/Room)", "Hardware Pintu Kayu (Rate/Door)", "Hardware Pintu Besi (Rate/Door)", "Homogenous Tile Rate (m2)", "Vinyl Rate (m2)", "Marmer Rate (m2)", "Carpet Rate (m2)", "Glasses Rate (m2)", "FF&E (Rate/Room)", "Misc (Linen/Gym - Lump Sum)", "MEP Works (Rate/GBA)"], "Value": [0.0] * 11})
+df_extra = pd.DataFrame({"Description": [
+        "Kitchen Equipment (Rate/Room)", "Hardware Pintu Kayu (Rate/Door)", "Hardware Pintu Besi (Rate/Door)",
+        "Carpet Rate (m2)", "Glasses Rate (m2)", 
+        "FF&E (Rate/Room)", "Misc (Linen/Gym - Lump Sum)", "MEP Works (Rate/GBA)"
+    ], "Value": [0.0] * 8})
 edit_extra = st.data_editor(df_extra, use_container_width=True, hide_index=True, key="ed_extra")
 
 st.markdown("**Facilities & External Rates**")
