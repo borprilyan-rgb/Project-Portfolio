@@ -346,18 +346,31 @@ with tab5:
     st.markdown("---")
     
     # Cost Breakdown Chart
-    st.subheader("Hard Cost Breakdown")
+    st.subheader("Total Project Cost Breakdown (Hard & Soft)")
+    
     chart_data = pd.DataFrame({
-        "Category": ["Structure/Foundation", "Architecture & Finishes", "Facade", "Sanitary/Plumbing", "MEP & FF&E", "External/Facilities", "Prelim & Contingency"],
-        "Amount (Rp)": [group_structure, group_arch, group_facade, group_sanitary, group_mep, group_ext, group_contingency]
+        "Category": [
+            "Structure/Foundation", "Architecture & Finishes", "Facade", 
+            "Sanitary/Plumbing", "MEP & FF&E", "External/Facilities", 
+            "Prelim & Contingency", 
+            "Consultancy Fee (Soft)", "Quantity Surveyor (Soft)", 
+            "Project Management (Soft)", "Insurance (Soft)"
+        ],
+        "Amount (Rp)": [
+            group_structure, group_arch, group_facade, 
+            group_sanitary, group_mep, group_ext, 
+            group_contingency, 
+            t_consultancy, t_qs, 
+            t_pm, t_insurance
+        ]
     })
     
     chart = alt.Chart(chart_data).mark_bar().encode(
         x=alt.X("Amount (Rp):Q", title="Cost (Rp)"),
-        y=alt.Y("Category:N", sort="-x", title=""),
+        y=alt.Y("Category:N", sort="-x", title=""),  # sort="-x" keeps them ordered from highest to lowest
         color=alt.Color("Category:N", legend=None),
         tooltip=["Category", alt.Tooltip("Amount (Rp):Q", format=",.2f")]
-    ).properties(height=350)
+    ).properties(height=450)  # Increased height to fit the extra bars comfortably
     
     st.altair_chart(chart, use_container_width=True)
 
