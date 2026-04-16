@@ -122,7 +122,6 @@ rate_mushola = sanitary_dict[4]["Rate"]
 if st.button("Run Calculation", type="primary", use_container_width=True):
     extra = dict(zip(edit_extra["Description"], edit_extra["Value"]))
     fac = dict(zip(edit_fac["Description"], edit_fac["Value"]))
-    f_pct = dict(zip(edit_floor_pct["Type"], edit_floor_pct["Ratio (%)"]))
 
     t_earth = gba * rate_earthwork
     t_found = gba * rate_foundation
