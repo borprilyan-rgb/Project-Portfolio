@@ -37,6 +37,7 @@ t_male, t_female, t_dis, mushola = m["Public Toilet Male (unit)"], m["Public Toi
 carpet_m2, glass_m2, land_m2 = m["Carpet Area (m2)"], m["Glass Area (m2)"], m["Landscape Area (m2)"]
 deck_m2, pub_fac_m2, proj_fac_u = m["Facility Deck Area (m2)"], m["Public Facilities (m2)"], m["Project Facilities (unit)"]
 }
+
 df_metrics = pd.DataFrame(initial_metrics)
 
 # Use data_editor
