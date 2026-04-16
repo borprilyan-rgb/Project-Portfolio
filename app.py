@@ -10,13 +10,18 @@ st.markdown("---")
 # --- STEP 1: PROJECT METRICS ---
 st.subheader("Project Metrics Input")
 st.caption("Tip: You can copy values from Excel and paste them directly into this table.")
+# --- STEP 1: PROJECT METRICS ---
+st.subheader("Project Metrics Input")
 
 initial_metrics = {
-    "Metric": ["Land Area (m2)", "GBA (m2)", "GFA (m2)", "SGFA (m2)", "Facade (m2)", 
-               "Room (unit)", "Glass Door (unit)", "Wooden Door (unit)", 
-               "Steel Door (unit)", "Lobby Interior (m2)", "Gondola (unit)",
-               "Public Toilet Male (unit)", "Public Toilet Female (unit)", "Disabled Toilet (unit)", "Mushola (unit)"],
-    "Value": [0.0] * 11
+    "Metric": [
+        "Land Area (m2)", "GBA (m2)", "GFA (m2)", "SGFA (m2)", "Facade (m2)", 
+        "Room (unit)", "Glass Door (unit)", "Wooden Door (unit)", 
+        "Steel Door (unit)", "Lobby Interior (m2)", "Gondola (unit)",
+        "Public Toilet Male (unit)", "Public Toilet Female (unit)", 
+        "Disabled Toilet (unit)", "Mushola (unit)"
+    ],
+    "Value": [0.0] * 15  # Changed from 11 to 15 to match the list above
 }
 df_metrics = pd.DataFrame(initial_metrics)
 
@@ -192,7 +197,7 @@ hard_cost_data = {
         f"{glass_door} units x {rate_glass_door:,.2f}",
         f"{steel_door} units x {rate_steel_door:,.2f}",
         f"{lobby_interior:,.2f} m2 x {rate_lobby:,.2f}",
-        f"{gondola_unit} units x {rate_gondola:,.2f}", # <--- ADDED COMMA HERE
+        f"{gondola_unit} units x {rate_gondola:,.2f}",
         f"{rooms} rooms x {rate_unit_typical:,.2f}",
         f"{toilet_male} units x {rate_toil_male:,.2f}",
         f"{toilet_female} units x {rate_toil_female:,.2f}",
