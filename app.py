@@ -193,7 +193,7 @@ st.dataframe(
         ),
         "Amount": st.column_config.NumberColumn(
             "Amount (Rp)",
-            format="#,##0.00",  # This adds the 1,000 separator (comma) and 2 decimals
+            format="Rp %,.2f",
             width="medium",
         ),
     }
