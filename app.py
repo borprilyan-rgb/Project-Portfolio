@@ -59,15 +59,15 @@ st.caption("Adjust percentages to split the total Facade area (Total must be 100
 col_fac1, col_fac2, col_fac3 = st.columns(3)
 
 with col_fac1:
-    precast_p = st.number_input("Precast (%)", min_value=0.0, max_value=100.0, value=40.0, key="fac_pre")
+    precast_p = st.number_input("Precast (%)", min_value=0.0, max_value=100.0, value=0.0, key="fac_pre")
     rate_precast = st.number_input("Precast Rate (per m2)", min_value=0.0, value=0.0, key="rate_pre")
 
 with col_fac2:
-    window_p = st.number_input("Window Wall (%)", min_value=0.0, max_value=100.0, value=40.0, key="fac_win")
+    window_p = st.number_input("Window Wall (%)", min_value=0.0, max_value=100.0, value=0.0, key="fac_win")
     rate_window = st.number_input("Window Wall Rate (per m2)", min_value=0.0, value=0.0, key="rate_win")
 
 with col_fac3:
-    double_p = st.number_input("Double Skin (%)", min_value=0.0, max_value=100.0, value=40.0, key="fac_double_display")
+    double_p = st.number_input("Double Skin (%)", min_value=0.0, max_value=100.0, value=0.0, key="fac_double_display")
     rate_double = st.number_input("Double Skin Rate (per m2)", min_value=0.0, value=0.0, key="rate_double")
 
 st.markdown("---")
