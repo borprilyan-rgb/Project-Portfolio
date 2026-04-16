@@ -36,7 +36,7 @@ with col3:
 
 st.markdown("---")
 
-# --- STEP 2: UNIT RATES (The Changeable Numbers) ---
+# --- STEP 2: UNIT RATES ---
 st.subheader("💰 Unit Rates & Estimations")
 col_rate1, col_rate2, col_rate3 = st.columns(3)
 
@@ -46,15 +46,14 @@ with col_rate1:
 
 with col_rate2:
     rate_structural = st.number_input("Structural Work Rate (per GBA m²)", min_value=0.0, value=0.0)
+    # Adding a dummy input or space here helps keep the rows even
+    st.write("") 
 
 with col_rate3:
-    st.markdown("**Basic Architecture**")
-    project_type = st.selectbox(
-        "Project Type",
-        ["Hotel", "Retail", "Apartment", "Parking"]
-    )
-    rate_architecture = st.number_input(f"Rate for {project_type} (per GFA m²)", min_value=0.0, value=0.0)
+    project_type = st.selectbox("Project Type", ["Hotel", "Retail", "Apartment", "Parking"])
+    rate_architecture = st.number_input(f"Architecture Rate (per GFA m²)", min_value=0.0, value=0.0)
 
+# --- SUB-SECTION: FACADE ---
 # --- SUB-SECTION: FACADE ---
 st.markdown("#### 🧱 Facade Breakdown")
 st.caption("Adjust percentages to split the total Facade area (Total must be 100%)")
@@ -62,7 +61,6 @@ st.caption("Adjust percentages to split the total Facade area (Total must be 100
 col_fac1, col_fac2, col_fac3 = st.columns(3)
 
 with col_fac1:
-    # We use 'key' so Streamlit remembers the value, and set a default
     precast_p = st.number_input("Precast (%)", min_value=0.0, max_value=100.0, value=40.0, key="fac_pre")
     rate_precast = st.number_input("Precast Rate (per m²)", min_value=0.0, value=0.0, key="rate_pre")
 
@@ -71,10 +69,9 @@ with col_fac2:
     rate_window = st.number_input("Window Wall Rate (per m²)", min_value=0.0, value=0.0, key="rate_win")
 
 with col_fac3:
-    # Automatically calculate the remainder
     double_p = max(0.0, 100.0 - (precast_p + window_p))
-    st.write(f"**Double Skin (%)**")
-    st.info(f"{double_p}%") # Displayed as a read-only info box
+    # Using number_input(disabled=True) instead of st.info ensures the heights match
+    st.number_input("Double Skin (%)", value=double_p, disabled=True, key="fac_double_display")
     rate_double = st.number_input("Double Skin Rate (per m²)", min_value=0.0, value=0.0, key="rate_double")
 
 # Validation check
