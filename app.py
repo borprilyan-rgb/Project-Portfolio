@@ -6,9 +6,6 @@ import altair as alt
 st.set_page_config(page_title="Complex Construction Calculator", layout="wide")
 
 st.title("Project Dimension and Cost Calculator")
-
-# --- MOBILE FIX: RESERVE SPACE AT THE TOP ---
-total_cost_placeholder = st.container()
 st.markdown("---")
 
 # --- DATA: PROJECT TYPE PRESETS ---
@@ -55,7 +52,7 @@ st.sidebar.header("Project Setup")
 project_type = st.sidebar.selectbox("Select Project Type", ["Hotel", "Retail", "Apartment", "Parking"])
 pt_data = PROJECT_DEFAULTS[project_type]
 
-# --- TABS LAYOUT (UPDATED TO 5 TABS) ---
+# --- TABS LAYOUT ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🏗️ 1. Project Metrics", 
     "🧮 2. Ratios & Multipliers", 
@@ -257,19 +254,7 @@ t_contingency = construction_subtotal * 0.03
 grand_total_hc = construction_subtotal + t_preliminary + t_contingency
 
 
-# --- INJECT HARD COST TOTAL INTO TOP PLACEHOLDER (MOBILE WRAP FIX) ---
-with total_cost_placeholder:
-    st.markdown(f"""
-        <div style="background-color: #262730; padding: 15px; border-radius: 8px; border: 1px solid #4B4C55;">
-            <div style="font-size: 14px; color: #FAFAFA; margin-bottom: 5px;">Total Project Hard Cost</div>
-            <div style="font-size: 28px; font-weight: bold; color: #ffffff; word-wrap: break-word; white-space: normal; line-height: 1.2;">
-                Rp {grand_total_hc:,.2f}
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-
-# --- TAB 4: SOFT COSTS SETUP (NEW TAB) ---
+# --- TAB 4: SOFT COSTS SETUP ---
 with tab4:
     st.subheader("Soft Costs Setup")
     sc_col1, sc_col2 = st.columns(2)
@@ -308,7 +293,8 @@ group_mep = t_ffe + t_misc + t_mep + t_utility
 group_ext = t_external + t_pub_fac + t_res_fac + t_proj_fac
 group_contingency = t_preliminary + t_contingency
 
-# --- TAB 5: RESULTS & SUMMARY (WAS TAB 4) ---
+
+# --- TAB 5: RESULTS & SUMMARY ---
 with tab5:
     st.markdown("---")
     
@@ -367,10 +353,10 @@ with tab5:
     
     chart = alt.Chart(chart_data).mark_bar().encode(
         x=alt.X("Amount (Rp):Q", title="Cost (Rp)"),
-        y=alt.Y("Category:N", sort="-x", title=""),  # sort="-x" keeps them ordered from highest to lowest
+        y=alt.Y("Category:N", sort="-x", title=""),
         color=alt.Color("Category:N", legend=None),
         tooltip=["Category", alt.Tooltip("Amount (Rp):Q", format=",.2f")]
-    ).properties(height=450)  # Increased height to fit the extra bars comfortably
+    ).properties(height=450)
     
     st.altair_chart(chart, use_container_width=True)
 
@@ -419,15 +405,3 @@ with tab5:
         }
         
         st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
-
-# --- IMPORTANT: MOVE YOUR TOTAL COST PLACEHOLDER FILLER DOWN HERE ---
-# Because grand_total_project is calculated AFTER Tab 4 finishes executing.
-with total_cost_placeholder:
-    st.markdown(f"""
-        <div style="background-color: #262730; padding: 15px; border-radius: 8px; border: 1px solid #4B4C55;">
-            <div style="font-size: 14px; color: #FAFAFA; margin-bottom: 5px;">Grand Total Project Cost (Hard + Soft)</div>
-            <div style="font-size: 28px; font-weight: bold; color: #4CAF50; word-wrap: break-word; white-space: normal; line-height: 1.2;">
-                Rp {grand_total_project:,.2f}
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
