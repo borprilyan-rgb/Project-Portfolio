@@ -67,12 +67,8 @@ with col_fac2:
     rate_window = st.number_input("Window Wall Rate (per m2)", min_value=0.0, value=0.0, key="rate_win")
 
 with col_fac3:
-    double_p = max(0.0, 100.0 - (precast_p + window_p))
-    st.number_input("Double Skin (%)", value=double_p, disabled=True, key="fac_double_display")
+    double_p = st.number_input("Double Skin (%)", min_value=0.0, max_value=100.0, value=40.0, key="fac_double_display")
     rate_double = st.number_input("Double Skin Rate (per m2)", min_value=0.0, value=0.0, key="rate_double")
-
-if (precast_p + window_p) > 100.0:
-    st.error("Precast + Window Wall exceeds 100%! Please lower one of them.")
 
 st.markdown("---")
 
