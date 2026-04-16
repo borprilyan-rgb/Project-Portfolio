@@ -8,7 +8,6 @@ st.set_page_config(page_title="Complex Construction Calculator", layout="wide")
 st.title("Project Dimension and Cost Calculator")
 
 # --- MOBILE FIX: RESERVE SPACE AT THE TOP ---
-# This creates a container at the top of the app that we will fill later
 total_cost_placeholder = st.container()
 st.markdown("---")
 
@@ -240,12 +239,6 @@ t_preliminary = construction_subtotal * 0.05
 t_contingency = construction_subtotal * 0.03
 grand_total_hc = construction_subtotal + t_preliminary + t_contingency
 
-
-# --- INJECT TOTAL INTO TOP PLACEHOLDER ---
-with total_cost_placeholder:
-    st.info(f"### Total Project Hard Cost: **Rp {grand_total_hc:,.2f}**")
-
-
 # Chart Groupings
 group_structure = t_earth + t_found + t_struc
 group_arch = t_arch_base + t_w_door + t_g_door + t_s_door + t_lobby + t_ht + t_vinyl + t_marmer + t_carpet + t_glass_work + t_kitchen + t_hw_w + t_hw_s + t_railing + t_skylight
@@ -255,15 +248,38 @@ group_mep = t_ffe + t_misc + t_mep + t_utility
 group_ext = t_external + t_pub_fac + t_res_fac + t_proj_fac
 group_contingency = t_preliminary + t_contingency
 
+
+# --- INJECT TOTAL INTO TOP PLACEHOLDER (MOBILE WRAP FIX) ---
+with total_cost_placeholder:
+    st.markdown(f"""
+        <div style="background-color: #262730; padding: 15px; border-radius: 8px; border: 1px solid #4B4C55;">
+            <div style="font-size: 14px; color: #FAFAFA; margin-bottom: 5px;">Total Project Hard Cost</div>
+            <div style="font-size: 28px; font-weight: bold; color: #ffffff; word-wrap: break-word; white-space: normal; line-height: 1.2;">
+                Rp {grand_total_hc:,.2f}
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+
 # --- TAB 4: RESULTS & SUMMARY ---
 with tab4:
     
-    # MOBILE FIX: Replace st.metric with Markdown to prevent truncation "..."
-    st.markdown("##### Exclude Preliminary & Contingency")
-    st.markdown(f"### Rp {construction_subtotal:,.2f}")
-    
-    st.markdown("##### Total Project Hard Cost")
-    st.markdown(f"## Rp {grand_total_hc:,.2f}")
+    # MOBILE WRAP FIX for Subtotal and Grand Total in Tab 4
+    st.markdown(f"""
+        <div style="margin-bottom: 20px;">
+            <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Exclude Preliminary & Contingency</div>
+            <div style="font-size: 32px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.2;">
+                Rp {construction_subtotal:,.2f}
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+            <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Total Project Hard Cost</div>
+            <div style="font-size: 38px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.2;">
+                Rp {grand_total_hc:,.2f}
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
     
