@@ -274,23 +274,63 @@ group_contingency = t_preliminary + t_contingency
 # --- TAB 4: RESULTS & SUMMARY ---
 with tab4:
     
-    # 0.00 Check and Guidance Prompt
-    if grand_total_hc == 0:
-        st.info("👈 **Your project total is currently Rp 0.00.** Head over to **Tab 1: Project Metrics** to input your building dimensions and start calculating!")
+    st.subheader("Soft Costs Setup")
+    sc_col1, sc_col2 = st.columns(2)
     
-    # MOBILE WRAP FIX for Subtotal and Grand Total in Tab 4
+    with sc_col1:
+        st.markdown("##### 1. Consultancy Service Fee")
+        consultancy_rate = st.number_input("Consultancy Rate (per GFA)", value=174000.0, step=1000.0)
+        
+        st.markdown("##### 2. Quantity Surveyor Service")
+        qs_months = st.number_input("QS Duration (Months)", value=12.0, step=1.0)
+        qs_rate = st.number_input("QS Rate (per Month)", value=75000000.0, step=1000000.0)
+        
+    with sc_col2:
+        st.markdown("##### 3. Project Management Service")
+        pm_months = st.number_input("PM Duration (Months)", value=12.0, step=1.0)
+        pm_rate = st.number_input("PM Rate (per Month)", value=250000000.0, step=1000000.0)
+        
+        st.markdown("##### 4. Insurance Coverage")
+        insurance_pct = st.number_input("Insurance (% of Hard Cost Exclude Prelim/Contingency)", value=0.12, step=0.01)
+
+    # --- SOFT COST CALCULATIONS ---
+    t_consultancy = gfa * consultancy_rate
+    t_qs = qs_months * qs_rate
+    t_pm = pm_months * pm_rate
+    t_insurance = construction_subtotal * (insurance_pct / 100.0)
+    
+    total_soft_cost = t_consultancy + t_qs + t_pm + t_insurance
+    grand_total_project = grand_total_hc + total_soft_cost
+
+    st.markdown("---")
+    
+    # MOBILE WRAP FIX for Subtotal and Grand Totals in Tab 4
     st.markdown(f"""
         <div style="margin-bottom: 20px;">
-            <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Exclude Preliminary & Contingency</div>
-            <div style="font-size: 32px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.2;">
+            <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Hard Cost (Exclude Preliminary & Contingency)</div>
+            <div style="font-size: 28px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.2;">
                 Rp {construction_subtotal:,.2f}
             </div>
         </div>
         
-        <div style="margin-bottom: 30px;">
+        <div style="margin-bottom: 20px;">
             <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Total Project Hard Cost</div>
-            <div style="font-size: 38px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.2;">
+            <div style="font-size: 28px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.2;">
                 Rp {grand_total_hc:,.2f}
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Total Soft Cost</div>
+            <div style="font-size: 28px; font-weight: bold; color: #4DA8DA; word-wrap: break-word; white-space: normal; line-height: 1.2;">
+                Rp {total_soft_cost:,.2f}
+            </div>
+        </div>
+
+        <div style="margin-bottom: 30px; padding: 15px; background-color: #1E1E1E; border-radius: 8px; border: 1px solid #4B4C55;">
+            <div style="font-size: 18px; color: #FAFAFA; margin-bottom: 5px;">Grand Total Project Cost (Hard + Soft)</div>
+            <div style="font-size: 38px; font-weight: bold; color: #4CAF50; word-wrap: break-word; white-space: normal; line-height: 1.2;">
+                Rp {grand_total_project:,.2f}
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -298,7 +338,7 @@ with tab4:
     st.markdown("---")
     
     # Cost Breakdown Chart
-    st.subheader("Cost Breakdown")
+    st.subheader("Hard Cost Breakdown")
     chart_data = pd.DataFrame({
         "Category": ["Structure/Foundation", "Architecture & Finishes", "Facade", "Sanitary/Plumbing", "MEP & FF&E", "External/Facilities", "Prelim & Contingency"],
         "Amount (Rp)": [group_structure, group_arch, group_facade, group_sanitary, group_mep, group_ext, group_contingency]
@@ -315,8 +355,8 @@ with tab4:
 
     st.markdown("---")
 
-    # Detailed Table Expander
-    with st.expander("View Detailed Hard Cost Table"):
+    # Detailed Table Expander (Updated with Soft Costs)
+    with st.expander("View Detailed Project Cost Table"):
         raw_amounts = [
             t_preliminary, t_earth, t_found, t_struc, t_arch_base,
             t_precast, t_window, t_double, t_w_door, t_g_door,
@@ -325,10 +365,11 @@ with tab4:
             t_hw_s, t_ht, t_vinyl, t_marmer, t_carpet,
             t_glass_work, t_ffe, t_misc, t_mep, t_utility,
             t_railing, t_skylight, t_external, t_pub_fac, t_res_fac,
-            t_proj_fac, t_contingency
+            t_proj_fac, t_contingency, 
+            t_consultancy, t_qs, t_pm, t_insurance
         ]
         
-        hard_cost_data = {
+        cost_data = {
             "Description": [
                 "1. Preliminary Works", "2. Earthwork", "3. Foundation", "4. Structural Work", "5. Basic Architecture",
                 "6. Facade - Precast", "7. Facade - Window Wall", "8. Facade - Double Skin", "9. Wooden Doors", "10. Glass Doors",
@@ -337,7 +378,8 @@ with tab4:
                 "21. Hardware Pintu Besi", "22. HT/Ceramic Tile", "23. Vinyl Flooring", "24. Marmer Flooring", "25. Carpet Work",
                 "26. Glass Work", "27. FF&E", "28. Misc. (Linen/Gym)", "29. MEP Works", "30. Utility Connection",
                 "31. Railing Work", "32. Skylight Work", "33. External Works", "34. Public Facilities", "35. Resident Facilities",
-                "36. Project Facilities", "37. Contingencies"
+                "36. Project Facilities", "37. Contingencies",
+                "38. Consultancy Service Fee", "39. Quantity Surveyor Service", "40. Project Management Service", "41. Insurance Coverage"
             ],
             "Basis": [
                 "5% Subtotal", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gba:,.0f} m2", f"{gfa:,.0f} m2", 
@@ -349,9 +391,23 @@ with tab4:
                 f"{gba:,.0f} m2 (Utility)", 
                 f"{rooms * railing_qty:,.0f} m' (Total)", 
                 f"{skylight_area:,.0f} m2 (Total)", 
-                f"{land_m2} m2", f"{pub_fac_m2} m2", f"{res_fac_m2} m2", f"{proj_fac_u} units", "3% Subtotal" 
+                f"{land_m2} m2", f"{pub_fac_m2} m2", f"{res_fac_m2} m2", f"{proj_fac_u} units", "3% Subtotal",
+                f"{gfa:,.0f} m2 (GFA)", f"{qs_months} Months", f"{pm_months} Months", f"{insurance_pct}% of HC Excl. Prelim/Cont"
             ],
             "Amount": [f"Rp {val:,.2f}" for val in raw_amounts]
         }
         
-        st.dataframe(pd.DataFrame(hard_cost_data), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
+
+# --- IMPORTANT: MOVE YOUR TOTAL COST PLACEHOLDER FILLER DOWN HERE ---
+# Because grand_total_project is calculated in Tab 4, you need to populate 
+# the top-of-page container AFTER Tab 4 finishes executing.
+with total_cost_placeholder:
+    st.markdown(f"""
+        <div style="background-color: #262730; padding: 15px; border-radius: 8px; border: 1px solid #4B4C55;">
+            <div style="font-size: 14px; color: #FAFAFA; margin-bottom: 5px;">Grand Total Project Cost (Hard + Soft)</div>
+            <div style="font-size: 28px; font-weight: bold; color: #4CAF50; word-wrap: break-word; white-space: normal; line-height: 1.2;">
+                Rp {grand_total_project:,.2f}
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
