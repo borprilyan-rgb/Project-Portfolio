@@ -90,18 +90,37 @@ df_arch = pd.DataFrame({
 edit_arch = st.data_editor(df_arch, use_container_width=True, hide_index=True, key="ed_arch")
 
 # --- TABLE 4: SANITARY SECTION ---
+# --- TABLE 4: SANITARY SECTION ---
 st.markdown(f"**{project_type} Sanitary Section**")
+
+# Prepare the data
 df_sanitary = pd.DataFrame({
     "Description": [
-        "Unit Typical (Rate per Room)", 
-        "Public Toilet Male (Rate per Unit)", 
-        "Public Toilet Female (Rate per Unit)", 
-        "Disabled Toilet (Rate per Unit)", 
-        "Mushola/Prayer Room (Rate per Unit)"
+        "Typical Unit (Ratio per Room)", 
+        "Public Toilet Male", 
+        "Public Toilet Female", 
+        "Disabled Toilet", 
+        "Mushola/Prayer Room"
     ],
-    "Value": [0.0] * 5
+    "Ratio/Qty": [0.0, 1.0, 1.0, 1.0, 1.0],  # Default to 1 for others
+    "Rate": [0.0] * 5
 })
-edit_sanitary = st.data_editor(df_sanitary, use_container_width=True, hide_index=True, key="ed_sanitary")
+
+edit_sanitary = st.data_editor(
+    df_sanitary, 
+    use_container_width=True, 
+    hide_index=True, 
+    key="ed_sanitary",
+    column_config={
+        "Description": st.column_config.TextColumn(disabled=True),
+        "Ratio/Qty": st.column_config.NumberColumn(
+            "Ratio",
+            help="For Typical Unit: How many bathrooms per room? (The rest are fixed at 1)",
+            format="%.1f"
+        ),
+        "Rate": st.column_config.NumberColumn("Rate per Unit", format="%.2f")
+    }
+)
 
 # --- MAP EDITED RATES TO VARIABLES ---
 all_rates = pd.concat([edit_struc, edit_fac_pct, edit_arch])
@@ -123,14 +142,18 @@ rate_steel_door    = rates_dict.get(f"Steel Door Rate ({project_type})", 0.0)
 rate_lobby         = rates_dict.get(f"Lobby Interior Rate ({project_type})", 0.0)
 rate_gondola       = rates_dict.get(f"Gondola Rate ({project_type})", 0.0)
 
-# --- MAP EDITED SANITARY RATES ---
-sanitary_dict = dict(zip(edit_sanitary["Description"], edit_sanitary["Value"]))
+# Convert editor to dictionary for mapping
+sanitary_dict = edit_sanitary.to_dict('records')
 
-rate_unit_typical = sanitary_dict.get("Unit Typical (Rate per Room)", 0.0)
-rate_toil_male    = sanitary_dict.get("Public Toilet Male (Rate per Unit)", 0.0)
-rate_toil_female  = sanitary_dict.get("Public Toilet Female (Rate per Unit)", 0.0)
-rate_disabled     = sanitary_dict.get("Disabled Toilet (Rate per Unit)", 0.0)
-rate_mushola      = sanitary_dict.get("Mushola/Prayer Room (Rate per Unit)", 0.0)
+# 1. Typical Unit (Ratio Logic)
+ratio_typical = sanitary_dict[0]["Ratio/Qty"]
+rate_typical  = sanitary_dict[0]["Rate"]
+
+# 2. Public Units (Direct Logic)
+rate_toil_male   = sanitary_dict[1]["Rate"]
+rate_toil_female = sanitary_dict[2]["Rate"]
+rate_disabled    = sanitary_dict[3]["Rate"]
+rate_mushola     = sanitary_dict[4]["Rate"]
 
 # --- SANITARY MATH ---
 # Unit Typical = Rate * Rooms (from Step 1)
@@ -164,7 +187,7 @@ if st.button("Run Calculation", type="primary", use_container_width=True):
     total_steel_doors  = steel_door * rate_steel_door
     total_lobby        = lobby_interior * rate_lobby
     total_gondola      = gondola_unit * rate_gondola
-    total_unit_typical = rooms * rate_unit_typical
+    total_unit_typical = rooms * ratio_typical * rate_typical
     total_toil_male    = toilet_male * rate_toil_male
     total_toil_female  = toilet_female * rate_toil_female
     total_disabled     = disabled_toil * rate_disabled
@@ -198,11 +221,11 @@ hard_cost_data = {
         f"{steel_door} units x {rate_steel_door:,.2f}",
         f"{lobby_interior:,.2f} m2 x {rate_lobby:,.2f}",
         f"{gondola_unit} units x {rate_gondola:,.2f}",
-        f"{rooms} rooms x {rate_unit_typical:,.2f}",
-        f"{toilet_male} units x {rate_toil_male:,.2f}",
-        f"{toilet_female} units x {rate_toil_female:,.2f}",
-        f"{disabled_toil} units x {rate_disabled:,.2f}",
-        f"{mushola_unit} units x {rate_mushola:,.2f}"
+        f"{rooms} rooms x {ratio_typical} qty x {rate_typical:,.2f}",
+        f"{toilet_male} units x {rate_toil_male:,.2f}",              
+        f"{toilet_female} units x {rate_toil_female:,.2f}",           
+        f"{disabled_toil} units x {rate_disabled:,.2f}",         
+        f"{mushola_unit} units x {rate_mushola:,.2f}" 
     ],
     "Amount": [
         0.0, total_earthwork, total_foundation, total_structural,
