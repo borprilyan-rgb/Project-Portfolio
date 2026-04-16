@@ -27,7 +27,7 @@ with col2:
     lobby_interior = st.number_input("Lobby Interior (m2)", min_value=0.0, format="%.2f")
 
 with col3:
-    st.subheader("External and Infrastructure")
+    st.subheader("External & Infrastructure")
     rooftop = st.number_input("Rooftop (m2)", min_value=0.0, format="%.2f")
     facilities = st.number_input("Facilities (m2)", min_value=0.0, format="%.2f")
     landscape = st.number_input("External/Landscape (m2)", min_value=0.0, format="%.2f")
