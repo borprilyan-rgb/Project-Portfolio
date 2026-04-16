@@ -25,6 +25,7 @@ with col2:
     wooden_door = st.number_input("Wooden Door (unit)", min_value=0, format="%d")
     steel_door = st.number_input("Steel Door (unit)", min_value=0, format="%d")
     lobby_interior = st.number_input("Lobby Interior (m2)", min_value=0.0, format="%.2f")
+    gondola_unit = st.number_input("Gondola (unit)", min_value=0, format="%d")
 
 with col3:
     st.subheader("External & Infrastructure")
