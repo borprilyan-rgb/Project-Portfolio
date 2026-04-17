@@ -49,7 +49,7 @@ PROJECT_DATABASE = {
 # --- 3. THE "SHEETS" (FUNCTIONS) ---
 
 def show_area_calculator():
-    st.title("📏 Detailed Area Calculation Sheet")
+    st.title("Area Calculator")
     st.info("This section handles the breakdown of GBA, GFA, and SGFA including deductions.")
     
     col1, col2 = st.columns(2)
@@ -59,7 +59,7 @@ def show_area_calculator():
 
 
 def show_cost_estimator():
-    st.title("Project Dimension and Cost Calculator")
+    st.title("Cost Calculator")
     st.markdown("---")
 
     # --- SIDEBAR: COST ESTIMATOR SPECIFIC ---
