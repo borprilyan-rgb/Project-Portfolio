@@ -98,7 +98,7 @@ def show_area_calculator():
                 # The Input Zone
                 edited_mix = st.data_editor(default_mix, key=f"ed_{p_idx}_{g_idx}", num_rows="dynamic")
                 
- # --- CALCULATION LOGIC ---
+                # --- CALCULATION LOGIC ---
                 # A. Total Net & Units
                 edited_mix["Net/Fl (Total)"] = edited_mix["Net Area"] * edited_mix["Units/Floor"]
                 total_net_per_floor = edited_mix["Net/Fl (Total)"].sum()
@@ -124,29 +124,39 @@ def show_area_calculator():
                 sum_sgfa_fl = display_df["SGFA/Fl (Total)"].sum()
                 sum_gfa_fl = display_df["GFA/Fl (Total)"].sum()
 
-                # E. Append TOTAL row to the bottom of the dataframe
-                total_row = pd.DataFrame([{
-                    "Unit Type": "TOTAL / FLOOR",
-                    "Net/Fl (Total)": total_net_per_floor,
-                    "SGFA per Unit": None, # Leave blank
-                    "SGFA/Fl (Total)": sum_sgfa_fl,
-                    "GFA per Unit": None,  # Leave blank
-                    "GFA/Fl (Total)": sum_gfa_fl,
-                    "Units": total_units_per_floor
-                }])
-                display_df = pd.concat([display_df, total_row], ignore_index=True)
+                # E. Calculate Group Totals (Multiplier applied)
+                group_net = total_net_per_floor * num_blocks * num_floors
+                group_sgfa = sum_sgfa_fl * num_blocks * num_floors
+                group_gfa = sum_gfa_fl * num_blocks * num_floors
+                group_units = total_units_per_floor * num_blocks * num_floors
+
+                # F. Append both TOTAL rows to the bottom of the dataframe
+                summary_rows = pd.DataFrame([
+                    {
+                        "Unit Type": "TOTAL / FLOOR",
+                        "Net/Fl (Total)": total_net_per_floor,
+                        "SGFA per Unit": None, 
+                        "SGFA/Fl (Total)": sum_sgfa_fl,
+                        "GFA per Unit": None,  
+                        "GFA/Fl (Total)": sum_gfa_fl,
+                        "Units": total_units_per_floor
+                    },
+                    {
+                        "Unit Type": f"GROUP TOTAL ({num_blocks} Blk x {num_floors} Fl)",
+                        "Net/Fl (Total)": group_net,
+                        "SGFA per Unit": None, 
+                        "SGFA/Fl (Total)": group_sgfa,
+                        "GFA per Unit": None,  
+                        "GFA/Fl (Total)": group_gfa,
+                        "Units": group_units
+                    }
+                ])
+                display_df = pd.concat([display_df, summary_rows], ignore_index=True)
                 
                 st.markdown("**Calculated Breakdown**")
                 st.dataframe(display_df, use_container_width=True, hide_index=True)
                 
-                # F. Group Totals (Underneath the table)
-                group_gfa = sum_gfa_fl * num_blocks * num_floors
-                group_sgfa = sum_sgfa_fl * num_blocks * num_floors
-                group_units = total_units_per_floor * num_blocks * num_floors
-                
-                # Render the bold text sums for the whole group
-                st.markdown(f"**{group_name} GRAND TOTAL ({num_blocks} Blocks x {num_floors} Fl): {group_sgfa:,.2f} SGFA | {group_gfa:,.2f} GFA | {int(group_units)} Units**")
-                
+                # G. Track Plot Totals (Markdown removed!)
                 plot_gfa += group_gfa
                 plot_sgfa += group_sgfa
                 plot_units += group_units
