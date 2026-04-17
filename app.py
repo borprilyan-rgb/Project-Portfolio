@@ -50,79 +50,71 @@ PROJECT_DATABASE = {
 # --- 3. THE "SHEETS" (FUNCTIONS) ---
 def show_area_calculator():
     st.title("Area Calculator")
-    st.markdown("---")
-
-    # 1. GLOBAL PROJECT CONFIG
-    col_global = st.columns([1, 1, 2])
-    num_plots = col_global[0].number_input("Number of Plots", min_value=1, value=2, step=1)
     
-    # Store results for aggregation
-    plot_summaries = []
+    # 1. PLOT LEVEL CONFIG
+    num_plots = st.number_input("Number of Plots", min_value=1, value=1)
+    
+    for p_idx in range(int(num_plots)):
+        with st.expander(f"📍 PLOT {p_idx + 1} CONFIGURATION", expanded=True):
+            
+            # 2. SUB-GROUP CONFIG (e.g., Block 1, 4-8 vs Block 2 & 3)
+            num_groups = st.number_input(f"Number of Block Groups in Plot {p_idx+1}", min_value=1, value=2, key=f"ng_{p_idx}")
+            
+            plot_total_gfa = 0
+            plot_total_sgfa = 0
+            
+            for g_idx in range(int(num_groups)):
+                st.markdown(f"---")
+                st.subheader(f"Group {g_idx + 1} Configuration")
+                
+                c1, c2, c3 = st.columns(3)
+                group_name = c1.text_input("Group Name (e.g. Block 1, 4-8)", value=f"Block Group {g_idx+1}", key=f"gn_{p_idx}_{g_idx}")
+                num_blocks = c2.number_input("Number of Blocks", min_value=1, value=6, key=f"nb_{p_idx}_{g_idx}")
+                num_floors = c3.number_input("Typical Floors", min_value=1, value=11, key=f"nf_{p_idx}_{g_idx}")
+                
+                # 3. UNIT MIX (Per Floor)
+                st.markdown("**Typical Floor Unit Mix (Per Block)**")
+                # Using a data editor to mimic your table's unit rows
+                unit_mix_data = pd.DataFrame([
+                    {"Unit Type": "2BR-1", "Net Area": 74.5, "Units/Floor": 2},
+                    {"Unit Type": "3BR", "Net Area": 95.5, "Units/Floor": 1},
+                ])
+                edited_mix = st.data_editor(unit_mix_data, key=f"ed_{p_idx}_{g_idx}", num_rows="dynamic")
+                
+                # 4. COMMON AREA INPUTS
+                col_com1, col_com2 = st.columns(2)
+                core_area = col_com1.number_input("Core Area per Floor", value=105.5, key=f"core_{p_idx}_{g_idx}")
+                corridor_area = col_com2.number_input("Corridor Area per Floor", value=88.8, key=f"corr_{p_idx}_{g_idx}")
+                
+                # 5. MATH (AS PER YOUR IMAGE)
+                # Sum(Net Area * Units/Floor)
+                total_net_per_floor = (edited_mix["Net Area"] * edited_mix["Units/Floor"]).sum()
+                
+                # SGFA per Floor = Total Net + Core + Corridor
+                sgfa_per_floor = total_net_per_floor + core_area + corridor_area
+                
+                # GFA per Floor (Adding external walls/shafts - typically a multiplier or manual input)
+                gfa_multiplier = st.number_input("GFA Multiplier (Wall/Shaft Factor)", value=1.15, key=f"gfam_{p_idx}_{g_idx}")
+                gfa_per_floor = sgfa_per_floor * gfa_multiplier
+                
+                group_sgfa = sgfa_per_floor * num_floors * num_blocks
+                group_gfa = gfa_per_floor * num_floors * num_blocks
+                
+                st.success(f"{group_name} Results: GFA {group_gfa:,.2f} | SGFA {group_sgfa:,.2f}")
+                
+                plot_total_gfa += group_gfa
+                plot_total_sgfa += group_sgfa
 
-    # 2. DYNAMIC PLOT GENERATOR
-    for i in range(int(num_plots)):
-        plot_id = i + 1
-        with st.expander(f"📍 PLOT {plot_id} CONFIGURATION", expanded=True):
-            # Row 1: High Level Plot Info
-            c1, c2, c3, c4 = st.columns(4)
-            p_name = c1.text_input(f"Plot Name", value=f"Plot {plot_id}", key=f"p_name_{i}")
-            p_type = c2.selectbox(f"Type", ["Hotel", "Retail", "Apartment", "Parking"], key=f"p_type_{i}")
-            num_blocks = c3.number_input(f"No. of Blocks", min_value=1, value=1, key=f"p_blocks_{i}")
-            site_area = c4.number_input(f"Site Area (m2)", value=20000.0, key=f"p_site_{i}")
-
+            # 6. NON-TYPICAL AREAS (GF, RF, PODIUM)
             st.markdown("---")
+            st.subheader("Non-Typical Areas (Podium / MEP / Clubhouse)")
+            podium_area = st.number_input("Podium Area", value=7548.0, key=f"pod_{p_idx}")
+            mep_area = st.number_input("MEP / GF Area", value=840.0, key=f"mep_a_{p_idx}")
             
-            # Row 2: Vertical Stack (Per Block)
-            st.markdown(f"**Vertical Stack (Area per 1 Block)**")
-            v1, v2, v3, v4, v5 = st.columns(5)
-            b_area = v1.number_input("B (m2)", value=0.0, key=f"b_{i}")
-            gf_area = v2.number_input("GF (m2)", value=1200.0, key=f"gf_{i}")
-            typ_area = v3.number_input("Typ Floor (m2)", value=1000.0, key=f"typ_a_{i}")
-            rf_area = v4.number_input("RF (m2)", value=1000.0, key=f"rf_{i}")
-            mrf_area = v5.number_input("Machine RF (m2)", value=150.0, key=f"mrf_{i}")
+            final_cfa = plot_total_gfa + podium_area + mep_area
             
-            # Row 3: Typical Floor Count & Official Stats (Per Block)
-            s1, s2, s3, s4 = st.columns(4)
-            typ_count = s1.number_input("No. Typical Floors", value=11, key=f"typ_c_{i}")
-            # Manual inputs for GFA/SGFA as per your Plot image
-            block_gfa = s2.number_input("GFA per Block", value=10000.0, key=f"bgfa_{i}")
-            block_sgfa = s3.number_input("SGFA per Block", value=8500.0, key=f"bsgfa_{i}")
-            
-            # 3. INTERNAL CALCULATIONS (Per Plot)
-            # CFA is the physical construction sum
-            block_cfa = b_area + gf_area + (typ_area * typ_count) + rf_area + mrf_area
-            
-            total_plot_cfa = block_cfa * num_blocks
-            total_plot_gfa = block_gfa * num_blocks
-            total_plot_sgfa = block_sgfa * num_blocks
-            
-            plot_summaries.append({
-                "Plot": p_name,
-                "Type": p_type,
-                "Blocks": num_blocks,
-                "CFA (Total)": total_plot_cfa,
-                "GFA (Total)": total_plot_gfa,
-                "SGFA (Total)": total_plot_sgfa,
-                "KLB": total_plot_gfa / site_area if site_area > 0 else 0
-            })
-
-    # 4. FINAL AGGREGATION TABLE
-    st.markdown("---")
-    st.subheader("Total Project Area Summary")
-    df = pd.DataFrame(plot_summaries)
-    
-    # Formatting the table for clarity
-    st.dataframe(
-        df.style.format({"CFA (Total)": "{:,.2f}", "GFA (Total)": "{:,.2f}", "SGFA (Total)": "{:,.2f}", "KLB": "{:.2f}"}),
-        use_container_width=True,
-        hide_index=True
-    )
-
-    # 5. GRAND TOTAL METRICS
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Grand Total CFA", f"{df['CFA (Total)'].sum():,.2f} m2")
-    m2.metric("Grand Total GFA", f"{df['GFA (Total)'].sum():,.2f} m2")
-    m3.metric("Grand Total SGFA", f"{df['SGFA (Total)'].sum():,.2f} m2")
+            st.divider()
+            st.metric(f"PLOT {p_idx+1} TOTAL CFA", f"{final_cfa:,.2f} m2")
     
 # RATE DATABASE ---
 def show_rate_database():
