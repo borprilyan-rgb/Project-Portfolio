@@ -3,7 +3,7 @@ import pandas as pd
 import altair as alt
 
 # --- 1. PAGE CONFIGURATION ---
-st.set_page_config(page_title="ASG Project Suite", layout="wide")
+st.set_page_config(page_title="Project Portfolio", layout="wide")
 
 # --- 2. THE DATABASE ---
 PROJECT_DATABASE = {
