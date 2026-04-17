@@ -437,7 +437,7 @@ def show_cost_estimator():
 # --- 4. MAIN NAVIGATION (The Sidebar Switcher) ---
 page_choice = st.sidebar.segmented_control(
     "Navigation", 
-    ["Cost Estimator", "Area Detail Calculator"],
+    ["Cost Calculator", "Area Calculator"],
     default="Cost Estimator"
 )
 st.sidebar.markdown("---")
