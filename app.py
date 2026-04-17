@@ -47,7 +47,7 @@ PROJECT_DATABASE = {
 
 
 # --- 3. THE "SHEETS" (FUNCTIONS) ---
-
+# AREA CALCULATOR ---
 def show_area_calculator():
     st.title("Area Calculator")
     st.info("This section handles the breakdown of GBA, GFA, and SGFA including deductions.")
@@ -57,7 +57,14 @@ def show_area_calculator():
         st.subheader("Input dimensions")
         st.write("Area logic goes here...")
 
+# RATE DATABASE ---
+def show_rate_database():
+    st.title("🗄️ Project Rate Database")
+    st.info("View and manage the standard unit rates for all project types.")
+    # We will later display your PROJECT_DATABASE dictionary as a clean table here
+    st.dataframe(pd.DataFrame(PROJECT_DATABASE).T)
 
+# COST ESTIMATOR ---
 def show_cost_estimator():
     st.title("Cost Calculator")
     st.markdown("---")
@@ -421,15 +428,21 @@ def show_cost_estimator():
 
 
 # --- 4. MAIN NAVIGATION (The Sidebar Switcher) ---
+st.sidebar.title("Main Navigation")
+
+# This creates the 3-option selector in the sidebar
 page_choice = st.sidebar.segmented_control(
-    "Navigation", 
-    ["Cost Calculator", "Area Calculator"],
+    "Select Workspace:", 
+    ["Cost Calculator", "Area Calculator", "Rate Database"], 
     default="Cost Calculator"
 )
+
 st.sidebar.markdown("---")
 
 # --- 5. EXECUTION LOGIC ---
 if page_choice == "Area Calculator":
     show_area_calculator()
+elif page_choice == "Rate Database":
+    show_rate_database()
 else:
     show_cost_estimator()
