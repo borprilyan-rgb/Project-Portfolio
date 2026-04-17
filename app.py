@@ -652,8 +652,9 @@ def show_cost_estimator():
     csv_data = df_export.to_csv(index=False).encode('utf-8')
 
     # This targets the sidebar so it sits right under your uploader!
+    st.sidebar.subheader("Download CSV")
     st.sidebar.download_button(
-        label=f"Download CSV",
+        label=f"Download",
         data=csv_data,
         file_name=f"{new_name.replace(' ', '_').lower()}_config.csv",
         mime="text/csv",
