@@ -443,7 +443,7 @@ page_choice = st.sidebar.segmented_control(
 st.sidebar.markdown("---")
 
 # --- 5. EXECUTION LOGIC ---
-if page_choice == "Area Detail Calculator":
+if page_choice == "Area Calculator":
     show_area_calculator()
 else:
     show_cost_estimator()
