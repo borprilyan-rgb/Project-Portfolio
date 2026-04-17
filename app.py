@@ -67,24 +67,6 @@ def show_cost_estimator():
     project_type = st.sidebar.selectbox("Select Project Type", ["Hotel", "Retail", "Apartment", "Parking"])
     pt_data = PROJECT_DATABASE[project_type]
 
-    st.sidebar.header("🏢 Project Dimensions")
-
-    # Primary Area Inputs
-    gba = st.sidebar.number_input("GBA (Gross Building Area) - m2", value=179970.69, step=100.0)
-    gfa = st.sidebar.number_input("GFA (Gross Floor Area) - m2", value=152658.99, step=100.0)
-    sgfa = st.sidebar.number_input("SGFA (Semi-Gross Floor Area) - m2", value=124336.77, step=100.0)
-
-    st.sidebar.markdown("---")
-    st.sidebar.header("📊 Efficiency Metrics")
-
-    # Efficiency Calculations
-    if gba > 0:
-        gfa_eff = (gfa / gba) * 100
-        sgfa_eff = (sgfa / gba) * 100
-        
-        st.sidebar.metric("GFA Efficiency", f"{gfa_eff:.2f}%")
-        st.sidebar.metric("SGFA Efficiency", f"{sgfa_eff:.2f}%")
-
     # --- TABS LAYOUT ---
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "🏗️ 1. Project Metrics", 
