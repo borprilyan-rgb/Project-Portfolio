@@ -98,7 +98,7 @@ def show_area_calculator():
                 # The Input Zone
                 edited_mix = st.data_editor(default_mix, key=f"ed_{p_idx}_{g_idx}", num_rows="dynamic")
                 
-                # --- CALCULATION LOGIC ---
+ # --- CALCULATION LOGIC ---
                 # A. Total Net & Units
                 edited_mix["Net/Fl (Total)"] = edited_mix["Net Area"] * edited_mix["Units/Floor"]
                 total_net_per_floor = edited_mix["Net/Fl (Total)"].sum()
@@ -116,25 +116,36 @@ def show_area_calculator():
                 edited_mix["GFA per Unit"] = (edited_mix["Net Area"] * gfa_load_factor).round(2)
                 edited_mix["GFA/Fl (Total)"] = (edited_mix["GFA per Unit"] * edited_mix["Units/Floor"]).round(2)
                 
-                # D. Filter Display Table (Hide Net Area & duplicate Units column)
+                # D. Filter Display Table
                 display_cols = ["Unit Type", "Net/Fl (Total)", "SGFA per Unit", "SGFA/Fl (Total)", "GFA per Unit", "GFA/Fl (Total)", "Units/Floor"]
                 display_df = edited_mix[display_cols].copy()
                 display_df.rename(columns={"Units/Floor": "Units"}, inplace=True)
                 
+                sum_sgfa_fl = display_df["SGFA/Fl (Total)"].sum()
+                sum_gfa_fl = display_df["GFA/Fl (Total)"].sum()
+
+                # E. Append TOTAL row to the bottom of the dataframe
+                total_row = pd.DataFrame([{
+                    "Unit Type": "TOTAL / FLOOR",
+                    "Net/Fl (Total)": total_net_per_floor,
+                    "SGFA per Unit": None, # Leave blank
+                    "SGFA/Fl (Total)": sum_sgfa_fl,
+                    "GFA per Unit": None,  # Leave blank
+                    "GFA/Fl (Total)": sum_gfa_fl,
+                    "Units": total_units_per_floor
+                }])
+                display_df = pd.concat([display_df, total_row], ignore_index=True)
+                
                 st.markdown("**Calculated Breakdown**")
                 st.dataframe(display_df, use_container_width=True, hide_index=True)
                 
-                # E. Bold Totals below table (Replaces Blue/Green boxes)
-                sum_sgfa_fl = display_df["SGFA/Fl (Total)"].sum()
-                sum_gfa_fl = display_df["GFA/Fl (Total)"].sum()
-                
+                # F. Group Totals (Underneath the table)
                 group_gfa = sum_gfa_fl * num_blocks * num_floors
                 group_sgfa = sum_sgfa_fl * num_blocks * num_floors
                 group_units = total_units_per_floor * num_blocks * num_floors
                 
-                # Render the bold text sums
-                st.markdown(f"**Floor Total: {total_net_per_floor:,.2f} Net/Fl | {sum_sgfa_fl:,.2f} SGFA/Fl | {sum_gfa_fl:,.2f} GFA/Fl | {int(total_units_per_floor)} Units**")
-                st.markdown(f"**{group_name} Group Total ({num_blocks} Blocks x {num_floors} Fl): {group_sgfa:,.2f} SGFA | {group_gfa:,.2f} GFA | {int(group_units)} Units**")
+                # Render the bold text sums for the whole group
+                st.markdown(f"**{group_name} GRAND TOTAL ({num_blocks} Blocks x {num_floors} Fl): {group_sgfa:,.2f} SGFA | {group_gfa:,.2f} GFA | {int(group_units)} Units**")
                 
                 plot_gfa += group_gfa
                 plot_sgfa += group_sgfa
