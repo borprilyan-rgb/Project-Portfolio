@@ -620,8 +620,6 @@ def show_cost_estimator():
         "proj_name": new_name,
         "proj_type": new_type,
     
-    # Package ALL variables from across all tabs
-    current_metrics =
         # Tab 1
         "m_land": land_area, "m_gba": gba, "m_gfa": gfa, "m_sgfa": sgfa,
         "m_facade": facade, "m_rooms": rooms, "m_lobby": lobby_interior, 
