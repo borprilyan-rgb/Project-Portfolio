@@ -48,51 +48,49 @@ PROJECT_DATABASE = {
 
 
 # --- 3. THE "SHEETS" (FUNCTIONS) ---
-# AREA CALCULATOR ---
 def show_area_calculator():
-    st.title("Area Calculator")
+    st.title("📏 Detailed Area Calculator")
     st.markdown("---")
-    
-    # 1. Initialize session state if empty
-    if 'area_df' not in st.session_state:
-        st.session_state.area_df = pd.DataFrame({
-            "Level Name": ["Basement", "Ground Floor", "Level 1", "L2-L11", "Level 12", "Roof Floor"],
-            "GBA / Floor (m2)": [5000.0, 4500.0, 4200.0, 4000.0, 3800.0, 1500.0],
-            "Multiplier": [1, 1, 1, 10, 1, 1]
-        })
 
-    # 2. Display the editor
-    # We use 'key' to make sure Streamlit tracks changes specifically for this widget
+    # 1. Initialize the table in session state if it's not there
+    if 'area_master_df' not in st.session_state:
+        st.session_state.area_master_df = pd.DataFrame([
+            {"Level Name": "Basement", "GBA / Floor (m2)": 5000.0, "Qty": 1},
+            {"Level Name": "Ground Floor", "GBA / Floor (m2)": 4500.0, "Qty": 1},
+            {"Level Name": "Typical L2-L11", "GBA / Floor (m2)": 4000.0, "Qty": 10},
+        ])
+
+    # 2. THE "ADD FLOOR" BUTTON
+    # This adds a blank row to the bottom of the list
+    if st.button("Add New Level"):
+        new_row = pd.DataFrame([{"Level Name": "New Level", "GBA / Floor (m2)": 0.0, "Qty": 1}])
+        st.session_state.area_master_df = pd.concat([st.session_state.area_master_df, new_row], ignore_index=True)
+        # Rerun is often needed in Streamlit to show the new row immediately
+        st.rerun()
+
+    # 3. THE EDITOR
+    # We disable "num_rows=dynamic" here because our button handles the adding
     edited_df = st.data_editor(
-        st.session_state.area_df,
+        st.session_state.area_master_df,
         hide_index=True,
         use_container_width=True,
-        num_rows="dynamic",
-        key="area_editor" 
+        key="area_editor_v3"
     )
 
-    # 3. Trigger Auto-Calculation Logic
-    # This loop runs every time the table is edited
-    for index, row in edited_df.iterrows():
-        name = str(row["Level Name"])
-        match = re.search(r'(\d+)\s*-\s*(\d+)', name)
-        
-        if match:
-            start_f = int(match.group(1))
-            end_f = int(match.group(2))
-            auto_qty = max(1, (end_f - start_f) + 1)
-            
-            # Update the multiplier in the dataframe
-            edited_df.at[index, "Multiplier"] = auto_qty
+    # Save changes back to state
+    st.session_state.area_master_df = edited_df
 
-    # 4. Save the updated dataframe back to session state
-    st.session_state.area_df = edited_df
+    # 4. MATH & SUMMARY
+    edited_df["Subtotal GBA"] = edited_df["GBA / Floor (m2)"] * edited_df["Qty"]
+    total_gba = edited_df["Subtotal GBA"].sum()
 
-    # 5. Calculation Results
-    edited_df["Subtotal GBA"] = edited_df["GBA / Floor (m2)"] * edited_df["Multiplier"]
-    calc_total_gba = edited_df["Subtotal GBA"].sum()
-
-    st.markdown(f"### Total GBA: {calc_total_gba:,.2f} m2")
+    st.markdown("---")
+    st.markdown(f"## Total GBA: {total_gba:,.2f} m2")
+    
+    # 5. SYNC BUTTON (Optional but recommended)
+    if st.button("Sync to Cost Calculator"):
+        st.session_state['gba_sync'] = total_gba
+        st.success("GBA updated!")
     
 # RATE DATABASE ---
 def show_rate_database():
