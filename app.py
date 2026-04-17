@@ -293,9 +293,10 @@ def show_cost_estimator():
                 st.sidebar.error(f"❌ Error loading file: {e}")
 
     # --- TABS LAYOUT ---
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "🏗️ 1. Project Metrics", "🧮 2. Ratios & Multipliers", 
-        "💰 3. Unit Rates", "💼 4. Soft Costs", "📊 5. Results & Summary"
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "🏗️ 1. Project Metrics", "🧮 2. Ratios", 
+        "💰 3. Unit Rates", "💼 4. Soft Costs", 
+        "➕ 5. Custom Items", "📊 6. Results & Summary"
     ])
 
     # --- TAB 1: PROJECT METRICS ---
@@ -470,7 +471,8 @@ def show_cost_estimator():
         t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
         t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, t_ht, t_vinyl,
         t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_utility, t_railing, t_skylight, t_external,
-        t_pub_fac, t_res_fac, t_proj_fac
+        t_pub_fac, t_res_fac, t_proj_fac,
+        total_custom_cost # <--- Added here!
     ])
 
     t_preliminary = construction_subtotal * 0.05
@@ -495,8 +497,53 @@ def show_cost_estimator():
     group_ext = t_external + t_pub_fac + t_res_fac + t_proj_fac
     group_contingency = t_preliminary + t_contingency
 
-    # --- TAB 5: RESULTS & SUMMARY ---
+# --- TAB 5: CUSTOM ITEMS ---
     with tab5:
+        st.subheader("➕ Smart Custom Costs")
+        st.info("Add custom scope items here. Select a linked metric (e.g., GFA) to automatically calculate: Rate × Multiplier × Metric.")
+        
+        # 1. Map the string names to your live variables from Tab 1
+        dependency_map = {
+            "None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa,
+            "Land Area": land_area, "Rooms": rooms, "Facade": facade, "Lobby": lobby_interior
+        }
+        
+        # 2. Setup default table
+        default_smart_cc = [{"Description": "", "Rate (Rp)": 0.0, "Multiplier (Qty)": 1.0, "Linked Dependency": "None (Flat Rate)"}]
+        current_smart_cc = get_val("smart_custom_costs", default_smart_cc)
+        
+        # 3. Create the Data Editor
+        edited_smart_cc = st.data_editor(
+            pd.DataFrame(current_smart_cc), 
+            num_rows="dynamic", 
+            key=f"edit_smart_cc_{curr_id}", 
+            column_config={
+                "Linked Dependency": st.column_config.SelectboxColumn(
+                    "Linked Dependency",
+                    options=list(dependency_map.keys()),
+                    required=True
+                )
+            },
+            use_container_width=True
+        )
+        
+        # 4. Background Math
+        total_custom_cost = 0.0
+        for index, row in edited_smart_cc.iterrows():
+            rate = float(row.get("Rate (Rp)", 0.0))
+            mult = float(row.get("Multiplier (Qty)", 1.0))
+            dep_name = row.get("Linked Dependency", "None (Flat Rate)")
+            dep_value = dependency_map.get(dep_name, 1.0) 
+            total_custom_cost += (rate * mult * dep_value)
+            
+        st.markdown(f"**Total Custom Costs: Rp {total_custom_cost:,.2f}**")
+        
+        # 5. Save back to locker
+        st.session_state.projects[curr_id]["data"]["smart_custom_costs"] = edited_smart_cc.to_dict('records')
+
+
+    # --- TAB 6: RESULTS & SUMMARY ---
+    with tab6:
         st.markdown("---")
         # MOBILE WRAP FIX for Subtotal and Grand Totals in Tab 5
         st.markdown(f"""
@@ -539,13 +586,15 @@ def show_cost_estimator():
             "Category": [
                 "Structure/Foundation", "Architecture & Finishes", "Facade", 
                 "Sanitary/Plumbing", "MEP & FF&E", "External/Facilities", 
+                "Custom Additions (Hard)", # <--- Added Label here
                 "Prelim & Contingency", 
                 "Consultancy Fee (Soft)", "Quantity Surveyor (Soft)", 
                 "Project Management (Soft)", "Insurance (Soft)"
             ],
             "Amount (Rp)": [
                 group_structure, group_arch, group_facade, 
-                group_sanitary, group_mep, group_ext, 
+                group_sanitary, group_mep, group_ext,
+                total_custom_cost,
                 group_contingency, 
                 t_consultancy, t_qs, 
                 t_pm, t_insurance
