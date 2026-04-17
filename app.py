@@ -257,41 +257,33 @@ def show_cost_estimator():
     
     st.markdown("---")
 
-# --- 1. GLOBAL IMPORT SECTION ---
-    st.markdown("##### 💾 Project Scenario Manager")
-    uploaded_file = st.file_uploader("Upload a saved Project CSV to overwrite current inputs", type=["csv"])
+# --- 1. GLOBAL IMPORT SECTION (Moved to Sidebar) ---
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("💾 Scenario Manager")
+    
+    uploaded_file = st.sidebar.file_uploader("Upload CSV to overwrite inputs", type=["csv"])
     
     if uploaded_file is not None:
-        # Use file_id as a lock to ensure we only process the file ONCE per upload
         if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != uploaded_file.file_id:
             try:
                 df_import = pd.read_csv(uploaded_file)
-                
                 for index, row in df_import.iterrows():
                     key = str(row["Metric_Key"])
                     val = row["Value"]
                     
-                    # Handle Project Name and Type (Text)
                     if key == "proj_name":
                         st.session_state.projects[curr_id]["name"] = str(val)
                     elif key == "proj_type":
                         st.session_state.projects[curr_id]["type"] = str(val)
-                    # Handle all other metrics (Numbers)
                     else:
                         st.session_state[key] = float(val)
                 
-                # Lock the file so it doesn't trigger an infinite loop
                 st.session_state.last_loaded_file = uploaded_file.file_id
-                
-                st.success("✅ Full Project Configuration loaded successfully!")
-                st.rerun() # Refresh so the Sidebar and UI update immediately
-                
+                st.sidebar.success("✅ Loaded successfully!")
+                st.rerun() 
             except Exception as e:
-                # If it fails, it will now print the EXACT error on screen
-                st.error(f"❌ Error loading file: {e}")
-
-    st.markdown("---")
-
+                st.sidebar.error(f"❌ Error loading file: {e}")
+                
     # --- TABS LAYOUT ---
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "🏗️ 1. Project Metrics", 
@@ -619,7 +611,6 @@ def show_cost_estimator():
             st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
             
     # --- 2. GLOBAL EXPORT SECTION (Placed at the bottom) ---
-    st.markdown("---")
     
     # Package ALL variables from across all tabs
     current_metrics = {
@@ -660,7 +651,8 @@ def show_cost_estimator():
     df_export = pd.DataFrame(list(current_metrics.items()), columns=["Metric_Key", "Value"])
     csv_data = df_export.to_csv(index=False).encode('utf-8')
 
-    st.download_button(
+    # This targets the sidebar so it sits right under your uploader!
+    st.sidebar.download_button(
         label=f"⬇️ Download Config for '{new_name}' to CSV",
         data=csv_data,
         file_name=f"{new_name.replace(' ', '_').lower()}_config.csv",
