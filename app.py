@@ -259,9 +259,9 @@ def show_cost_estimator():
 
 # --- 1. GLOBAL IMPORT SECTION (Moved to Sidebar) ---
     st.sidebar.markdown("---")
-    st.sidebar.subheader("💾 Scenario Manager")
+    st.sidebar.subheader("Upload CSV")
     
-    uploaded_file = st.sidebar.file_uploader("Upload CSV to overwrite inputs", type=["csv"])
+    uploaded_file = st.sidebar.file_uploader(type=["csv"])
     
     if uploaded_file is not None:
         if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != uploaded_file.file_id:
