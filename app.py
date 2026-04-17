@@ -49,48 +49,62 @@ PROJECT_DATABASE = {
 
 # --- 3. THE "SHEETS" (FUNCTIONS) ---
 def show_area_calculator():
-    st.title("📏 Detailed Area Calculator")
-    st.markdown("---")
+    st.title("Area Calculator")
+    st.markdown("Use this tool to calculate GBA and GFA based on the building's vertical stack.")
 
-    # 1. Initialize the table in session state if it's not there
-    if 'area_master_df' not in st.session_state:
-        st.session_state.area_master_df = pd.DataFrame([
-            {"Level Name": "Basement", "GBA / Floor (m2)": 5000.0, "Qty": 1},
-            {"Level Name": "Ground Floor", "GBA / Floor (m2)": 4500.0, "Qty": 1},
-            {"Level Name": "Typical L2-L11", "GBA / Floor (m2)": 4000.0, "Qty": 10},
-        ])
+    # --- 1. INPUT SECTION ---
+    with st.container(border=True):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Building Stack")
+            # Basement
+            b_area = st.number_input("Basement Area (B) - m2", value=0.0, step=100.0)
+            # Ground Floor
+            gf_area = st.number_input("Ground Floor Area (GF) - m2", value=1200.0, step=100.0)
+            # Typical Floors
+            typ_count = st.number_input("Number of Typical Floors", value=11, step=1)
+            typ_area = st.number_input("Area per Typical Floor - m2", value=1000.0, step=100.0)
+            # Roofs
+            rf_area = st.number_input("Roof Floor Area (RF) - m2", value=1000.0, step=100.0)
+            mrf_area = st.number_input("Machine Room Roof (MRF) - m2", value=150.0, step=10.0)
 
-    # 2. THE "ADD FLOOR" BUTTON
-    # This adds a blank row to the bottom of the list
-    if st.button("Add New Level"):
-        new_row = pd.DataFrame([{"Level Name": "New Level", "GBA / Floor (m2)": 0.0, "Qty": 1}])
-        st.session_state.area_master_df = pd.concat([st.session_state.area_master_df, new_row], ignore_index=True)
-        # Rerun is often needed in Streamlit to show the new row immediately
-        st.rerun()
+        with col2:
+            st.subheader("GFA Deductions")
+            st.info("GFA usually excludes non-habitable or service areas like Car Parks and Voids.")
+            void_area = st.number_input("Total Voids / Shafts (m2)", value=200.0, step=10.0)
+            carpark_area = st.number_input("Total Carpark Area (m2)", value=b_area, help="Often the entire Basement is excluded from GFA")
 
-    # 3. THE EDITOR
-    # We disable "num_rows=dynamic" here because our button handles the adding
-    edited_df = st.data_editor(
-        st.session_state.area_master_df,
-        hide_index=True,
-        use_container_width=True,
-        key="area_editor_v3"
-    )
-
-    # Save changes back to state
-    st.session_state.area_master_df = edited_df
-
-    # 4. MATH & SUMMARY
-    edited_df["Subtotal GBA"] = edited_df["GBA / Floor (m2)"] * edited_df["Qty"]
-    total_gba = edited_df["Subtotal GBA"].sum()
-
-    st.markdown("---")
-    st.markdown(f"## Total GBA: {total_gba:,.2f} m2")
+    # --- 2. THE MATH ---
+    total_typ_area = typ_count * typ_area
+    gba = b_area + gf_area + total_typ_area + rf_area + mrf_area
     
-    # 5. SYNC BUTTON (Optional but recommended)
-    if st.button("Sync to Cost Calculator"):
-        st.session_state['gba_sync'] = total_gba
-        st.success("GBA updated!")
+    # GFA Logic: GBA minus Carparks and Voids
+    gfa = gba - carpark_area - void_area
+    
+    # SGFA calculation (Usually GFA + a percentage of shared space, or specific to unit sales)
+    sgfa_multiplier = st.slider("SGFA/GFA Ratio", 1.0, 1.25, 1.05)
+    sgfa = gfa * sgfa_multiplier
+
+    # --- 3. RESULTS DISPLAY ---
+    st.markdown("---")
+    res1, res2, res3, res4 = st.columns(4)
+    
+    res1.metric("Total GBA", f"{gba:,.2f} m2")
+    res2.metric("Total GFA", f"{gfa:,.2f} m2")
+    res3.metric("Total SGFA", f"{sgfa:,.2f} m2")
+    
+    efficiency = (gfa / gba) * 100 if gba > 0 else 0
+    res4.metric("GBA-to-GFA Efficiency", f"{efficiency:.1f}%")
+
+    # --- 4. VISUAL BREAKDOWN ---
+    st.subheader("Area Breakdown by Level")
+    breakdown_data = pd.DataFrame({
+        "Level Type": ["Basement", "Ground Floor", "Typical Floors", "Roof Floor", "Machine RF"],
+        "Total Area (m2)": [b_area, gf_area, total_typ_area, rf_area, mrf_area]
+    })
+    
+    st.bar_chart(data=breakdown_data, x="Level Type", y="Total Area (m2)")
     
 # RATE DATABASE ---
 def show_rate_database():
