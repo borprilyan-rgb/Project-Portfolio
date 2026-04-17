@@ -46,6 +46,14 @@ PROJECT_DATABASE = {
     "Parking": {k: 0.0 for k in ["struc_earth", "struc_found", "struc_work", "facade_precast_pct", "facade_precast_rate", "facade_window_pct", "facade_window_rate", "facade_double_pct", "facade_double_rate", "arch_base", "door_wood", "door_glass", "door_steel", "lobby", "gondola", "san_room_qty", "san_room_rate", "san_pub_m", "san_pub_f", "san_dis", "san_mushola", "fl_ht_pct", "fl_ht_rate", "fl_vinyl_pct", "fl_vinyl_rate", "fl_marmer_pct", "fl_marmer_rate", "kitchen", "hw_wood", "hw_steel", "carpet", "glass", "ffe", "misc", "mep", "utility", "railing_qty", "railing_rate", "skylight_rate", "ext_land", "fac_pub", "fac_res", "fac_proj"]}
 }
 
+# --- 2.5 SESSION STATE (PROJECT MEMORY) ---
+if "projects" not in st.session_state:
+    st.session_state.projects = {
+        "proj_1": {"name": "New Project 1", "type": "Hotel"}
+    }
+    st.session_state.current_proj_id = "proj_1"
+    st.session_state.proj_counter = 1
+
 
 # --- 3. THE "SHEETS" (FUNCTIONS) ---
 def show_area_calculator():
@@ -226,10 +234,32 @@ def show_cost_estimator():
     st.title("Cost Calculator")
     st.markdown("---")
 
-    # --- SIDEBAR: COST ESTIMATOR SPECIFIC ---
-    st.sidebar.header("Project Setup")
-    project_type = st.sidebar.selectbox("Select Project Type", ["Hotel", "Retail", "Apartment", "Parking"])
-    pt_data = PROJECT_DATABASE[project_type]
+    # Get the currently active project from memory
+    curr_id = st.session_state.current_proj_id
+    curr_proj = st.session_state.projects[curr_id]
+
+    # --- PROJECT SETUP (Moved to Main Screen) ---
+    st.subheader("⚙️ Project Setup")
+    c1, c2 = st.columns(2)
+
+    # 1. Editable Project Name
+    new_name = c1.text_input("Project Name", value=curr_proj["name"])
+
+    # 2. Project Type Dropdown
+    types_list = ["Hotel", "Retail", "Apartment", "Parking"]
+    type_index = types_list.index(curr_proj["type"]) if curr_proj["type"] in types_list else 0
+    new_type = c2.selectbox("Project Type", types_list, index=type_index)
+
+    # Automatically save changes and refresh sidebar if the name or type is changed
+    if new_name != curr_proj["name"] or new_type != curr_proj["type"]:
+        st.session_state.projects[curr_id]["name"] = new_name
+        st.session_state.projects[curr_id]["type"] = new_type
+        st.rerun() # Forces the app to instantly update the sidebar
+
+    # Load the specific unit rates based on selected type
+    pt_data = PROJECT_DATABASE[new_type]
+    
+    st.markdown("---")
 
     # --- TABS LAYOUT ---
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -584,22 +614,53 @@ def show_cost_estimator():
             st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
 
 
-# --- 4. MAIN NAVIGATION (The Sidebar Switcher) ---
+# --- 4. MAIN NAVIGATION & SIDEBAR PROJECT LIST ---
 st.sidebar.title("Main Navigation")
 
-# This creates the 3-option selector in the sidebar
-page_choice = st.sidebar.pills(
+# Workspace Selector (Using standard radio, or segmented_control if Streamlit 1.36+)
+page_choice = st.sidebar.radio(
     "Select Workspace:", 
-    ["Cost Calculator", "Area Calculator", "Rate Database"], 
-    default="Cost Calculator"
+    ["Cost Calculator", "Area Calculator"]
 )
 
 st.sidebar.markdown("---")
+st.sidebar.subheader("📂 Project List")
+
+# "Add Project" Button
+if st.sidebar.button("➕ Add New Project", use_container_width=True):
+    st.session_state.proj_counter += 1
+    new_id = f"proj_{st.session_state.proj_counter}"
+    # Add to memory and immediately set it as the active project
+    st.session_state.projects[new_id] = {"name": f"New Project {st.session_state.proj_counter}", "type": "Hotel"}
+    st.session_state.current_proj_id = new_id
+    st.rerun()
+
+# Format the list to show: "Name (Type)"
+proj_ids = list(st.session_state.projects.keys())
+proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
+
+# Find index of current project to keep it highlighted
+current_index = proj_ids.index(st.session_state.current_proj_id) if st.session_state.current_proj_id in proj_ids else 0
+
+# The Project Selection List
+selected_label = st.sidebar.radio(
+    "Select Active Project:",
+    options=proj_labels,
+    index=current_index,
+    key="project_selector"
+)
+
+# Sync sidebar clicks back to session state
+selected_idx = proj_labels.index(selected_label)
+if st.session_state.current_proj_id != proj_ids[selected_idx]:
+    st.session_state.current_proj_id = proj_ids[selected_idx]
+    st.rerun() # Refresh to show the newly clicked project's data
+
+st.sidebar.markdown("---")
+
 
 # --- 5. EXECUTION LOGIC ---
 if page_choice == "Area Calculator":
     show_area_calculator()
-elif page_choice == "Rate Database":
-    show_rate_database()
 else:
     show_cost_estimator()
