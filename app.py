@@ -56,6 +56,7 @@ def show_area_calculator():
     num_plots = st.number_input("Number of Plots", min_value=1, value=1)
     
     # Store grand totals across all plots
+    grand_total_gba = 0
     grand_total_gfa = 0
     grand_total_sgfa = 0
     grand_total_units = 0
