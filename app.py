@@ -161,12 +161,17 @@ def show_area_calculator():
             plot_gba = plot_gfa + podium + mep_gf
             
             st.divider()
-            # 4 columns to show GBA alongside GFA
-            m_p1, m_p2, m_p3, m_p4 = st.columns(4)
-            m_p1.metric(f"PLOT {p_idx+1} TOTAL GBA", f"{plot_gba:,.2f} m2")
-            m_p2.metric(f"PLOT {p_idx+1} TOTAL GFA", f"{plot_gfa:,.2f} m2")
-            m_p3.metric(f"PLOT {p_idx+1} TOTAL SGFA", f"{plot_sgfa:,.2f} m2")
-            m_p4.metric(f"PLOT {p_idx+1} TOTAL UNITS", f"{int(plot_units)} Units")
+            
+            # Create a clean 1-row table for the Plot Totals
+            plot_totals_df = pd.DataFrame({
+                "Plot Total GBA (m2)": [f"{plot_gba:,.2f}"],
+                "Plot Total GFA (m2)": [f"{plot_gfa:,.2f}"],
+                "Plot Total SGFA (m2)": [f"{plot_sgfa:,.2f}"],
+                "Plot Total Units": [f"{int(plot_units)}"]
+            })
+            
+            st.markdown(f"**📍 PLOT {p_idx+1} OVERALL TOTALS**")
+            st.dataframe(plot_totals_df, use_container_width=True, hide_index=True)
 
             # Track for Grand Totals
             grand_total_gba += plot_gba
