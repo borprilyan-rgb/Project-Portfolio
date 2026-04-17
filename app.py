@@ -150,15 +150,31 @@ def show_area_calculator():
                 plot_gfa += group_gfa
                 plot_sgfa += group_sgfa
                 plot_units += group_units
-            # 4. NON-TYPICAL AREAS (GF, RF, PODIUM)
+                
+            # 4. NON-TYPICAL AREAS
             st.markdown("---")
             st.subheader(f"Plot {p_idx+1} Non-Typical Areas")
-            np1, np2 = st.columns(2)
-            podium = np1.number_input("Podium Area (m2)", value=7548.0, key=f"pod_{p_idx}")
-            mep_gf = np2.number_input("MEP / GF Area (m2)", value=840.0, key=f"mep_{p_idx}")
             
-            # CALCULATE GBA (Typical GFA + Non-Typical Areas)
-            plot_gba = plot_gfa + podium + mep_gf
+            # Default Data setup
+            default_nt = pd.DataFrame([
+                {"Area Name": "Ground Floor (Do not fill if typical)", "Floors": 1, "Area/Floor (m2)": 0.0},
+                {"Area Name": "Podium Area", "Floors": 1, "Area/Floor (m2)": 7548.0},
+                {"Area Name": "MEP", "Floors": 1, "Area/Floor (m2)": 3471.0},
+                {"Area Name": "Clubhouse", "Floors": 1, "Area/Floor (m2)": 0.0},
+            ])
+
+            # The Input Zone (Allows adding/deleting rows)
+            edited_nt = st.data_editor(default_nt, key=f"nt_{p_idx}", num_rows="dynamic", use_container_width=True)
+
+            # Calculation: Multiply Floors * Area/Floor to get the Total Area for each line
+            edited_nt["Total Area (m2)"] = edited_nt["Floors"] * edited_nt["Area/Floor (m2)"]
+            total_nt_area = edited_nt["Total Area (m2)"].sum()
+            
+            # Show the calculated total underneath
+            st.markdown(f"**Non-Typical Total: {total_nt_area:,.2f} m2**")
+
+            # CALCULATE GBA (Typical GFA + Non-Typical Total)
+            plot_gba = plot_gfa + total_nt_area
             
             st.divider()
             
