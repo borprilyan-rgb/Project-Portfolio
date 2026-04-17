@@ -50,71 +50,115 @@ PROJECT_DATABASE = {
 # --- 3. THE "SHEETS" (FUNCTIONS) ---
 def show_area_calculator():
     st.title("Area Calculator")
-    
-    # 1. PLOT LEVEL CONFIG
+    st.markdown("---")
+
+    # 1. GLOBAL PLOT CONFIGURATION
     num_plots = st.number_input("Number of Plots", min_value=1, value=1)
     
+    # Store grand totals across all plots
+    grand_total_gfa = 0
+    grand_total_sgfa = 0
+    grand_total_units = 0
+
     for p_idx in range(int(num_plots)):
         with st.expander(f"📍 PLOT {p_idx + 1} CONFIGURATION", expanded=True):
             
             # 2. SUB-GROUP CONFIG (e.g., Block 1, 4-8 vs Block 2 & 3)
             num_groups = st.number_input(f"Number of Block Groups in Plot {p_idx+1}", min_value=1, value=2, key=f"ng_{p_idx}")
             
-            plot_total_gfa = 0
-            plot_total_sgfa = 0
+            plot_gfa = 0
+            plot_sgfa = 0
+            plot_units = 0
             
             for g_idx in range(int(num_groups)):
                 st.markdown(f"---")
                 st.subheader(f"Group {g_idx + 1} Configuration")
                 
+                # Header Inputs
                 c1, c2, c3 = st.columns(3)
-                group_name = c1.text_input("Group Name (e.g. Block 1, 4-8)", value=f"Block Group {g_idx+1}", key=f"gn_{p_idx}_{g_idx}")
+                group_name = c1.text_input("Group Name", value=f"Block Group {g_idx+1}", key=f"gn_{p_idx}_{g_idx}")
                 num_blocks = c2.number_input("Number of Blocks", min_value=1, value=6, key=f"nb_{p_idx}_{g_idx}")
                 num_floors = c3.number_input("Typical Floors", min_value=1, value=11, key=f"nf_{p_idx}_{g_idx}")
                 
-                # 3. UNIT MIX (Per Floor)
-                st.markdown("**Typical Floor Unit Mix (Per Block)**")
-                # Using a data editor to mimic your table's unit rows
-                unit_mix_data = pd.DataFrame([
-                    {"Unit Type": "2BR-1", "Net Area": 74.5, "Units/Floor": 2},
-                    {"Unit Type": "3BR", "Net Area": 95.5, "Units/Floor": 1},
-                ])
-                edited_mix = st.data_editor(unit_mix_data, key=f"ed_{p_idx}_{g_idx}", num_rows="dynamic")
-                
-                # 4. COMMON AREA INPUTS
+                # Common Area Inputs
                 col_com1, col_com2 = st.columns(2)
-                core_area = col_com1.number_input("Core Area per Floor", value=105.5, key=f"core_{p_idx}_{g_idx}")
+                core_area = col_com1.number_input("Core Area per Floor (Lifts/Stairs)", value=105.5, key=f"core_{p_idx}_{g_idx}")
                 corridor_area = col_com2.number_input("Corridor Area per Floor", value=88.8, key=f"corr_{p_idx}_{g_idx}")
                 
-                # 5. MATH (AS PER YOUR IMAGE)
-                # Sum(Net Area * Units/Floor)
-                total_net_per_floor = (edited_mix["Net Area"] * edited_mix["Units/Floor"]).sum()
+                # 3. UNIT MIX (Per Floor)
+                st.markdown("**Typical Floor Unit Mix & Unit SGFA Breakdown**")
                 
-                # SGFA per Floor = Total Net + Core + Corridor
-                sgfa_per_floor = total_net_per_floor + core_area + corridor_area
+                # Default data matching your example
+                default_mix = pd.DataFrame([
+                    {"Unit Type": "2BR-1", "Net Area": 74.5, "Units/Floor": 2},
+                    {"Unit Type": "3BR", "Net Area": 95.5, "Units/Floor": 1},
+                    {"Unit Type": "3BR'", "Net Area": 96.1, "Units/Floor": 4},
+                ])
                 
-                # GFA per Floor (Adding external walls/shafts - typically a multiplier or manual input)
-                gfa_multiplier = st.number_input("GFA Multiplier (Wall/Shaft Factor)", value=1.15, key=f"gfam_{p_idx}_{g_idx}")
-                gfa_per_floor = sgfa_per_floor * gfa_multiplier
+                edited_mix = st.data_editor(default_mix, key=f"ed_{p_idx}_{g_idx}", num_rows="dynamic")
                 
-                group_sgfa = sgfa_per_floor * num_floors * num_blocks
-                group_gfa = gfa_per_floor * num_floors * num_blocks
+                # --- CALCULATION LOGIC ---
+                # A. Total Net per Floor
+                edited_mix["Net/Fl (Total)"] = edited_mix["Net Area"] * edited_mix["Units/Floor"]
+                total_net_per_floor = edited_mix["Net/Fl (Total)"].sum()
                 
-                st.success(f"{group_name} Results: GFA {group_gfa:,.2f} | SGFA {group_sgfa:,.2f}")
+                # B. Load Factor (Pro-rata Corridor distribution)
+                # Formula: (Total Net + Corridor) / Total Net
+                load_factor = (total_net_per_floor + corridor_area) / total_net_per_floor if total_net_per_floor > 0 else 1.0
                 
-                plot_total_gfa += group_gfa
-                plot_total_sgfa += group_sgfa
+                # C. Unit SGFA (Averaging each unit)
+                edited_mix["SGFA per Unit"] = (edited_mix["Net Area"] * load_factor).round(1)
+                edited_mix["SGFA/Fl (Total)"] = (edited_mix["SGFA per Unit"] * edited_mix["Units/Floor"])
+                
+                # D. Display Breakdown
+                st.dataframe(edited_mix, use_container_width=True, hide_index=True)
+                
+                # E. GFA Total (Before Multipliers)
+                # GFA = Net + Core + Corridor
+                gfa_per_floor = total_net_per_floor + core_area + corridor_area
+                sgfa_per_floor = edited_mix["SGFA/Fl (Total)"].sum()
+                units_per_floor = edited_mix["Units/Floor"].sum()
 
-            # 6. NON-TYPICAL AREAS (GF, RF, PODIUM)
+                # F. Group Multipliers
+                group_gfa = gfa_per_floor * num_blocks * num_floors
+                group_sgfa = sgfa_per_floor * num_blocks * num_floors
+                group_units = units_per_floor * num_blocks * num_floors
+                
+                st.info(f"**{group_name} Plate Metrics:** GFA/Fl: {gfa_per_floor:,.2f} | Net/Fl: {total_net_per_floor:,.2f} | Units/Fl: {int(units_per_floor)}")
+                st.success(f"**{group_name} Totals:** GFA: {group_gfa:,.2f} | SGFA: {group_sgfa:,.2f} | Units: {int(group_units)}")
+                
+                plot_gfa += group_gfa
+                plot_sgfa += group_sgfa
+                plot_units += group_units
+
+            # 4. NON-TYPICAL AREAS (GF, RF, PODIUM)
             st.markdown("---")
-            st.subheader("Non-Typical Areas (Podium / MEP / Clubhouse)")
-            podium_area = st.number_input("Podium Area", value=7548.0, key=f"pod_{p_idx}")
-            mep_area = st.number_input("MEP / GF Area", value=840.0, key=f"mep_a_{p_idx}")
+            st.subheader(f"Plot {p_idx+1} Non-Typical Areas")
+            np1, np2 = st.columns(2)
+            podium = np1.number_input("Podium Area (m2)", value=7548.0, key=f"pod_{p_idx}")
+            mep_gf = np2.number_input("MEP / GF Area (m2)", value=840.0, key=f"mep_{p_idx}")
             
-            final_cfa = plot_total_gfa + podium_area + mep_area
+            plot_cfa = plot_gfa + podium + mep_gf
             
             st.divider()
-            st.metric(f"PLOT {p_idx+1} TOTAL CFA", f"{final_cfa:,.2f} m2")
+            m_p1, m_p2, m_p3 = st.columns(3)
+            m_p1.metric(f"PLOT {p_idx+1} TOTAL CFA", f"{plot_cfa:,.2f} m2")
+            m_p2.metric(f"PLOT {p_idx+1} TOTAL SGFA", f"{plot_sgfa:,.2f} m2")
+            m_p3.metric(f"PLOT {p_idx+1} TOTAL UNITS", f"{int(plot_units)} Units")
+
+            grand_total_gfa += plot_gfa
+            grand_total_sgfa += plot_sgfa
+            grand_total_units += plot_units
+
+    # 5. GRAND TOTAL SUMMARY
+    st.markdown("---")
+    st.header("Project Grand Summary")
+    st.markdown("This data is passed to the Cost Calculator for estimation.")
+    
+    g1, g2, g3 = st.columns(3)
+    g1.metric("Grand Total GFA", f"{grand_total_gfa:,.2f} m2")
+    g2.metric("Grand Total SGFA", f"{grand_total_sgfa:,.2f} m2")
+    g3.metric("Grand Total Units", f"{int(grand_total_units)} Units")
     
 # RATE DATABASE ---
 def show_rate_database():
