@@ -78,8 +78,18 @@ def show_cost_estimator():
 
     # --- TAB 1: PROJECT METRICS ---
     with tab1:
-        col_m1, col_m2 = st.columns(2)
+        # A. Primary Areas (The "Big Three")
+        st.subheader("A. Building Areas")
+        col_a1, col_a2, col_a3 = st.columns(3)
         
+        with col_a1:
+            gba = st.number_input("Total GBA (m2)", value=10000.0, step=100.0, help="Gross Building Area - Outer Wall to Outer Wall")
+        with col_a2:
+            gfa = st.number_input("Total GFA (m2)", value=8000.0, step=100.0, help="Gross Floor Area - Usually Excl. Carpark/Voids")
+        with col_a3:
+            sgfa = st.number_input("Total SGFA (m2)", value=8500.0, step=100.0, help="Semi-Gross Floor Area - Used for Sales/Units")
+
+        col_m1, col_m2 = st.columns(2)
         with col_m1:
             st.subheader("B. Architecture")
             facade = st.number_input("Facade (m2)", value=107127.10, step=100.0)
