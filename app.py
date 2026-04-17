@@ -49,11 +49,11 @@ PROJECT_DATABASE = {
 
 # --- 3. THE "SHEETS" (FUNCTIONS) ---
 def show_area_calculator():
-    st.title("📏 Detailed Area Calculation Sheet")
+    st.title("Area Calculator")
     st.markdown("---")
 
     # 1. SIDEBAR CONFIG & PLACEHOLDERS
-    st.sidebar.subheader("⚙️ Project Setup")
+    st.sidebar.subheader("Plot & Block")
     num_plots = st.sidebar.number_input("Number of Plots", min_value=1, value=1)
     
     # Dynamically generate Block Group inputs in the sidebar for each Plot
@@ -63,7 +63,7 @@ def show_area_calculator():
     
     st.sidebar.markdown("---")
     
-    st.sidebar.header("🌍 Area Grand Totals")
+    st.sidebar.header("Area Grand Totals")
     # We create empty slots in the sidebar so we can inject the final math into them later!
     gba_placeholder = st.sidebar.empty()
     gfa_placeholder = st.sidebar.empty()
@@ -78,7 +78,7 @@ def show_area_calculator():
 
     # 2. CREATE TABS FOR PLOTS
     if int(num_plots) > 0:
-        plot_tabs = st.tabs([f"📍 Plot {i+1}" for i in range(int(num_plots))])
+        plot_tabs = st.tabs([f"Plot {i+1}" for i in range(int(num_plots))])
         
         for p_idx, p_tab in enumerate(plot_tabs):
             with p_tab:
@@ -90,7 +90,7 @@ def show_area_calculator():
                 
                 # 3. CREATE NESTED TABS FOR BLOCKS
                 if int(num_groups) > 0:
-                    block_tabs = st.tabs([f"🏢 Block Group {g+1}" for g in range(int(num_groups))])
+                    block_tabs = st.tabs([f"Block Group {g+1}" for g in range(int(num_groups))])
                     
                     for g_idx, b_tab in enumerate(block_tabs):
                         with b_tab:
@@ -153,7 +153,7 @@ def show_area_calculator():
                             })
                             
                             # --- HIDE TABLES INSIDE AN EXPANDER ---
-                            with st.expander(f"📊 View Detailed Calculation Tables for {group_name}", expanded=False):
+                            with st.expander(f"View Detailed Calculation Tables for {group_name}", expanded=False):
                                 st.markdown("**Calculated Unit Breakdown**")
                                 st.dataframe(display_df, use_container_width=True, hide_index=True)
                                 
@@ -199,7 +199,7 @@ def show_area_calculator():
                     "Plot Total Units": [f"{int(plot_units)}"]
                 })
                 
-                st.markdown(f"**📍 PLOT {p_idx+1} OVERALL TOTALS**")
+                st.markdown(f"**PLOT {p_idx+1} GRAND TOTALS**")
                 st.dataframe(plot_totals_df, use_container_width=True, hide_index=True)
 
                 # Track for Grand Totals
