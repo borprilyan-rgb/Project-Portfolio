@@ -82,7 +82,7 @@ def show_cost_estimator():
         with col_m1:
             st.subheader("A. Area Measurement")
             land_area = st.number_input("Land Area (m2)", value=49424.4, step=100.0)
-            gba = st.number_input("Total GBA (m2)", value=179970.69.0, step=100.0)
+            gba = st.number_input("Total GBA (m2)", value=179970.69, step=100.0)
             gfa = st.number_input("Total GFA (m2)", value=152658.99, step=100.0)
             sgfa = st.number_input("Total SGFA (m2)", value=124336.77, step=100.0)
             st.subheader("B. Architecture")
