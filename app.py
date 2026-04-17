@@ -52,18 +52,18 @@ def show_area_calculator():
     st.title("Area Calculator")
     st.markdown("---")
 
-    # 1. SIDEBAR CONFIG & PLACEHOLDERS
-    st.sidebar.header("Area Grand Totals")
+# 1. SIDEBAR CONFIG & PLACEHOLDERS
+    st.sidebar.subheader("Plot Setup")
+    num_plots = st.sidebar.number_input("Number of Plots", min_value=1, value=1)
     
-    # We create empty slots in the sidebar first, so we can inject the final math into them later!
+    st.sidebar.markdown("---")
+    
+    st.sidebar.header("Area Grand Totals")
+    # We create empty slots in the sidebar, so we can inject the final math into them later!
     gba_placeholder = st.sidebar.empty()
     gfa_placeholder = st.sidebar.empty()
     sgfa_placeholder = st.sidebar.empty()
     units_placeholder = st.sidebar.empty()
-    
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Plot Setup")
-    num_plots = st.sidebar.number_input("Number of Plots", min_value=1, value=1)
 
     # Store grand totals across all plots
     grand_total_gba = 0
