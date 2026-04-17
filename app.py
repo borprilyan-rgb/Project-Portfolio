@@ -530,9 +530,6 @@ def show_cost_estimator():
         """, unsafe_allow_html=True)
 
         st.success("Calculations complete! View metrics below.")
-        st.metric("Total Project Hard Cost", f"Rp {grand_total_hc:,.2f}")
-        st.metric("Total Soft Cost", f"Rp {total_soft_cost:,.2f}")
-        st.metric("Grand Total Project Cost (Hard + Soft)", f"Rp {grand_total_project:,.2f}")
         
         st.markdown("---")
         
