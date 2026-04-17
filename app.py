@@ -116,7 +116,7 @@ def show_area_calculator():
                 edited_mix["GFA per Unit"] = (edited_mix["Net Area"] * gfa_load_factor).round(2)
                 edited_mix["GFA/Fl (Total)"] = (edited_mix["GFA per Unit"] * edited_mix["Units/Floor"]).round(2)
                 
-                # D. Filter Display Table
+                # D. Filter Display Table (Unit breakdown only)
                 display_cols = ["Unit Type", "Net/Fl (Total)", "SGFA per Unit", "SGFA/Fl (Total)", "GFA per Unit", "GFA/Fl (Total)", "Units/Floor"]
                 display_df = edited_mix[display_cols].copy()
                 display_df.rename(columns={"Units/Floor": "Units"}, inplace=True)
@@ -124,43 +124,32 @@ def show_area_calculator():
                 sum_sgfa_fl = display_df["SGFA/Fl (Total)"].sum()
                 sum_gfa_fl = display_df["GFA/Fl (Total)"].sum()
 
+                # Show the clean breakdown table first
+                st.markdown("**Calculated Unit Breakdown**")
+                st.dataframe(display_df, use_container_width=True, hide_index=True)
+
                 # E. Calculate Group Totals (Multiplier applied)
                 group_net = total_net_per_floor * num_blocks * num_floors
                 group_sgfa = sum_sgfa_fl * num_blocks * num_floors
                 group_gfa = sum_gfa_fl * num_blocks * num_floors
                 group_units = total_units_per_floor * num_blocks * num_floors
 
-                # F. Append both TOTAL rows to the bottom of the dataframe
-                summary_rows = pd.DataFrame([
-                    {
-                        "Unit Type": "TOTAL / FLOOR",
-                        "Net/Fl (Total)": total_net_per_floor,
-                        "SGFA per Unit": None, 
-                        "SGFA/Fl (Total)": sum_sgfa_fl,
-                        "GFA per Unit": None,  
-                        "GFA/Fl (Total)": sum_gfa_fl,
-                        "Units": total_units_per_floor
-                    },
-                    {
-                        "Unit Type": f"GROUP TOTAL ({num_blocks} Blk x {num_floors} Fl)",
-                        "Net/Fl (Total)": group_net,
-                        "SGFA per Unit": None, 
-                        "SGFA/Fl (Total)": group_sgfa,
-                        "GFA per Unit": None,  
-                        "GFA/Fl (Total)": group_gfa,
-                        "Units": group_units
-                    }
-                ])
-                display_df = pd.concat([display_df, summary_rows], ignore_index=True)
+                # F. Create the Dedicated Summary Table
+                summary_df = pd.DataFrame({
+                    "Per Floor Metric": ["Net Area", "SGFA", "GFA", "Units"],
+                    "Floor Total": [f"{total_net_per_floor:,.2f}", f"{sum_sgfa_fl:,.2f}", f"{sum_gfa_fl:,.2f}", f"{int(total_units_per_floor)}"],
+                    f"{group_name} ({num_blocks} Blk x {num_floors} Fl)": ["Total Net Area", "Total SGFA", "Total GFA", "Total Units"],
+                    "Group Total": [f"{group_net:,.2f}", f"{group_sgfa:,.2f}", f"{group_gfa:,.2f}", f"{int(group_units)}"]
+                })
                 
-                st.markdown("**Calculated Breakdown**")
-                st.dataframe(display_df, use_container_width=True, hide_index=True)
+                # Render the summary table underneath
+                st.markdown("**Area Totals Summary**")
+                st.dataframe(summary_df, use_container_width=True, hide_index=True)
                 
-                # G. Track Plot Totals (Markdown removed!)
+                # G. Track Plot Totals for the grand summary
                 plot_gfa += group_gfa
                 plot_sgfa += group_sgfa
                 plot_units += group_units
-
             # 4. NON-TYPICAL AREAS (GF, RF, PODIUM)
             st.markdown("---")
             st.subheader(f"Plot {p_idx+1} Non-Typical Areas")
