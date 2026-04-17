@@ -87,46 +87,54 @@ def show_area_calculator():
                 corridor_area = col_com2.number_input("Corridor Area per Floor", value=88.8, key=f"corr_{p_idx}_{g_idx}")
                 
                 # 3. UNIT MIX (Per Floor)
-                st.markdown("**Typical Floor Unit Mix & Unit SGFA Breakdown**")
+                st.markdown("**Typical Floor Unit Mix (Input)**")
                 
-                # Default data matching your example
                 default_mix = pd.DataFrame([
                     {"Unit Type": "2BR-1", "Net Area": 74.5, "Units/Floor": 2},
                     {"Unit Type": "3BR", "Net Area": 95.5, "Units/Floor": 1},
                     {"Unit Type": "3BR'", "Net Area": 96.1, "Units/Floor": 4},
                 ])
                 
+                # The Input Zone
                 edited_mix = st.data_editor(default_mix, key=f"ed_{p_idx}_{g_idx}", num_rows="dynamic")
                 
                 # --- CALCULATION LOGIC ---
-                # A. Total Net per Floor
+                # A. Total Net & Units
                 edited_mix["Net/Fl (Total)"] = edited_mix["Net Area"] * edited_mix["Units/Floor"]
                 total_net_per_floor = edited_mix["Net/Fl (Total)"].sum()
+                total_units_per_floor = edited_mix["Units/Floor"].sum()
                 
-                # B. Load Factor (Pro-rata Corridor distribution)
-                # Formula: (Total Net + Corridor) / Total Net
-                load_factor = (total_net_per_floor + corridor_area) / total_net_per_floor if total_net_per_floor > 0 else 1.0
+                # B. Load Factors
+                # SGFA includes Corridor. GFA includes Corridor + Core.
+                sgfa_load_factor = (total_net_per_floor + corridor_area) / total_net_per_floor if total_net_per_floor > 0 else 1.0
+                gfa_load_factor = (total_net_per_floor + corridor_area + core_area) / total_net_per_floor if total_net_per_floor > 0 else 1.0
                 
-                # C. Unit SGFA (Averaging each unit)
-                edited_mix["SGFA per Unit"] = (edited_mix["Net Area"] * load_factor).round(1)
-                edited_mix["SGFA/Fl (Total)"] = (edited_mix["SGFA per Unit"] * edited_mix["Units/Floor"])
+                # C. Unit Area Breakdown
+                edited_mix["SGFA per Unit"] = (edited_mix["Net Area"] * sgfa_load_factor).round(2)
+                edited_mix["SGFA/Fl (Total)"] = (edited_mix["SGFA per Unit"] * edited_mix["Units/Floor"]).round(2)
                 
-                # D. Display Breakdown
-                st.dataframe(edited_mix, use_container_width=True, hide_index=True)
+                edited_mix["GFA per Unit"] = (edited_mix["Net Area"] * gfa_load_factor).round(2)
+                edited_mix["GFA/Fl (Total)"] = (edited_mix["GFA per Unit"] * edited_mix["Units/Floor"]).round(2)
                 
-                # E. GFA Total (Before Multipliers)
-                # GFA = Net + Core + Corridor
-                gfa_per_floor = total_net_per_floor + core_area + corridor_area
-                sgfa_per_floor = edited_mix["SGFA/Fl (Total)"].sum()
-                units_per_floor = edited_mix["Units/Floor"].sum()
-
-                # F. Group Multipliers
-                group_gfa = gfa_per_floor * num_blocks * num_floors
-                group_sgfa = sgfa_per_floor * num_blocks * num_floors
-                group_units = units_per_floor * num_blocks * num_floors
+                # D. Filter Display Table (Hide Net Area & duplicate Units column)
+                display_cols = ["Unit Type", "Net/Fl (Total)", "SGFA per Unit", "SGFA/Fl (Total)", "GFA per Unit", "GFA/Fl (Total)", "Units/Floor"]
+                display_df = edited_mix[display_cols].copy()
+                display_df.rename(columns={"Units/Floor": "Units"}, inplace=True)
                 
-                st.info(f"**{group_name} Plate Metrics:** GFA/Fl: {gfa_per_floor:,.2f} | Net/Fl: {total_net_per_floor:,.2f} | Units/Fl: {int(units_per_floor)}")
-                st.success(f"**{group_name} Totals:** GFA: {group_gfa:,.2f} | SGFA: {group_sgfa:,.2f} | Units: {int(group_units)}")
+                st.markdown("**Calculated Breakdown**")
+                st.dataframe(display_df, use_container_width=True, hide_index=True)
+                
+                # E. Bold Totals below table (Replaces Blue/Green boxes)
+                sum_sgfa_fl = display_df["SGFA/Fl (Total)"].sum()
+                sum_gfa_fl = display_df["GFA/Fl (Total)"].sum()
+                
+                group_gfa = sum_gfa_fl * num_blocks * num_floors
+                group_sgfa = sum_sgfa_fl * num_blocks * num_floors
+                group_units = total_units_per_floor * num_blocks * num_floors
+                
+                # Render the bold text sums
+                st.markdown(f"**Floor Total: {total_net_per_floor:,.2f} Net/Fl | {sum_sgfa_fl:,.2f} SGFA/Fl | {sum_gfa_fl:,.2f} GFA/Fl | {int(total_units_per_floor)} Units**")
+                st.markdown(f"**{group_name} Group Total ({num_blocks} Blocks x {num_floors} Fl): {group_sgfa:,.2f} SGFA | {group_gfa:,.2f} GFA | {int(group_units)} Units**")
                 
                 plot_gfa += group_gfa
                 plot_sgfa += group_sgfa
