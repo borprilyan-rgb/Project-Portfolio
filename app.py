@@ -50,61 +50,79 @@ PROJECT_DATABASE = {
 # --- 3. THE "SHEETS" (FUNCTIONS) ---
 def show_area_calculator():
     st.title("Area Calculator")
-    st.markdown("Use this tool to calculate GBA and GFA based on the building's vertical stack.")
-
-    # --- 1. INPUT SECTION ---
-    with st.container(border=True):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("Building Stack")
-            # Basement
-            b_area = st.number_input("Basement Area (B) - m2", value=0.0, step=100.0)
-            # Ground Floor
-            gf_area = st.number_input("Ground Floor Area (GF) - m2", value=1200.0, step=100.0)
-            # Typical Floors
-            typ_count = st.number_input("Number of Typical Floors", value=11, step=1)
-            typ_area = st.number_input("Area per Typical Floor - m2", value=1000.0, step=100.0)
-            # Roofs
-            rf_area = st.number_input("Roof Floor Area (RF) - m2", value=1000.0, step=100.0)
-            mrf_area = st.number_input("Machine Room Roof (MRF) - m2", value=150.0, step=10.0)
-
-        with col2:
-            st.subheader("GFA Deductions")
-            st.info("GFA usually excludes non-habitable or service areas like Car Parks and Voids.")
-            void_area = st.number_input("Total Voids / Shafts (m2)", value=200.0, step=10.0)
-            carpark_area = st.number_input("Total Carpark Area (m2)", value=b_area, help="Often the entire Basement is excluded from GFA")
-
-    # --- 2. THE MATH ---
-    total_typ_area = typ_count * typ_area
-    gba = b_area + gf_area + total_typ_area + rf_area + mrf_area
-    
-    # GFA Logic: GBA minus Carparks and Voids
-    gfa = gba - carpark_area - void_area
-    
-    # SGFA calculation (Usually GFA + a percentage of shared space, or specific to unit sales)
-    sgfa_multiplier = st.slider("SGFA/GFA Ratio", 1.0, 1.25, 1.05)
-    sgfa = gfa * sgfa_multiplier
-
-    # --- 3. RESULTS DISPLAY ---
     st.markdown("---")
-    res1, res2, res3, res4 = st.columns(4)
-    
-    res1.metric("Total GBA", f"{gba:,.2f} m2")
-    res2.metric("Total GFA", f"{gfa:,.2f} m2")
-    res3.metric("Total SGFA", f"{sgfa:,.2f} m2")
-    
-    efficiency = (gfa / gba) * 100 if gba > 0 else 0
-    res4.metric("GBA-to-GFA Efficiency", f"{efficiency:.1f}%")
 
-    # --- 4. VISUAL BREAKDOWN ---
-    st.subheader("Area Breakdown by Level")
-    breakdown_data = pd.DataFrame({
-        "Level Type": ["Basement", "Ground Floor", "Typical Floors", "Roof Floor", "Machine RF"],
-        "Total Area (m2)": [b_area, gf_area, total_typ_area, rf_area, mrf_area]
-    })
+    # 1. GLOBAL PROJECT CONFIG
+    col_global = st.columns([1, 1, 2])
+    num_plots = col_global[0].number_input("Number of Plots", min_value=1, value=2, step=1)
     
-    st.bar_chart(data=breakdown_data, x="Level Type", y="Total Area (m2)")
+    # Store results for aggregation
+    plot_summaries = []
+
+    # 2. DYNAMIC PLOT GENERATOR
+    for i in range(int(num_plots)):
+        plot_id = i + 1
+        with st.expander(f"📍 PLOT {plot_id} CONFIGURATION", expanded=True):
+            # Row 1: High Level Plot Info
+            c1, c2, c3, c4 = st.columns(4)
+            p_name = c1.text_input(f"Plot Name", value=f"Plot {plot_id}", key=f"p_name_{i}")
+            p_type = c2.selectbox(f"Type", ["Hotel", "Retail", "Apartment", "Parking"], key=f"p_type_{i}")
+            num_blocks = c3.number_input(f"No. of Blocks", min_value=1, value=1, key=f"p_blocks_{i}")
+            site_area = c4.number_input(f"Site Area (m2)", value=20000.0, key=f"p_site_{i}")
+
+            st.markdown("---")
+            
+            # Row 2: Vertical Stack (Per Block)
+            st.markdown(f"**Vertical Stack (Area per 1 Block)**")
+            v1, v2, v3, v4, v5 = st.columns(5)
+            b_area = v1.number_input("B (m2)", value=0.0, key=f"b_{i}")
+            gf_area = v2.number_input("GF (m2)", value=1200.0, key=f"gf_{i}")
+            typ_area = v3.number_input("Typ Floor (m2)", value=1000.0, key=f"typ_a_{i}")
+            rf_area = v4.number_input("RF (m2)", value=1000.0, key=f"rf_{i}")
+            mrf_area = v5.number_input("Machine RF (m2)", value=150.0, key=f"mrf_{i}")
+            
+            # Row 3: Typical Floor Count & Official Stats (Per Block)
+            s1, s2, s3, s4 = st.columns(4)
+            typ_count = s1.number_input("No. Typical Floors", value=11, key=f"typ_c_{i}")
+            # Manual inputs for GFA/SGFA as per your Plot image
+            block_gfa = s2.number_input("GFA per Block", value=10000.0, key=f"bgfa_{i}")
+            block_sgfa = s3.number_input("SGFA per Block", value=8500.0, key=f"bsgfa_{i}")
+            
+            # 3. INTERNAL CALCULATIONS (Per Plot)
+            # CFA is the physical construction sum
+            block_cfa = b_area + gf_area + (typ_area * typ_count) + rf_area + mrf_area
+            
+            total_plot_cfa = block_cfa * num_blocks
+            total_plot_gfa = block_gfa * num_blocks
+            total_plot_sgfa = block_sgfa * num_blocks
+            
+            plot_summaries.append({
+                "Plot": p_name,
+                "Type": p_type,
+                "Blocks": num_blocks,
+                "CFA (Total)": total_plot_cfa,
+                "GFA (Total)": total_plot_gfa,
+                "SGFA (Total)": total_plot_sgfa,
+                "KLB": total_plot_gfa / site_area if site_area > 0 else 0
+            })
+
+    # 4. FINAL AGGREGATION TABLE
+    st.markdown("---")
+    st.subheader("Total Project Area Summary")
+    df = pd.DataFrame(plot_summaries)
+    
+    # Formatting the table for clarity
+    st.dataframe(
+        df.style.format({"CFA (Total)": "{:,.2f}", "GFA (Total)": "{:,.2f}", "SGFA (Total)": "{:,.2f}", "KLB": "{:.2f}"}),
+        use_container_width=True,
+        hide_index=True
+    )
+
+    # 5. GRAND TOTAL METRICS
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Grand Total CFA", f"{df['CFA (Total)'].sum():,.2f} m2")
+    m2.metric("Grand Total GFA", f"{df['GFA (Total)'].sum():,.2f} m2")
+    m3.metric("Grand Total SGFA", f"{df['SGFA (Total)'].sum():,.2f} m2")
     
 # RATE DATABASE ---
 def show_rate_database():
