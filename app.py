@@ -53,7 +53,7 @@ def show_area_calculator():
     st.title("Area Calculator")
     st.markdown("---")
     
-    # 1. Initialize the Data if it doesn't exist in session state
+    # 1. Initialize session state if empty
     if 'area_df' not in st.session_state:
         st.session_state.area_df = pd.DataFrame({
             "Level Name": ["Basement", "Ground Floor", "Level 1", "L2-L11", "Level 12", "Roof Floor"],
@@ -61,46 +61,38 @@ def show_area_calculator():
             "Multiplier": [1, 1, 1, 10, 1, 1]
         })
 
-    # 2. The Interactive Table
+    # 2. Display the editor
+    # We use 'key' to make sure Streamlit tracks changes specifically for this widget
     edited_df = st.data_editor(
         st.session_state.area_df,
         hide_index=True,
         use_container_width=True,
         num_rows="dynamic",
-        column_config={
-            "Level Name": st.column_config.TextColumn("Level Name (e.g. L2-L11)"),
-            "GBA / Floor (m2)": st.column_config.NumberColumn("Area", format="%.2f"),
-            "Multiplier": st.column_config.NumberColumn("Qty", disabled=False) # Keep enabled for manual override
-        }
+        key="area_editor" 
     )
 
-    # 3. AUTOMATIC LOGIC: Extract floor range from "Level Name"
+    # 3. Trigger Auto-Calculation Logic
+    # This loop runs every time the table is edited
     for index, row in edited_df.iterrows():
         name = str(row["Level Name"])
-        # Looks for patterns like 2-11, 02-15, etc.
         match = re.search(r'(\d+)\s*-\s*(\d+)', name)
         
         if match:
-            start_floor = int(match.group(1))
-            end_floor = int(match.group(2))
-            # Standard QS logic: (End - Start) + 1
-            auto_qty = max(1, (end_floor - start_floor) + 1)
+            start_f = int(match.group(1))
+            end_f = int(match.group(2))
+            auto_qty = max(1, (end_f - start_f) + 1)
+            
+            # Update the multiplier in the dataframe
             edited_df.at[index, "Multiplier"] = auto_qty
 
-    # Update session state so it saves
+    # 4. Save the updated dataframe back to session state
     st.session_state.area_df = edited_df
 
-    # 4. Final Calculations
+    # 5. Calculation Results
     edited_df["Subtotal GBA"] = edited_df["GBA / Floor (m2)"] * edited_df["Multiplier"]
     calc_total_gba = edited_df["Subtotal GBA"].sum()
 
-    # --- SUMMARY DISPLAY ---
-    st.markdown(f"""
-        <div style="background-color: #262730; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-top: 20px;">
-            <div style="font-size: 14px; color: gray;">Calculated Total GBA</div>
-            <div style="font-size: 32px; font-weight: bold;">{calc_total_gba:,.2f} m2</div>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"### Total GBA: {calc_total_gba:,.2f} m2")
     
 # RATE DATABASE ---
 def show_rate_database():
