@@ -257,7 +257,7 @@ def show_cost_estimator():
     
     st.markdown("---")
 
-    # --- 1. GLOBAL IMPORT SECTION ---
+# --- 1. GLOBAL IMPORT SECTION ---
     st.markdown("##### 💾 Project Scenario Manager")
     uploaded_file = st.file_uploader("Upload a saved Project CSV to overwrite current inputs", type=["csv"])
     
@@ -266,9 +266,20 @@ def show_cost_estimator():
             df_import = pd.read_csv(uploaded_file)
             for index, row in df_import.iterrows():
                 key = row["Metric_Key"]
-                val = float(row["Value"])
-                st.session_state[key] = val
+                val = row["Value"]
+                
+                # Handle Project Name and Type (Text)
+                if key == "proj_name":
+                    st.session_state.projects[curr_id]["name"] = str(val)
+                elif key == "proj_type":
+                    st.session_state.projects[curr_id]["type"] = str(val)
+                # Handle all other metrics (Numbers)
+                else:
+                    st.session_state[key] = float(val)
+                    
             st.success("✅ Full Project Configuration loaded successfully!")
+            st.rerun() # Force a refresh so the Sidebar and UI update immediately
+            
         except Exception as e:
             st.error("Could not read file. Make sure it is a valid metrics CSV.")
 
@@ -599,8 +610,15 @@ def show_cost_estimator():
             }
             
             st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
+            
     # --- 2. GLOBAL EXPORT SECTION (Placed at the bottom) ---
     st.markdown("---")
+    
+    # Package ALL variables from across all tabs
+    current_metrics = {
+        # Project Meta
+        "proj_name": new_name,
+        "proj_type": new_type,
     
     # Package ALL variables from across all tabs
     current_metrics = {
