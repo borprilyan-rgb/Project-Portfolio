@@ -431,7 +431,7 @@ def show_cost_estimator():
 st.sidebar.title("Main Navigation")
 
 # This creates the 3-option selector in the sidebar
-page_choice = st.sidebar.segmented_control(
+page_choice = st.sidebar.pills(
     "Select Workspace:", 
     ["Cost Calculator", "Area Calculator", "Rate Database"], 
     default="Cost Calculator"
