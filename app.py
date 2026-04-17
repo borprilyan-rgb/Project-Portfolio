@@ -474,7 +474,13 @@ def show_cost_estimator():
 
     total_soft_cost = t_consultancy + t_qs + t_pm + t_insurance
     grand_total_project = grand_total_hc + total_soft_cost
-
+    group_structure = t_earth + t_found + t_struc
+    group_arch = t_arch_base + t_w_door + t_g_door + t_s_door + t_lobby + t_ht + t_vinyl + t_marmer + t_carpet + t_glass_work + t_kitchen + t_hw_w + t_hw_s + t_railing + t_skylight
+    group_facade = t_precast + t_window + t_double + t_gondola
+    group_sanitary = t_unit_san + t_t_male + t_t_female + t_t_dis + t_mushola
+    group_mep = t_ffe + t_misc + t_mep + t_utility
+    group_ext = t_external + t_pub_fac + t_res_fac + t_proj_fac
+    group_contingency = t_preliminary + t_contingency
 
     # --- TAB 5: RESULTS & SUMMARY ---
     with tab5:
