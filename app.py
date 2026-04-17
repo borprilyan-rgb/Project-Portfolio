@@ -151,30 +151,36 @@ def show_area_calculator():
                 plot_sgfa += group_sgfa
                 plot_units += group_units
                 
-            # 4. NON-TYPICAL AREAS
+# 4. NON-TYPICAL AREAS
             st.markdown("---")
             st.subheader(f"Plot {p_idx+1} Non-Typical Areas")
             
-            # Default Data setup
+            # Default Data setup - Added "Include in GFA" boolean for checkboxes
             default_nt = pd.DataFrame([
-                {"Area Name": "Ground Floor (Do not fill if typical)", "Floors": 1, "Area/Floor (m2)": 0.0},
-                {"Area Name": "Podium Area", "Floors": 1, "Area/Floor (m2)": 7548.0},
-                {"Area Name": "MEP", "Floors": 1, "Area/Floor (m2)": 3471.0},
-                {"Area Name": "Clubhouse", "Floors": 1, "Area/Floor (m2)": 0.0},
+                {"Area Name": "Ground Floor (Do not fill if typical)", "Floors": 1, "Area/Floor (m2)": 0.0, "Include in GFA": False},
+                {"Area Name": "Podium Area", "Floors": 1, "Area/Floor (m2)": 7548.0, "Include in GFA": False},
+                {"Area Name": "MEP", "Floors": 1, "Area/Floor (m2)": 3471.0, "Include in GFA": False},
+                {"Area Name": "Clubhouse", "Floors": 1, "Area/Floor (m2)": 0.0, "Include in GFA": True},
             ])
 
-            # The Input Zone (Allows adding/deleting rows)
+            # The Input Zone (Allows adding/deleting rows and checking boxes)
             edited_nt = st.data_editor(default_nt, key=f"nt_{p_idx}", num_rows="dynamic", use_container_width=True)
 
-            # Calculation: Multiply Floors * Area/Floor to get the Total Area for each line
+            # Calculation: Multiply Floors * Area/Floor
             edited_nt["Total Area (m2)"] = edited_nt["Floors"] * edited_nt["Area/Floor (m2)"]
+            
+            # 1. Total Non-Typical Area (Goes to GBA)
             total_nt_area = edited_nt["Total Area (m2)"].sum()
             
-            # Show the calculated total underneath
-            st.markdown(f"**Non-Typical Total: {total_nt_area:,.2f} m2**")
+            # 2. Filter only the checked rows to add to GFA
+            nt_gfa_area = edited_nt[edited_nt["Include in GFA"] == True]["Total Area (m2)"].sum()
+            
+            # Show the calculated totals underneath
+            st.markdown(f"**Non-Typical Totals: {total_nt_area:,.2f} m2 (Total GBA) | {nt_gfa_area:,.2f} m2 (Added to GFA)**")
 
-            # CALCULATE GBA (Typical GFA + Non-Typical Total)
-            plot_gba = plot_gfa + total_nt_area
+            # CALCULATE FINAL PLOT GBA & GFA
+            plot_gba = plot_gfa + total_nt_area # GBA gets ALL non-typical areas
+            plot_gfa = plot_gfa + nt_gfa_area   # GFA only gets the checked non-typical areas
             
             st.divider()
             
