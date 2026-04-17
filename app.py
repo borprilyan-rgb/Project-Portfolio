@@ -435,12 +435,11 @@ def show_cost_estimator():
 
 
 # --- 4. MAIN NAVIGATION (The Sidebar Switcher) ---
-st.sidebar.title("Main Navigation")
-st.sidebar.image("https://depopipa.co.id/wp-content/uploads/2016/01/Agung-Sedayu.png", width=100)
-
-# The radio button controls which function gets executed
-page_choice = st.sidebar.radio("Go to Sheet:", ["Cost Estimator", "Area Detail Calculator"])
-
+page_choice = st.sidebar.segmented_control(
+    "Navigation", 
+    ["Cost Estimator", "Area Detail Calculator"],
+    default="Cost Estimator"
+)
 st.sidebar.markdown("---")
 
 # --- 5. EXECUTION LOGIC ---
