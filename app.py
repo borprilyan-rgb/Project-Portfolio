@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
+import re
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="Project Portfolio", layout="wide")
@@ -52,59 +53,55 @@ def show_area_calculator():
     st.title("Area Calculator")
     st.markdown("---")
     
-    st.subheader("1. Vertical Building Breakdown")
-    st.info("Define your tower levels. Use the 'Multiplier' column for typical floors (e.g., L2-L11).")
-
-    # Layout for inputs and results
-    col_input, col_summary = st.columns([2, 1])
-
-    with col_input:
-        # Initializing the breakdown data
-        level_data = {
-            "Level Name": ["Basement", "Ground Floor", "Level 1", "Typical (L2-L11)", "Level 12", "Roof Floor"],
+    # 1. Initialize the Data if it doesn't exist in session state
+    if 'area_df' not in st.session_state:
+        st.session_state.area_df = pd.DataFrame({
+            "Level Name": ["Basement", "Ground Floor", "Level 1", "L2-L11", "Level 12", "Roof Floor"],
             "GBA / Floor (m2)": [5000.0, 4500.0, 4200.0, 4000.0, 3800.0, 1500.0],
-            "Multiplier": [1, 1, 1, 10, 1, 1] 
-        }
-        
-        df_levels = pd.DataFrame(level_data)
-        
-        # The interactive table
-        edited_df = st.data_editor(
-            df_levels, 
-            hide_index=True, 
-            use_container_width=True,
-            num_rows="dynamic", # Allows you to add more rows if needed
-            column_config={
-                "Level Name": st.column_config.TextColumn("Level Description"),
-                "GBA / Floor (m2)": st.column_config.NumberColumn("Area per Floor", format="%.2f"),
-                "Multiplier": st.column_config.NumberColumn("Qty", min_value=1, step=1)
-            }
-        )
+            "Multiplier": [1, 1, 1, 10, 1, 1]
+        })
 
-    # Calculation logic
+    # 2. The Interactive Table
+    edited_df = st.data_editor(
+        st.session_state.area_df,
+        hide_index=True,
+        use_container_width=True,
+        num_rows="dynamic",
+        column_config={
+            "Level Name": st.column_config.TextColumn("Level Name (e.g. L2-L11)"),
+            "GBA / Floor (m2)": st.column_config.NumberColumn("Area", format="%.2f"),
+            "Multiplier": st.column_config.NumberColumn("Qty", disabled=False) # Keep enabled for manual override
+        }
+    )
+
+    # 3. AUTOMATIC LOGIC: Extract floor range from "Level Name"
+    for index, row in edited_df.iterrows():
+        name = str(row["Level Name"])
+        # Looks for patterns like 2-11, 02-15, etc.
+        match = re.search(r'(\d+)\s*-\s*(\d+)', name)
+        
+        if match:
+            start_floor = int(match.group(1))
+            end_floor = int(match.group(2))
+            # Standard QS logic: (End - Start) + 1
+            auto_qty = max(1, (end_floor - start_floor) + 1)
+            edited_df.at[index, "Multiplier"] = auto_qty
+
+    # Update session state so it saves
+    st.session_state.area_df = edited_df
+
+    # 4. Final Calculations
     edited_df["Subtotal GBA"] = edited_df["GBA / Floor (m2)"] * edited_df["Multiplier"]
     calc_total_gba = edited_df["Subtotal GBA"].sum()
 
-    with col_summary:
-        st.markdown(f"""
-            <div style="background-color: #262730; padding: 20px; border-radius: 10px; border: 2px solid #4CAF50;">
-                <div style="font-size: 14px; color: gray; margin-bottom: 5px;">Calculated Total GBA</div>
-                <div style="font-size: 36px; font-weight: bold; color: #ffffff; line-height: 1.1;">
-                    {calc_total_gba:,.2f} <span style="font-size: 18px;">m2</span>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        if st.button("🚀 Sync GBA to Cost Estimator", use_container_width=True):
-            st.session_state['gba_sync'] = calc_total_gba
-            st.success("GBA updated across workspaces!")
-
-    # 2. Preparation for Balconies & Voids
-    st.markdown("---")
-    st.subheader("2. Efficiency & Deductions (GFA/SGFA)")
-    st.caption("Next step: We will add columns for Voids and Balcony ratios to auto-calculate GFA.")
-
+    # --- SUMMARY DISPLAY ---
+    st.markdown(f"""
+        <div style="background-color: #262730; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-top: 20px;">
+            <div style="font-size: 14px; color: gray;">Calculated Total GBA</div>
+            <div style="font-size: 32px; font-weight: bold;">{calc_total_gba:,.2f} m2</div>
+        </div>
+    """, unsafe_allow_html=True)
+    
 # RATE DATABASE ---
 def show_rate_database():
     st.title("🗄️ Project Rate Database")
