@@ -262,26 +262,33 @@ def show_cost_estimator():
     uploaded_file = st.file_uploader("Upload a saved Project CSV to overwrite current inputs", type=["csv"])
     
     if uploaded_file is not None:
-        try:
-            df_import = pd.read_csv(uploaded_file)
-            for index, row in df_import.iterrows():
-                key = row["Metric_Key"]
-                val = row["Value"]
+        # Use file_id as a lock to ensure we only process the file ONCE per upload
+        if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != uploaded_file.file_id:
+            try:
+                df_import = pd.read_csv(uploaded_file)
                 
-                # Handle Project Name and Type (Text)
-                if key == "proj_name":
-                    st.session_state.projects[curr_id]["name"] = str(val)
-                elif key == "proj_type":
-                    st.session_state.projects[curr_id]["type"] = str(val)
-                # Handle all other metrics (Numbers)
-                else:
-                    st.session_state[key] = float(val)
+                for index, row in df_import.iterrows():
+                    key = str(row["Metric_Key"])
+                    val = row["Value"]
                     
-            st.success("✅ Full Project Configuration loaded successfully!")
-            st.rerun() # Force a refresh so the Sidebar and UI update immediately
-            
-        except Exception as e:
-            st.error("Could not read file. Make sure it is a valid metrics CSV.")
+                    # Handle Project Name and Type (Text)
+                    if key == "proj_name":
+                        st.session_state.projects[curr_id]["name"] = str(val)
+                    elif key == "proj_type":
+                        st.session_state.projects[curr_id]["type"] = str(val)
+                    # Handle all other metrics (Numbers)
+                    else:
+                        st.session_state[key] = float(val)
+                
+                # Lock the file so it doesn't trigger an infinite loop
+                st.session_state.last_loaded_file = uploaded_file.file_id
+                
+                st.success("✅ Full Project Configuration loaded successfully!")
+                st.rerun() # Refresh so the Sidebar and UI update immediately
+                
+            except Exception as e:
+                # If it fails, it will now print the EXACT error on screen
+                st.error(f"❌ Error loading file: {e}")
 
     st.markdown("---")
 
