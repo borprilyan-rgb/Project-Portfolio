@@ -436,7 +436,7 @@ def show_cost_estimator():
 
 # --- 4. MAIN NAVIGATION (The Sidebar Switcher) ---
 st.sidebar.title("Main Navigation")
-st.sidebar.image("https://www.agungsedayu.com/logo.png", width=100) # Optional: ASG Touch
+st.sidebar.image("https://s3-ap-southeast-1.amazonaws.com/pik-live-cms/pik-agung-sedayu/main/newlogo.png?3bacdca3ad", width=100)
 
 # The radio button controls which function gets executed
 page_choice = st.sidebar.radio("Go to Sheet:", ["Cost Estimator", "Area Detail Calculator"])
