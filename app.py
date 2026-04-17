@@ -436,7 +436,7 @@ def show_cost_estimator():
 
 # --- 4. MAIN NAVIGATION (The Sidebar Switcher) ---
 st.sidebar.title("Main Navigation")
-st.sidebar.image("https://s3-ap-southeast-1.amazonaws.com/pik-live-cms/pik-agung-sedayu/main/newlogo.png?3bacdca3ad", width=100)
+st.sidebar.image("https://upload.wikimedia.org/wikipedia/id/8/88/Screenshot_20231031_155650_Chrome_Beta.jpg", width=100)
 
 # The radio button controls which function gets executed
 page_choice = st.sidebar.radio("Go to Sheet:", ["Cost Estimator", "Area Detail Calculator"])
