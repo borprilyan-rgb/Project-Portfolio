@@ -266,9 +266,9 @@ def show_cost_estimator():
 
     # --- 1. GLOBAL IMPORT SECTION (Sidebar) ---
     st.sidebar.markdown("---")
-    st.sidebar.subheader("💾 Scenario Manager")
+    st.sidebar.subheader("Upload CSV")
     
-    uploaded_file = st.sidebar.file_uploader("Upload CSV to overwrite inputs", type=["csv"])
+    uploaded_file = st.sidebar.file_uploader("Upload Here:", type=["csv"])
     
     if uploaded_file is not None:
         if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != uploaded_file.file_id:
@@ -605,58 +605,13 @@ def show_cost_estimator():
             st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
 
 
-    # --- 2. GLOBAL EXPORT SECTION (Placed at the bottom) ---
+# --- 2. GLOBAL EXPORT SECTION (Placed at the bottom) ---
+    
     # Package ALL current variables into a dictionary
     current_metrics = {
-        "proj_name": new_name, "proj_type": new_type,
-        "m_land": land_area, "m_gba": gba, "m_gfa": gfa, "m_sgfa": sgfa,
-        "m_facade": facade, "m_rooms": rooms, "m_lobby": lobby_interior, 
-        "m_gondola": gondola_unit, "m_carpet": carpet_m2, "m_glass": glass_m2, 
-        "m_skylight": skylight_area, "m_door_g": glass_door, "m_door_w": wooden_door, 
-        "m_door_s": steel_door, "m_toil_m": toilet_male, "m_toil_f": toilet_female, 
-        "m_toil_d": disabled_toil, "m_mushola": mushola_unit, "m_fac_res": res_fac_m2, 
-        "m_fac_pub": pub_fac_m2, "m_fac_proj": proj_fac_u, "m_land_m2": land_m2,
-        
-        "r_fac_pre": facade_precast_pct, "r_fac_win": facade_window_pct, "r_fac_doub": facade_double_pct,
-        "r_fl_ht": fl_ht_pct, "r_fl_vin": fl_vinyl_pct, "r_fl_mar": fl_marmer_pct,
-        "r_san_qty": san_qty_room, "r_rail_qty": railing_qty,
-        
-        "u_earth": struc_earth, "u_found": struc_found, "u_struc": struc_work, "u_arch": arch_base, 
-        "u_lobby": lobby_rate, "u_f_pre": fac_precast_rate, "u_f_win": fac_window_rate, "u_f_doub": fac_double_rate,
-        "u_d_wood": door_wood, "u_d_glass": door_glass, "u_d_steel": door_steel, "u_hw_wood": hw_wood, "u_hw_steel": hw_steel,
-        "u_s_room": san_room_rate, "u_s_pub_m": san_pub_m, "u_s_pub_f": san_pub_f, "u_s_dis": san_dis, "u_s_mushola": san_mushola,
-        "u_fl_ht": fl_ht_rate, "u_fl_vin": fl_vinyl_rate, "u_fl_mar": fl_marmer_rate, "u_carpet": carpet_rate, "u_glass": glass_rate,
-        "u_sky": skylight_rate, "u_gondola": gondola_rate, "u_rail": railing_rate, "u_mep": mep_rate, "u_util": utility_rate,
-        "u_ffe": ffe_rate, "u_kit": kitchen_rate, "u_misc": misc_rate, "u_ext": ext_land_rate, "u_fac_p": fac_pub_rate, 
-        "u_fac_r": fac_res_rate, "u_fac_pr": fac_proj_rate,
-        
-        "sc_cons": consultancy_rate, "sc_qs_m": qs_months, "sc_qs_r": qs_rate, 
-        "sc_pm_m": pm_months, "sc_pm_r": pm_rate, "sc_ins": insurance_pct
-    }
-    
-    # MAGIC TRICK: Save live metrics into the master locker so they survive switching!
-    st.session_state.projects[curr_id]["data"] = current_metrics
-
-    # Convert to CSV string format
-    df_export = pd.DataFrame(list(current_metrics.items()), columns=["Metric_Key", "Value"])
-    csv_data = df_export.to_csv(index=False).encode('utf-8')
-
-    st.sidebar.download_button(
-        label=f"⬇️ Download Config for '{new_name}' to CSV",
-        data=csv_data,
-        file_name=f"{new_name.replace(' ', '_').lower()}_config.csv",
-        mime="text/csv",
-        use_container_width=True
-    )
-            
-    # --- 2. GLOBAL EXPORT SECTION (Placed at the bottom) ---
-    
-    # Package ALL variables from across all tabs
-    current_metrics = {
         # Project Meta
-        "proj_name": new_name,
-        "proj_type": new_type,
-    
+        "proj_name": new_name, "proj_type": new_type,
+        
         # Tab 1
         "m_land": land_area, "m_gba": gba, "m_gfa": gfa, "m_sgfa": sgfa,
         "m_facade": facade, "m_rooms": rooms, "m_lobby": lobby_interior, 
@@ -686,14 +641,18 @@ def show_cost_estimator():
         "sc_pm_m": pm_months, "sc_pm_r": pm_rate, "sc_ins": insurance_pct
     }
     
+    # MAGIC TRICK: Save live metrics into the master locker so they survive switching!
+    st.session_state.projects[curr_id]["data"] = current_metrics
+
     # Convert to CSV string format
     df_export = pd.DataFrame(list(current_metrics.items()), columns=["Metric_Key", "Value"])
     csv_data = df_export.to_csv(index=False).encode('utf-8')
 
-    # This targets the sidebar so it sits right under your uploader!
+    # Ensure the subheader is OUTSIDE the button parentheses
+    st.sidebar.markdown("---")
     st.sidebar.subheader("Download CSV")
     st.sidebar.download_button(
-        label=f"Download",
+        label="Download Here",
         data=csv_data,
         file_name=f"{new_name.replace(' ', '_').lower()}_config.csv",
         mime="text/csv",
