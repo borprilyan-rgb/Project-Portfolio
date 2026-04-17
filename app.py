@@ -653,7 +653,7 @@ def show_cost_estimator():
 
     # This targets the sidebar so it sits right under your uploader!
     st.sidebar.download_button(
-        label=f"⬇️ Download Config for '{new_name}' to CSV",
+        label=f"Download CSV",
         data=csv_data,
         file_name=f"{new_name.replace(' ', '_').lower()}_config.csv",
         mime="text/csv",
