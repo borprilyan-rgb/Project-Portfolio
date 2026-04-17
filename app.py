@@ -61,10 +61,10 @@ def show_area_calculator():
     grand_total_units = 0
 
     for p_idx in range(int(num_plots)):
-        with st.expander(f"📍 PLOT {p_idx + 1} CONFIGURATION", expanded=True):
+        with st.expander(f"PLOT {p_idx + 1}", expanded=True):
             
             # 2. SUB-GROUP CONFIG (e.g., Block 1, 4-8 vs Block 2 & 3)
-            num_groups = st.number_input(f"Number of Block Groups in Plot {p_idx+1}", min_value=1, value=2, key=f"ng_{p_idx}")
+            num_groups = st.number_input(f"Block in Plot {p_idx+1}", min_value=1, value=2, key=f"ng_{p_idx}")
             
             plot_gfa = 0
             plot_sgfa = 0
@@ -72,7 +72,7 @@ def show_area_calculator():
             
             for g_idx in range(int(num_groups)):
                 st.markdown(f"---")
-                st.subheader(f"Group {g_idx + 1} Configuration")
+                st.subheader(f"Block {g_idx + 1}")
                 
                 # Header Inputs
                 c1, c2, c3 = st.columns(3)
