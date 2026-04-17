@@ -438,7 +438,7 @@ def show_cost_estimator():
 page_choice = st.sidebar.segmented_control(
     "Navigation", 
     ["Cost Calculator", "Area Calculator"],
-    default="Cost Estimator"
+    default="Cost Calculator"
 )
 st.sidebar.markdown("---")
 
