@@ -124,10 +124,6 @@ def show_area_calculator():
                 sum_sgfa_fl = display_df["SGFA/Fl (Total)"].sum()
                 sum_gfa_fl = display_df["GFA/Fl (Total)"].sum()
 
-                # Show the clean breakdown table first
-                st.markdown("**Calculated Unit Breakdown**")
-                st.dataframe(display_df, use_container_width=True, hide_index=True)
-
                 # E. Calculate Group Totals (Multiplier applied)
                 group_net = total_net_per_floor * num_blocks * num_floors
                 group_sgfa = sum_sgfa_fl * num_blocks * num_floors
@@ -142,9 +138,13 @@ def show_area_calculator():
                     "Group Total": [f"{group_net:,.2f}", f"{group_sgfa:,.2f}", f"{group_gfa:,.2f}", f"{int(group_units)}"]
                 })
                 
-                # Render the summary table underneath
-                st.markdown("**Area Totals Summary**")
-                st.dataframe(summary_df, use_container_width=True, hide_index=True)
+                # --- HIDE TABLES INSIDE AN EXPANDER ---
+                with st.expander(f"View Detailed Calculation Tables for {group_name}", expanded=False):
+                    st.markdown("**Calculated Unit Breakdown**")
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+                    
+                    st.markdown("**Area Totals Summary**")
+                    st.dataframe(summary_df, use_container_width=True, hide_index=True)
                 
                 # G. Track Plot Totals for the grand summary
                 plot_gfa += group_gfa
