@@ -293,42 +293,42 @@ def show_cost_estimator():
         "📊 5. Results & Summary"
     ])
 
-    # --- TAB 1: PROJECT METRICS ---
+# --- TAB 1: PROJECT METRICS ---
     with tab1:
         col_m1, col_m2 = st.columns(2)
         with col_m1:
             st.subheader("A. Area Measurement")
-            land_area = st.number_input("Land Area (m2)", value=49424.4, step=100.0, key=f"m_land_{curr_id}")
-            gba = st.number_input("Total GBA (m2)", value=179970.69, step=100.0, key=f"m_gba_{curr_id}")
-            gfa = st.number_input("Total GFA (m2)", value=152658.99, step=100.0, key=f"m_gfa_{curr_id}")
-            sgfa = st.number_input("Total SGFA (m2)", value=124336.77, step=100.0, key=f"m_sgfa_{curr_id}")
+            land_area = st.number_input("Land Area (m2)", value=0.0, step=100.0, key=f"m_land_{curr_id}")
+            gba = st.number_input("Total GBA (m2)", value=0.0, step=100.0, key=f"m_gba_{curr_id}")
+            gfa = st.number_input("Total GFA (m2)", value=0.0, step=100.0, key=f"m_gfa_{curr_id}")
+            sgfa = st.number_input("Total SGFA (m2)", value=0.0, step=100.0, key=f"m_sgfa_{curr_id}")
             
             st.subheader("B. Architecture")
-            facade = st.number_input("Facade (m2)", value=107127.10, step=100.0, key=f"m_facade_{curr_id}")
-            rooms = st.number_input("Room (unit)", value=1261.0, step=1.0, key=f"m_rooms_{curr_id}")
-            lobby_interior = st.number_input("Lobby Interior (m2)", value=15347.92, step=10.0, key=f"m_lobby_{curr_id}")
-            gondola_unit = st.number_input("Gondola (unit)", value=15.0, step=1.0, key=f"m_gondola_{curr_id}")
+            facade = st.number_input("Facade (m2)", value=0.0, step=100.0, key=f"m_facade_{curr_id}")
+            rooms = st.number_input("Room (unit)", value=0.0, step=1.0, key=f"m_rooms_{curr_id}")
+            lobby_interior = st.number_input("Lobby Interior (m2)", value=0.0, step=10.0, key=f"m_lobby_{curr_id}")
+            gondola_unit = st.number_input("Gondola (unit)", value=0.0, step=1.0, key=f"m_gondola_{curr_id}")
             carpet_m2 = st.number_input("Carpet Area (m2)", value=0.0, step=10.0, key=f"m_carpet_{curr_id}")
             glass_m2 = st.number_input("Glass Area (m2)", value=0.0, step=10.0, key=f"m_glass_{curr_id}")
             skylight_area = st.number_input("Skylight Area (m2)", value=0.0, step=10.0, key=f"m_skylight_{curr_id}")
 
         with col_m2:
             st.subheader("C. Doors")
-            glass_door = st.number_input("Glass Door (unit)", value=344.0, step=1.0, key=f"m_door_g_{curr_id}")
-            wooden_door = st.number_input("Wooden Door (unit)", value=8992.0, step=10.0, key=f"m_door_w_{curr_id}")
-            steel_door = st.number_input("Steel Door (unit)", value=1032.0, step=10.0, key=f"m_door_s_{curr_id}")
+            glass_door = st.number_input("Glass Door (unit)", value=0.0, step=1.0, key=f"m_door_g_{curr_id}")
+            wooden_door = st.number_input("Wooden Door (unit)", value=0.0, step=10.0, key=f"m_door_w_{curr_id}")
+            steel_door = st.number_input("Steel Door (unit)", value=0.0, step=10.0, key=f"m_door_s_{curr_id}")
 
             st.subheader("D. Toilets")
-            toilet_male = st.number_input("Public Toilet Male (units)", value=15.0, step=1.0, key=f"m_toil_m_{curr_id}")
-            toilet_female = st.number_input("Public Toilet Female (units)", value=15.0, step=1.0, key=f"m_toil_f_{curr_id}")
+            toilet_male = st.number_input("Public Toilet Male (units)", value=0.0, step=1.0, key=f"m_toil_m_{curr_id}")
+            toilet_female = st.number_input("Public Toilet Female (units)", value=0.0, step=1.0, key=f"m_toil_f_{curr_id}")
             disabled_toil = st.number_input("Disabled Toilet (units)", value=0.0, step=1.0, key=f"m_toil_d_{curr_id}")
-            mushola_unit = st.number_input("Mushola (units)", value=2.0, step=1.0, key=f"m_mushola_{curr_id}")
+            mushola_unit = st.number_input("Mushola (units)", value=0.0, step=1.0, key=f"m_mushola_{curr_id}")
 
             st.subheader("E. Facilities")
-            res_fac_m2 = st.number_input("Residential Facility (m2)", value=2000.0, step=10.0, key=f"m_fac_res_{curr_id}") 
+            res_fac_m2 = st.number_input("Residential Facility (m2)", value=0.0, step=10.0, key=f"m_fac_res_{curr_id}") 
             pub_fac_m2 = st.number_input("Public Facility (m2)", value=0.0, step=10.0, key=f"m_fac_pub_{curr_id}")
-            proj_fac_u = st.number_input("Project Facility (unit)", value=2.0, step=1.0, key=f"m_fac_proj_{curr_id}")
-            land_m2 = st.number_input("Landscape Area (m2)", value=22496.94, step=100.0, key=f"m_land_m2_{curr_id}")
+            proj_fac_u = st.number_input("Project Facility (unit)", value=0.0, step=1.0, key=f"m_fac_proj_{curr_id}")
+            land_m2 = st.number_input("Landscape Area (m2)", value=0.0, step=100.0, key=f"m_land_m2_{curr_id}")
 
 
     # --- TAB 2: RATIOS & MULTIPLIERS ---
@@ -413,18 +413,17 @@ def show_cost_estimator():
             fac_proj_rate = c2.number_input("Project Facilities", value=pt_data["fac_proj"], key=f"u_fac_pr_{curr_id}")
 
 
-    # --- TAB 4: SOFT COSTS SETUP ---
+# --- TAB 4: SOFT COSTS SETUP ---
     with tab4:
         sc_col1, sc_col2 = st.columns(2)
         with sc_col1:
-            consultancy_rate = st.number_input("Consultancy Rate", value=174000.0, step=1000.0, key=f"sc_cons_{curr_id}")
-            qs_months = st.number_input("QS Duration (Months)", value=36.0, step=1.0, key=f"sc_qs_m_{curr_id}")
-            qs_rate = st.number_input("QS Rate (per Month)", value=75000000.0, step=1000000.0, key=f"sc_qs_r_{curr_id}")
+            consultancy_rate = st.number_input("Consultancy Rate", value=0.0, step=1000.0, key=f"sc_cons_{curr_id}")
+            qs_months = st.number_input("QS Duration (Months)", value=0.0, step=1.0, key=f"sc_qs_m_{curr_id}")
+            qs_rate = st.number_input("QS Rate (per Month)", value=0.0, step=1000000.0, key=f"sc_qs_r_{curr_id}")
         with sc_col2:
-            pm_months = st.number_input("PM Duration (Months)", value=36.0, step=1.0, key=f"sc_pm_m_{curr_id}")
-            pm_rate = st.number_input("PM Rate (per Month)", value=250000000.0, step=1000000.0, key=f"sc_pm_r_{curr_id}")
-            insurance_pct = st.number_input("Insurance (%)", value=0.12, step=0.01, key=f"sc_ins_{curr_id}")
-
+            pm_months = st.number_input("PM Duration (Months)", value=0.0, step=1.0, key=f"sc_pm_m_{curr_id}")
+            pm_rate = st.number_input("PM Rate (per Month)", value=0.0, step=1000000.0, key=f"sc_pm_r_{curr_id}")
+            insurance_pct = st.number_input("Insurance (%)", value=0.0, step=0.01, key=f"sc_ins_{curr_id}")
 
     # --- LIVE AUTO-CALCULATIONS (HARD COSTS) ---
     t_earth = gba * struc_earth
