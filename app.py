@@ -428,6 +428,50 @@ def show_cost_estimator():
             pm_rate = st.number_input("PM Rate (per Month)", value=get_val("sc_pm_r", 0.0), step=1000000.0, key=f"sc_pm_r_{curr_id}")
             insurance_pct = st.number_input("Insurance (%)", value=get_val("sc_ins", 0.0), step=0.01, key=f"sc_ins_{curr_id}")
 
+# --- TAB 5: CUSTOM ITEMS ---
+    with tab5:
+        st.subheader("➕ Smart Custom Costs")
+        st.info("Add custom scope items here. Select a linked metric (e.g., GFA) to automatically calculate: Rate × Multiplier × Metric.")
+        
+        # 1. Map the string names to your live variables from Tab 1
+        dependency_map = {
+            "None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa,
+            "Land Area": land_area, "Rooms": rooms, "Facade": facade, "Lobby": lobby_interior
+        }
+        
+        # 2. Setup default table
+        default_smart_cc = [{"Description": "", "Rate (Rp)": 0.0, "Multiplier (Qty)": 1.0, "Linked Dependency": "None (Flat Rate)"}]
+        current_smart_cc = get_val("smart_custom_costs", default_smart_cc)
+        
+        # 3. Create the Data Editor
+        edited_smart_cc = st.data_editor(
+            pd.DataFrame(current_smart_cc), 
+            num_rows="dynamic", 
+            key=f"edit_smart_cc_{curr_id}", 
+            column_config={
+                "Linked Dependency": st.column_config.SelectboxColumn(
+                    "Linked Dependency",
+                    options=list(dependency_map.keys()),
+                    required=True
+                )
+            },
+            use_container_width=True
+        )
+        
+        # 4. Background Math
+        total_custom_cost = 0.0
+        for index, row in edited_smart_cc.iterrows():
+            rate = float(row.get("Rate (Rp)", 0.0))
+            mult = float(row.get("Multiplier (Qty)", 1.0))
+            dep_name = row.get("Linked Dependency", "None (Flat Rate)")
+            dep_value = dependency_map.get(dep_name, 1.0) 
+            total_custom_cost += (rate * mult * dep_value)
+            
+        st.markdown(f"**Total Custom Costs: Rp {total_custom_cost:,.2f}**")
+        
+        # 5. Save back to locker
+        st.session_state.projects[curr_id]["data"]["smart_custom_costs"] = edited_smart_cc.to_dict('records')
+    
     # --- LIVE AUTO-CALCULATIONS (HARD COSTS) ---
     t_earth = gba * struc_earth
     t_found = gba * struc_found
@@ -496,50 +540,6 @@ def show_cost_estimator():
     group_mep = t_ffe + t_misc + t_mep + t_utility
     group_ext = t_external + t_pub_fac + t_res_fac + t_proj_fac
     group_contingency = t_preliminary + t_contingency
-
-# --- TAB 5: CUSTOM ITEMS ---
-    with tab5:
-        st.subheader("➕ Smart Custom Costs")
-        st.info("Add custom scope items here. Select a linked metric (e.g., GFA) to automatically calculate: Rate × Multiplier × Metric.")
-        
-        # 1. Map the string names to your live variables from Tab 1
-        dependency_map = {
-            "None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa,
-            "Land Area": land_area, "Rooms": rooms, "Facade": facade, "Lobby": lobby_interior
-        }
-        
-        # 2. Setup default table
-        default_smart_cc = [{"Description": "", "Rate (Rp)": 0.0, "Multiplier (Qty)": 1.0, "Linked Dependency": "None (Flat Rate)"}]
-        current_smart_cc = get_val("smart_custom_costs", default_smart_cc)
-        
-        # 3. Create the Data Editor
-        edited_smart_cc = st.data_editor(
-            pd.DataFrame(current_smart_cc), 
-            num_rows="dynamic", 
-            key=f"edit_smart_cc_{curr_id}", 
-            column_config={
-                "Linked Dependency": st.column_config.SelectboxColumn(
-                    "Linked Dependency",
-                    options=list(dependency_map.keys()),
-                    required=True
-                )
-            },
-            use_container_width=True
-        )
-        
-        # 4. Background Math
-        total_custom_cost = 0.0
-        for index, row in edited_smart_cc.iterrows():
-            rate = float(row.get("Rate (Rp)", 0.0))
-            mult = float(row.get("Multiplier (Qty)", 1.0))
-            dep_name = row.get("Linked Dependency", "None (Flat Rate)")
-            dep_value = dependency_map.get(dep_name, 1.0) 
-            total_custom_cost += (rate * mult * dep_value)
-            
-        st.markdown(f"**Total Custom Costs: Rp {total_custom_cost:,.2f}**")
-        
-        # 5. Save back to locker
-        st.session_state.projects[curr_id]["data"]["smart_custom_costs"] = edited_smart_cc.to_dict('records')
 
 
     # --- TAB 6: RESULTS & SUMMARY ---
