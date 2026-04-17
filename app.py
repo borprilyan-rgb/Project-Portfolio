@@ -138,14 +138,19 @@ def show_area_calculator():
             podium = np1.number_input("Podium Area (m2)", value=7548.0, key=f"pod_{p_idx}")
             mep_gf = np2.number_input("MEP / GF Area (m2)", value=840.0, key=f"mep_{p_idx}")
             
-            plot_cfa = plot_gfa + podium + mep_gf
+            # CALCULATE GBA (Typical GFA + Non-Typical Areas)
+            plot_gba = plot_gfa + podium + mep_gf
             
             st.divider()
-            m_p1, m_p2, m_p3 = st.columns(3)
-            m_p1.metric(f"PLOT {p_idx+1} TOTAL CFA", f"{plot_cfa:,.2f} m2")
-            m_p2.metric(f"PLOT {p_idx+1} TOTAL SGFA", f"{plot_sgfa:,.2f} m2")
-            m_p3.metric(f"PLOT {p_idx+1} TOTAL UNITS", f"{int(plot_units)} Units")
+            # 4 columns to show GBA alongside GFA
+            m_p1, m_p2, m_p3, m_p4 = st.columns(4)
+            m_p1.metric(f"PLOT {p_idx+1} TOTAL GBA", f"{plot_gba:,.2f} m2")
+            m_p2.metric(f"PLOT {p_idx+1} TOTAL GFA", f"{plot_gfa:,.2f} m2")
+            m_p3.metric(f"PLOT {p_idx+1} TOTAL SGFA", f"{plot_sgfa:,.2f} m2")
+            m_p4.metric(f"PLOT {p_idx+1} TOTAL UNITS", f"{int(plot_units)} Units")
 
+            # Track for Grand Totals
+            grand_total_gba += plot_gba
             grand_total_gfa += plot_gfa
             grand_total_sgfa += plot_sgfa
             grand_total_units += plot_units
@@ -155,10 +160,11 @@ def show_area_calculator():
     st.header("Project Grand Summary")
     st.markdown("This data is passed to the Cost Calculator for estimation.")
     
-    g1, g2, g3 = st.columns(3)
-    g1.metric("Grand Total GFA", f"{grand_total_gfa:,.2f} m2")
-    g2.metric("Grand Total SGFA", f"{grand_total_sgfa:,.2f} m2")
-    g3.metric("Grand Total Units", f"{int(grand_total_units)} Units")
+    g1, g2, g3, g4 = st.columns(4)
+    g1.metric("Grand Total GBA", f"{grand_total_gba:,.2f} m2")
+    g2.metric("Grand Total GFA", f"{grand_total_gfa:,.2f} m2")
+    g3.metric("Grand Total SGFA", f"{grand_total_sgfa:,.2f} m2")
+    g4.metric("Grand Total Units", f"{int(grand_total_units)} Units")
     
 # RATE DATABASE ---
 def show_rate_database():
