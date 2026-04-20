@@ -78,7 +78,38 @@ def delete_state(filename):
     """Deletes a project JSON file from the storage directory."""
     filepath = os.path.join(STORAGE_DIR, f"{filename}.json")
     if os.path.exists(filepath):
-        os.remove(filepath)        
+        os.remove(filepath)
+
+# --- 2.2 LIGHTNING-FAST CALLBACK FUNCTIONS ---
+def cb_add_project():
+    st.session_state.proj_counter += 1
+    new_id = f"proj_{st.session_state.proj_counter}"
+    st.session_state.projects[new_id] = {"name": f"New Project {st.session_state.proj_counter}", "type": "Hotel", "data": {}}
+    st.session_state.current_proj_id = new_id
+
+def cb_delete_project():
+    del st.session_state.projects[st.session_state.current_proj_id]
+    st.session_state.current_proj_id = list(st.session_state.projects.keys())[0]
+
+def cb_switch_project():
+    selected_label = st.session_state.project_selector
+    proj_ids = list(st.session_state.projects.keys())
+    proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
+    if selected_label in proj_labels:
+        selected_idx = proj_labels.index(selected_label)
+        st.session_state.current_proj_id = proj_ids[selected_idx]
+
+def cb_load_save():
+    selected_save = st.session_state.save_file_selector
+    loaded_data = load_state(selected_save)
+    st.session_state.proj_counter += 1
+    new_id = f"proj_{st.session_state.proj_counter}"
+    st.session_state.projects[new_id] = loaded_data
+    st.session_state.current_proj_id = new_id
+    
+def cb_delete_save():
+    selected_save = st.session_state.save_file_selector
+    delete_state(selected_save)                
 
 # --- 2.5 SESSION STATE (PROJECT MEMORY) ---
 if "projects" not in st.session_state:
@@ -728,14 +759,15 @@ def show_cost_estimator():
     st.session_state.projects[curr_id]["data"] = current_metrics
 
 def show_portfolio_summary():
+    import io
+    import xlsxwriter
     st.markdown("---")
     
-    # 1. HELPER FUNCTION
+    # --- 1. HELPER FUNCTION ---
     def get_project_totals(proj_dict):
         d = proj_dict.get("data", {})
         pt_data = PROJECT_DATABASE.get(proj_dict["type"], PROJECT_DATABASE["Hotel"])
         
-        # Priority: session_state data -> Database Defaults -> 0.0
         def v(key, default=0.0): 
             return d.get(key, pt_data.get(key, default))
 
@@ -745,7 +777,6 @@ def show_portfolio_summary():
         rooms = v("m_rooms")
         facade = v("m_facade")
         
-        # Calculate Hard Costs
         f_mult = 1.32
         hc = (
             (gba * v("u_earth")) + (gba * v("u_found")) + (gba * v("u_struc")) +
@@ -769,7 +800,6 @@ def show_portfolio_summary():
             (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr"))
         )
         
-        # Custom Smart Costs
         custom_costs = d.get("smart_custom_costs", [])
         dep_map = {"None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa, "Land Area": v("m_land"), "Rooms": rooms, "Facade": facade, "Lobby": v("m_lobby")}
         for item in custom_costs:
@@ -780,14 +810,14 @@ def show_portfolio_summary():
         
         return {"gba": gba, "gfa": gfa, "sgfa": sgfa, "units": rooms, "budget": hc_total + sc_total}
 
-    # --- 2. GENERATE ROWS ---
-    table_rows = ""
+    # --- 2. CALCULATE DATA ---
+    table_rows_html = ""
     total_gba = total_gfa = total_sgfa = total_budget = 0
+    project_results = []
     
     for idx, (p_id, p_data) in enumerate(st.session_state.projects.items(), 1):
         m = get_project_totals(p_data)
         
-        # Calculate Ratios
         r_gba = m["budget"] / m["gba"] if m["gba"] > 0 else 0
         r_gfa = m["budget"] / m["gfa"] if m["gfa"] > 0 else 0
         r_sgfa = m["budget"] / m["sgfa"] if m["sgfa"] > 0 else 0
@@ -797,7 +827,14 @@ def show_portfolio_summary():
         total_sgfa += m["sgfa"]
         total_budget += m["budget"]
         
-        table_rows += f"""
+        project_results.append({
+            "idx": idx, "name": p_data['name'].upper(), "gba": m["gba"], "gfa": m["gfa"], 
+            "sgfa": m["sgfa"], "units": m["units"], "budget": m["budget"], 
+            "r_gba": r_gba, "r_gfa": r_gfa, "r_sgfa": r_sgfa
+        })
+
+        # HTML String Generator
+        table_rows_html += f"""
         <tr>
             <td style="border: 1px solid black; padding: 5px;">{idx}</td>
             <td style="border: 1px solid black; padding: 5px; text-align: left;"><b>{p_data['name'].upper()}</b></td>
@@ -813,12 +850,136 @@ def show_portfolio_summary():
         </tr>
         """
 
-    # Final Ratios
     t_r_gba = total_budget / total_gba if total_gba > 0 else 0
     t_r_gfa = total_budget / total_gfa if total_gfa > 0 else 0
     t_r_sgfa = total_budget / total_sgfa if total_sgfa > 0 else 0
 
-    # --- 3. RENDER ---
+    # --- 3. EXCEL BUILDER ENGINE ---
+    buffer = io.BytesIO()
+    workbook = xlsxwriter.Workbook(buffer, {'in_memory': True})
+    worksheet = workbook.add_worksheet('Portfolio Summary')
+
+    # Styles
+    f_blue_L = workbook.add_format({'bg_color': '#0062a8', 'font_color': 'white', 'bold': True, 'valign': 'vcenter'})
+    f_blue_R = workbook.add_format({'bg_color': '#0062a8', 'font_color': 'white', 'bold': True, 'align': 'right', 'valign': 'vcenter'})
+    f_th = workbook.add_format({'bg_color': '#f2f2f2', 'bold': True, 'align': 'center', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
+    f_td_c = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
+    f_td_L_b = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1, 'bold': True})
+    f_td_R_b = workbook.add_format({'align': 'right', 'valign': 'vcenter', 'border': 1, 'bold': True, 'num_format': '#,##0'})
+    f_td_num = workbook.add_format({'align': 'right', 'valign': 'vcenter', 'border': 1, 'num_format': '#,##0'})
+    
+    f_tot_L = workbook.add_format({'bg_color': '#e0e0e0', 'bold': True, 'align': 'center', 'valign': 'vcenter', 'border': 1})
+    f_tot_num = workbook.add_format({'bg_color': '#e0e0e0', 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1, 'num_format': '#,##0'})
+    f_tot_empty = workbook.add_format({'bg_color': '#e0e0e0', 'border': 1})
+
+    f_assum_h = workbook.add_format({'bg_color': '#ffdf70', 'bold': True, 'border': 1, 'valign': 'vcenter'})
+    f_assum_c = workbook.add_format({'align': 'center', 'border': 1})
+    f_assum_L = workbook.add_format({'align': 'left', 'border': 1})
+    f_assum_red = workbook.add_format({'align': 'left', 'border': 1, 'font_color': 'red'})
+
+    # Column Widths
+    worksheet.set_column('A:A', 5)
+    worksheet.set_column('B:B', 38)
+    worksheet.set_column('C:E', 15)
+    worksheet.set_column('F:F', 10)
+    worksheet.set_column('G:G', 8)
+    worksheet.set_column('H:H', 22)
+    worksheet.set_column('I:K', 15)
+
+    # 3.1 Write Blue Header (Merge across A to K)
+    for row in range(5):
+        worksheet.merge_range(row, 0, row, 10, "", f_blue_L) # Base background
+        
+    worksheet.write_string(0, 0, "ASG GROUP PROPERTY DEVELOPMENT", f_blue_L)
+    worksheet.write_string(0, 10, "VERSION      : R (0)", f_blue_R)
+    worksheet.write_string(1, 0, "QS & PROCUREMENT DIVISION", f_blue_L)
+    worksheet.write_string(2, 0, "PROJECT PORTFOLIO | ALL ACTIVE PROJECTS", f_blue_L)
+    worksheet.write_string(3, 0, "REF. DATA R(0) | CONCEPT PDF COMPARISON STUDY 2026-03-12 BY DPA", f_blue_L)
+    worksheet.write_string(3, 10, "UPDATED      : 12-03-2026", f_blue_R)
+    worksheet.write_string(4, 0, "BUDGET ESTIMATE R(0)", f_blue_L)
+    worksheet.write_string(4, 10, "CREATED      : 12-03-2026", f_blue_R)
+
+    # 3.2 Write Table Headers
+    worksheet.merge_range("A7:A8", "SN", f_th)
+    worksheet.merge_range("B7:B8", "AREA", f_th)
+    worksheet.merge_range("C7:E7", "BUILDING AREA (M2)", f_th)
+    worksheet.write_string("C8", "GBA", f_th)
+    worksheet.write_string("D8", "GFA", f_th)
+    worksheet.write_string("E8", "SGFA", f_th)
+    worksheet.merge_range("F7:G8", "UNIT", f_th)
+    worksheet.merge_range("H7:H8", "BUDGET ESTIMATE\nRP", f_th)
+    worksheet.merge_range("I7:K7", "COST RATIO RP/M2", f_th)
+    worksheet.write_string("I8", "GBA", f_th)
+    worksheet.write_string("J8", "GFA", f_th)
+    worksheet.write_string("K8", "SGFA", f_th)
+
+    # 3.3 Write Data Rows
+    row_idx = 8
+    for p in project_results:
+        worksheet.write_number(row_idx, 0, p['idx'], f_td_c)
+        worksheet.write_string(row_idx, 1, p['name'], f_td_L_b)
+        worksheet.write_number(row_idx, 2, p['gba'], f_td_num)
+        worksheet.write_number(row_idx, 3, p['gfa'], f_td_num)
+        worksheet.write_number(row_idx, 4, p['sgfa'], f_td_num)
+        worksheet.write_number(row_idx, 5, p['units'], f_td_c)
+        worksheet.write_string(row_idx, 6, "Units", f_td_c)
+        worksheet.write_number(row_idx, 7, p['budget'], f_td_R_b)
+        worksheet.write_number(row_idx, 8, p['r_gba'], f_td_num)
+        worksheet.write_number(row_idx, 9, p['r_gfa'], f_td_num)
+        worksheet.write_number(row_idx, 10, p['r_sgfa'], f_td_num)
+        row_idx += 1
+
+    # 3.4 Write Totals Row
+    worksheet.merge_range(row_idx, 0, row_idx, 1, "TOTAL", f_tot_L)
+    worksheet.write_number(row_idx, 2, total_gba, f_tot_num)
+    worksheet.write_number(row_idx, 3, total_gfa, f_tot_num)
+    worksheet.write_number(row_idx, 4, total_sgfa, f_tot_num)
+    worksheet.write_string(row_idx, 5, "", f_tot_empty)
+    worksheet.write_string(row_idx, 6, "", f_tot_empty)
+    worksheet.write_number(row_idx, 7, total_budget, f_tot_num)
+    worksheet.write_number(row_idx, 8, t_r_gba, f_tot_num)
+    worksheet.write_number(row_idx, 9, t_r_gfa, f_tot_num)
+    worksheet.write_number(row_idx, 10, t_r_sgfa, f_tot_num)
+
+    # 3.5 Write Assumptions
+    row_idx += 2
+    worksheet.write_string(row_idx, 0, "I.", f_assum_h)
+    worksheet.merge_range(row_idx, 1, row_idx, 10, "ASSUMPTIONS", f_assum_h)
+    
+    assumptions_list = [
+        "Foundation System standard pilecaps.", "No Basement.",
+        "Parking provison limited to ON STREET LEVEL parking", "Floor to Floor Height at 3.3M",
+        "Facade Alumunium Window Wall - No Double skin", "External Façade Precast, No double skin for parking podium if any.",
+        "Ground Lobby Finishes completed with Artificial stone & HT.", "Typical Corridor | Floor finishes : HT | Wall Finishes : Cement Sand Plaster c/w Emulsion Paint.",
+        "Aircon System | Apartement : AC Split", "SBO Rebars @ Rp. 10.000/kg", "Excluded Smarthome",
+        "Lift : 2 Passenger Lift + 1 Services Lift / TOWER", "Exclude Wardrobe",
+        "FFE : Kitchen cabinet, Hob & Hood, Refrigerator & Washing Machine", "Water Heater : Installation only",
+        "CALCULATION AREA refer to DP's calculation dated 12.03.2026"
+    ]
+    
+    for i, assum in enumerate(assumptions_list, 1):
+        row_idx += 1
+        worksheet.write_number(row_idx, 0, i, f_assum_c)
+        if "12.03.2026" in assum:
+            # Recreate the red text exactly
+            worksheet.merge_range(row_idx, 1, row_idx, 10, "", f_assum_L)
+            worksheet.write_rich_string(row_idx, 1, "CALCULATION AREA refer to DP's calculation dated ", workbook.add_format({'font_color': 'red'}), "12.03.2026", f_assum_L)
+        else:
+            worksheet.merge_range(row_idx, 1, row_idx, 10, assum, f_assum_L)
+
+    workbook.close()
+
+    # --- 4. RENDER UI ---
+    st.download_button(
+        label="📊 Download Portfolio as Excel (Exact Format)",
+        data=buffer.getvalue(),
+        file_name="ASG_Portfolio_Summary.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+
     html_string = f"""
     <div style="font-family: Calibri, sans-serif; font-size: 13px; color: black; background-color: white; padding: 20px; border-radius: 5px;">
         <div style="background-color: #0062a8; color: white; padding: 10px; font-weight: bold; line-height: 1.4; font-size: 14px;">
@@ -828,6 +989,14 @@ def show_portfolio_summary():
             </div>
             <div>QS & PROCUREMENT DIVISION</div>
             <div>PROJECT PORTFOLIO | ALL ACTIVE PROJECTS</div>
+            <div style="display: flex; justify-content: space-between;">
+                <div>REF. DATA R(0) | CONCEPT PDF COMPARISON STUDY 2026-03-12 BY DPA</div>
+                <div>UPDATED &nbsp;&nbsp;&nbsp;&nbsp;: 12-03-2026</div>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <div>BUDGET ESTIMATE R(0)</div>
+                <div>CREATED &nbsp;&nbsp;&nbsp;&nbsp;: 12-03-2026</div>
+            </div>
         </div>
         <br>
         <table style="width: 100%; border-collapse: collapse; border: 2px solid black; text-align: center;">
@@ -847,7 +1016,7 @@ def show_portfolio_summary():
                 <td style="border: 1px solid black; padding: 5px;">GFA</td>
                 <td style="border: 1px solid black; padding: 5px;">SGFA</td>
             </tr>
-            {table_rows}
+            {table_rows_html}
             <tr style="background-color: #e0e0e0; font-weight: bold;">
                 <td colspan="2" style="border: 1px solid black; padding: 5px;">TOTAL</td>
                 <td style="border: 1px solid black; padding: 5px;">{total_gba:,.0f}</td>
@@ -886,14 +1055,12 @@ def show_portfolio_summary():
     </div>
     """
     
-    # THE FIX: This flattens the entire string into one line so Markdown ignores it
     clean_html = html_string.replace('\n', '')
     st.markdown(clean_html, unsafe_allow_html=True)
 
 # --- 4. MAIN NAVIGATION & SIDEBAR PROJECT LIST ---
 st.sidebar.title("Main Navigation")
 
-# Workspace Selector
 page_choice = st.sidebar.radio(
     "Select Workspace:", 
     ["Cost Calculator", "Area Calculator", "Portfolio Summary"] 
@@ -902,47 +1069,30 @@ page_choice = st.sidebar.radio(
 st.sidebar.markdown("---")
 st.sidebar.subheader("📂 Project List")
 
-# "Add Project" Button
-if st.sidebar.button("➕ Add New Project", use_container_width=True):
-    st.session_state.proj_counter += 1
-    new_id = f"proj_{st.session_state.proj_counter}"
-    st.session_state.projects[new_id] = {"name": f"New Project {st.session_state.proj_counter}", "type": "Hotel", "data": {}}
-    st.session_state.current_proj_id = new_id
-    st.rerun()
+# Use the callback to add projects instantly
+st.sidebar.button("➕ Add New Project", on_click=cb_add_project, use_container_width=True)
 
 proj_ids = list(st.session_state.projects.keys())
 proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
-
 current_index = proj_ids.index(st.session_state.current_proj_id) if st.session_state.current_proj_id in proj_ids else 0
 
-# --- NEW: SELECT & DELETE LOGIC ---
-col_sel, col_del = st.sidebar.columns([4, 1]) # Make the selector wide, delete button small
+col_sel, col_del = st.sidebar.columns([4, 1])
 
 with col_sel:
-    selected_label = st.selectbox(
+    # on_change instantly updates the active project without a double-rerun
+    st.selectbox(
         "Active Project:",
         options=proj_labels,
         index=current_index,
         key="project_selector",
-        label_visibility="collapsed" # Hides the text so it aligns better with the trash icon
+        on_change=cb_switch_project,
+        label_visibility="collapsed"
     )
 
 with col_del:
-    # Disable the delete button if there's only 1 project left (prevent empty state crashes)
     can_delete = len(st.session_state.projects) > 1
-    if st.button("🗑️", disabled=not can_delete, help="Delete Active Project"):
-        # Delete from memory
-        del st.session_state.projects[st.session_state.current_proj_id]
-        # Re-assign the active project to the first one available
-        st.session_state.current_proj_id = list(st.session_state.projects.keys())[0]
-        st.rerun()
-
-# Sync sidebar clicks back to session state (Only runs if we didn't just delete something)
-if selected_label in proj_labels: 
-    selected_idx = proj_labels.index(selected_label)
-    if st.session_state.current_proj_id != proj_ids[selected_idx]:
-        st.session_state.current_proj_id = proj_ids[selected_idx]
-        st.rerun() 
+    # on_click instantly deletes the project without a double-rerun
+    st.button("🗑️", disabled=not can_delete, on_click=cb_delete_project, help="Delete Active Project")
 
 st.sidebar.markdown("---")
 
@@ -954,15 +1104,13 @@ elif page_choice == "Area Calculator":
 else:
     show_cost_estimator()
 
-    # --- 6. GLOBAL SAVE / LOAD UI (SIDEBAR) ---
-st.sidebar.markdown("---")
+# --- 6. GLOBAL SAVE / LOAD UI (SIDEBAR) ---
 st.sidebar.subheader("💾 Save / Load Manager")
 
 # 1. SAVE MENU
 save_filename = st.sidebar.text_input("Save File As:", value=st.session_state.projects[st.session_state.current_proj_id]["name"])
 
 if st.sidebar.button("💾 Save Current Project", use_container_width=True):
-    # Grab the active project data and save it to the folder
     active_data = st.session_state.projects[st.session_state.current_proj_id]
     save_state(save_filename, active_data)
     st.sidebar.success(f"Saved as '{save_filename}'!")
@@ -972,23 +1120,11 @@ st.sidebar.markdown("<br>", unsafe_allow_html=True)
 # 2. LOAD / DELETE MENU
 available_saves = get_save_list()
 if available_saves:
-    selected_save = st.sidebar.selectbox("Select a Save File:", available_saves)
+    # The key connects this selectbox directly to our load/delete callbacks
+    st.sidebar.selectbox("Select a Save File:", available_saves, key="save_file_selector")
     
     col1, col2 = st.sidebar.columns(2)
     
-    if col1.button("📂 Load", use_container_width=True):
-        loaded_data = load_state(selected_save)
-        
-        # Load into a brand new "Tab"
-        st.session_state.proj_counter += 1
-        new_id = f"proj_{st.session_state.proj_counter}"
-        
-        st.session_state.projects[new_id] = loaded_data
-        st.session_state.current_proj_id = new_id
-        
-        st.rerun()
-        
-    # We use type="primary" to give the delete button an accent color (often red/highlighted)
-    if col2.button("🗑️ Delete", type="primary", use_container_width=True):
-        delete_state(selected_save)
-        st.rerun()
+    # These buttons now trigger the callbacks instantly
+    col1.button("📂 Load", on_click=cb_load_save, use_container_width=True)
+    col2.button("🗑️ Delete", type="primary", on_click=cb_delete_save, use_container_width=True)
