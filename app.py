@@ -877,7 +877,7 @@ st.sidebar.title("Main Navigation")
 # Workspace Selector 
 page_choice = st.sidebar.radio(
     "Select Workspace:", 
-    ["Portfolio Summary", "Cost Calculator", "Area Calculator"] # <-- Added Portfolio Summary here
+    [ "Cost Calculator", "Portfolio Summary", "Area Calculator"] # <-- Added Portfolio Summary here
 )
 
 st.sidebar.markdown("---")
