@@ -4,3 +4,4 @@ gspread
 pandas
 plotly
 altair
+xlsxwriter
