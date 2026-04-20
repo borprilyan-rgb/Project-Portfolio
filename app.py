@@ -46,13 +46,63 @@ PROJECT_DATABASE = {
     "Parking": {k: 0.0 for k in ["struc_earth", "struc_found", "struc_work", "facade_precast_pct", "facade_precast_rate", "facade_window_pct", "facade_window_rate", "facade_double_pct", "facade_double_rate", "arch_base", "door_wood", "door_glass", "door_steel", "lobby", "gondola", "san_room_qty", "san_room_rate", "san_pub_m", "san_pub_f", "san_dis", "san_mushola", "fl_ht_pct", "fl_ht_rate", "fl_vinyl_pct", "fl_vinyl_rate", "fl_marmer_pct", "fl_marmer_rate", "kitchen", "hw_wood", "hw_steel", "carpet", "glass", "ffe", "misc", "mep", "utility", "railing_qty", "railing_rate", "skylight_rate", "ext_land", "fac_pub", "fac_res", "fac_proj"]}
 }
 
+import os
+import json
+
+# --- 2.1 FILE STORAGE SETUP ---
+STORAGE_DIR = "project_data_store"
+
+# Create the storage directory if it doesn't exist
+if not os.path.exists(STORAGE_DIR):
+    os.makedirs(STORAGE_DIR)
+
+def save_project_to_disk(proj_id, project_data):
+    """Saves a project's data to a JSON file in the storage directory."""
+    filepath = os.path.join(STORAGE_DIR, f"{proj_id}.json")
+    with open(filepath, 'w') as f:
+        json.dump(project_data, f)
+
+def load_all_projects_from_disk():
+    """Loads all saved JSON files from the storage directory into a dictionary."""
+    loaded_projects = {}
+    if os.path.exists(STORAGE_DIR):
+        for filename in os.listdir(STORAGE_DIR):
+            if filename.endswith(".json"):
+                proj_id = filename.replace(".json", "")
+                filepath = os.path.join(STORAGE_DIR, filename)
+                with open(filepath, 'r') as f:
+                    try:
+                        loaded_projects[proj_id] = json.load(f)
+                    except json.JSONDecodeError:
+                        st.error(f"Error loading {filename}")
+    return loaded_projects
+
 # --- 2.5 SESSION STATE (PROJECT MEMORY) ---
 if "projects" not in st.session_state:
-    st.session_state.projects = {
-        "proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}} # <-- Added "data": {}
-    }
-    st.session_state.current_proj_id = "proj_1"
-    st.session_state.proj_counter = 1
+    # 1. Try to load from disk first
+    saved_projects = load_all_projects_from_disk()
+    
+    if saved_projects:
+        # If we found saved files, load them into memory
+        st.session_state.projects = saved_projects
+        # Set the active project to the first one in the list
+        st.session_state.current_proj_id = list(saved_projects.keys())[0]
+        
+        # Figure out what the highest counter was so we don't overwrite
+        highest_num = 1
+        for pid in saved_projects.keys():
+            if pid.startswith("proj_"):
+                num = int(pid.split("_")[1])
+                if num > highest_num:
+                    highest_num = num
+        st.session_state.proj_counter = highest_num
+    else:
+        # 2. If nothing is saved, start fresh
+        st.session_state.projects = {
+            "proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}} 
+        }
+        st.session_state.current_proj_id = "proj_1"
+        st.session_state.proj_counter = 1
 
 
 # --- 3. THE "SHEETS" (FUNCTIONS) ---
@@ -654,7 +704,7 @@ def show_cost_estimator():
             st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
 
 
-# --- 2. GLOBAL EXPORT SECTION (Placed at the bottom) ---
+# --- 2. GLOBAL EXPORT SECTION ---
     
     # Package ALL current variables into a dictionary
     current_metrics = {
@@ -690,23 +740,14 @@ def show_cost_estimator():
         "sc_pm_m": pm_months, "sc_pm_r": pm_rate, "sc_ins": insurance_pct
     }
     
-    # MAGIC TRICK: Save live metrics into the master locker so they survive switching!
+    # Save live metrics into the master locker
     st.session_state.projects[curr_id]["data"] = current_metrics
 
-    # Convert to CSV string format
-    df_export = pd.DataFrame(list(current_metrics.items()), columns=["Metric_Key", "Value"])
-    csv_data = df_export.to_csv(index=False).encode('utf-8')
-
-    # Ensure the subheader is OUTSIDE the button parentheses
     st.sidebar.markdown("---")
-    st.sidebar.subheader("Download CSV")
-    st.sidebar.download_button(
-        label="Download Here",
-        data=csv_data,
-        file_name=f"{new_name.replace(' ', '_').lower()}_config.csv",
-        mime="text/csv",
-        use_container_width=True
-    )
+    if st.sidebar.button("💾 Save Project Data", use_container_width=True):
+        # Save the current project to disk
+        save_project_to_disk(curr_id, st.session_state.projects[curr_id])
+        st.sidebar.success(f"✅ Saved {new_name}!")
 
 def show_portfolio_summary():
     st.markdown("---")
@@ -907,8 +948,6 @@ selected_idx = proj_labels.index(selected_label)
 if st.session_state.current_proj_id != proj_ids[selected_idx]:
     st.session_state.current_proj_id = proj_ids[selected_idx]
     st.rerun() 
-
-st.sidebar.markdown("---")
 
 
 # --- 5. EXECUTION LOGIC ---
