@@ -708,13 +708,176 @@ def show_cost_estimator():
         use_container_width=True
     )
 
+def show_portfolio_summary():
+    st.markdown("---")
+    
+    # 1. HELPER FUNCTION
+    def get_project_totals(proj_dict):
+        d = proj_dict.get("data", {})
+        pt_data = PROJECT_DATABASE.get(proj_dict["type"], PROJECT_DATABASE["Hotel"])
+        
+        # Priority: session_state data -> Database Defaults -> 0.0
+        def v(key, default=0.0): 
+            return d.get(key, pt_data.get(key, default))
+
+        gba = v("m_gba")
+        gfa = v("m_gfa")
+        sgfa = v("m_sgfa")
+        rooms = v("m_rooms")
+        facade = v("m_facade")
+        
+        # Calculate Hard Costs
+        f_mult = 1.32
+        hc = (
+            (gba * v("u_earth")) + (gba * v("u_found")) + (gba * v("u_struc")) +
+            (gfa * v("u_arch")) + 
+            (facade * (v("r_fac_pre")/100) * v("u_f_pre")) +
+            (facade * (v("r_fac_win")/100) * v("u_f_win")) +
+            (facade * (v("r_fac_doub")/100) * v("u_f_doub")) +
+            (v("m_door_w") * v("u_d_wood")) + (v("m_door_g") * v("u_d_glass")) + (v("m_door_s") * v("u_d_steel")) +
+            (v("m_lobby") * v("u_lobby")) + (v("m_gondola") * v("u_gondola")) +
+            (rooms * v("r_san_qty") * v("u_s_room")) + 
+            (v("m_toil_m") * v("u_s_pub_m")) + (v("m_toil_f") * v("u_s_pub_f")) + 
+            (v("m_toil_d") * v("u_s_dis")) + (v("m_mushola") * v("u_s_mushola")) +
+            (rooms * v("u_kit")) + (v("m_door_w") * v("u_hw_wood")) + (v("m_door_s") * v("u_hw_steel")) +
+            (gfa * (v("r_fl_ht")/100) * v("u_fl_ht") * f_mult) +
+            (gfa * (v("r_fl_vin")/100) * v("u_fl_vin") * f_mult) +
+            (gfa * (v("r_fl_mar")/100) * v("u_fl_mar") * f_mult) +
+            (v("m_carpet") * v("u_carpet")) + (v("m_glass") * v("u_glass")) + (rooms * v("u_ffe")) +
+            v("u_misc") + (gba * v("u_mep")) + (gba * v("u_util")) +
+            (rooms * v("r_rail_qty") * v("u_rail")) + (v("m_skylight") * v("u_sky")) +
+            (v("m_land_m2") * v("u_ext")) + (v("m_fac_pub") * v("u_fac_p")) +
+            (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr"))
+        )
+        
+        # Custom Smart Costs
+        custom_costs = d.get("smart_custom_costs", [])
+        dep_map = {"None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa, "Land Area": v("m_land"), "Rooms": rooms, "Facade": facade, "Lobby": v("m_lobby")}
+        for item in custom_costs:
+            hc += float(item.get("Rate (Rp)", 0)) * float(item.get("Multiplier (Qty)", 1)) * dep_map.get(item.get("Linked Dependency"), 1.0)
+
+        hc_total = hc + (hc * 0.05) + (hc * 0.03) 
+        sc_total = (gfa * v("sc_cons")) + (v("sc_qs_m") * v("sc_qs_r")) + (v("sc_pm_m") * v("sc_pm_r")) + (hc * (v("sc_ins")/100))
+        
+        return {"gba": gba, "gfa": gfa, "sgfa": sgfa, "units": rooms, "budget": hc_total + sc_total}
+
+    # --- 2. GENERATE ROWS ---
+    table_rows = ""
+    total_gba = total_gfa = total_sgfa = total_budget = 0
+    
+    for idx, (p_id, p_data) in enumerate(st.session_state.projects.items(), 1):
+        m = get_project_totals(p_data)
+        
+        # Calculate Ratios
+        r_gba = m["budget"] / m["gba"] if m["gba"] > 0 else 0
+        r_gfa = m["budget"] / m["gfa"] if m["gfa"] > 0 else 0
+        r_sgfa = m["budget"] / m["sgfa"] if m["sgfa"] > 0 else 0
+        
+        total_gba += m["gba"]
+        total_gfa += m["gfa"]
+        total_sgfa += m["sgfa"]
+        total_budget += m["budget"]
+        
+        table_rows += f"""
+        <tr>
+            <td style="border: 1px solid black; padding: 5px;">{idx}</td>
+            <td style="border: 1px solid black; padding: 5px; text-align: left;"><b>{p_data['name'].upper()}</b></td>
+            <td style="border: 1px solid black; padding: 5px;">{m['gba']:,.0f}</td>
+            <td style="border: 1px solid black; padding: 5px;">{m['gfa']:,.0f}</td>
+            <td style="border: 1px solid black; padding: 5px;">{m['sgfa']:,.0f}</td>
+            <td style="border: 1px solid black; padding: 5px;">{m['units']:,.0f}</td>
+            <td style="border: 1px solid black; padding: 5px;">Units</td>
+            <td style="border: 1px solid black; padding: 5px; text-align: right;"><b>{m['budget']:,.0f}</b></td>
+            <td style="border: 1px solid black; padding: 5px;">{r_gba:,.0f}</td>
+            <td style="border: 1px solid black; padding: 5px;">{r_gfa:,.0f}</td>
+            <td style="border: 1px solid black; padding: 5px;">{r_sgfa:,.0f}</td>
+        </tr>
+        """
+
+    # Final Ratios
+    t_r_gba = total_budget / total_gba if total_gba > 0 else 0
+    t_r_gfa = total_budget / total_gfa if total_gfa > 0 else 0
+    t_r_sgfa = total_budget / total_sgfa if total_sgfa > 0 else 0
+
+    # --- 3. RENDER ---
+    html_string = f"""
+    <div style="font-family: Calibri, sans-serif; font-size: 13px; color: black; background-color: white; padding: 20px; border-radius: 5px;">
+        <div style="background-color: #0062a8; color: white; padding: 10px; font-weight: bold; line-height: 1.4; font-size: 14px;">
+            <div style="display: flex; justify-content: space-between;">
+                <div>ASG GROUP PROPERTY DEVELOPMENT</div>
+                <div>VERSION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: R (0)</div>
+            </div>
+            <div>QS & PROCUREMENT DIVISION</div>
+            <div>PROJECT PORTFOLIO | ALL ACTIVE PROJECTS</div>
+        </div>
+        <br>
+        <table style="width: 100%; border-collapse: collapse; border: 2px solid black; text-align: center;">
+            <tr style="background-color: #f2f2f2; font-weight: bold;">
+                <td rowspan="2" style="border: 1px solid black; padding: 5px;">SN</td>
+                <td rowspan="2" style="border: 1px solid black; padding: 5px;">AREA</td>
+                <td colspan="3" style="border: 1px solid black; padding: 5px;">BUILDING AREA (M2)</td>
+                <td colspan="2" rowspan="2" style="border: 1px solid black; padding: 5px;">UNIT</td>
+                <td rowspan="2" style="border: 1px solid black; padding: 5px;">BUDGET ESTIMATE<br>RP</td>
+                <td colspan="3" style="border: 1px solid black; padding: 5px;">COST RATIO RP/M2</td>
+            </tr>
+            <tr style="background-color: #f2f2f2; font-weight: bold;">
+                <td style="border: 1px solid black; padding: 5px;">GBA</td>
+                <td style="border: 1px solid black; padding: 5px;">GFA</td>
+                <td style="border: 1px solid black; padding: 5px;">SGFA</td>
+                <td style="border: 1px solid black; padding: 5px;">GBA</td>
+                <td style="border: 1px solid black; padding: 5px;">GFA</td>
+                <td style="border: 1px solid black; padding: 5px;">SGFA</td>
+            </tr>
+            {table_rows}
+            <tr style="background-color: #e0e0e0; font-weight: bold;">
+                <td colspan="2" style="border: 1px solid black; padding: 5px;">TOTAL</td>
+                <td style="border: 1px solid black; padding: 5px;">{total_gba:,.0f}</td>
+                <td style="border: 1px solid black; padding: 5px;">{total_gfa:,.0f}</td>
+                <td style="border: 1px solid black; padding: 5px;">{total_sgfa:,.0f}</td>
+                <td colspan="2" style="border: 1px solid black; padding: 5px;"></td>
+                <td style="border: 1px solid black; padding: 5px; text-align: right;">{total_budget:,.0f}</td>
+                <td style="border: 1px solid black; padding: 5px;">{t_r_gba:,.0f}</td>
+                <td style="border: 1px solid black; padding: 5px;">{t_r_gfa:,.0f}</td>
+                <td style="border: 1px solid black; padding: 5px;">{t_r_sgfa:,.0f}</td>
+            </tr>
+        </table>
+        <br>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #dcdcdc; text-align: left;">
+            <tr style="background-color: #ffdf70; font-weight: bold;">
+                <td style="border: 1px solid white; padding: 3px 5px; width: 30px; text-align: center;">I.</td>
+                <td style="border: 1px solid white; padding: 3px 5px;">ASSUMPTIONS</td>
+            </tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">1</td><td style="padding: 2px 5px;">Foundation System standard pilecaps.</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">2</td><td style="padding: 2px 5px;">No Basement.</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">3</td><td style="padding: 2px 5px;">Parking provison limited to ON STREET LEVEL parking</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">4</td><td style="padding: 2px 5px;">Floor to Floor Height at 3.3M</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">5</td><td style="padding: 2px 5px;">Facade Alumunium Window Wall - No Double skin</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">6</td><td style="padding: 2px 5px;">External Façade Precast, No double skin for parking podium if any.</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">7</td><td style="padding: 2px 5px;">Ground Lobby Finishes completed with Artificial stone & HT.</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">8</td><td style="padding: 2px 5px;">Typical Corridor | Floor finishes : HT | Wall Finishes : Cement Sand Plaster c/w Emulsion Paint.</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">9</td><td style="padding: 2px 5px;">Aircon System | Apartement : AC Split</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">10</td><td style="padding: 2px 5px;">SBO Rebars @ Rp. 10.000/kg</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">11</td><td style="padding: 2px 5px;">Excluded Smarthome</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">12</td><td style="padding: 2px 5px;">Lift : 2 Passenger Lift + 1 Services Lift / TOWER</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">13</td><td style="padding: 2px 5px;">Exclude Wardrobe</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">14</td><td style="padding: 2px 5px;">FFE : Kitchen cabinet, Hob & Hood, Refrigerator & Washing Machine</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">15</td><td style="padding: 2px 5px;">Water Heater : Installation only</td></tr>
+            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">16</td><td style="padding: 2px 5px;">CALCULATION AREA refer to DP's calculation dated <span style="color:red;">12.03.2026</span></td></tr>
+        </table>
+    </div>
+    """
+    
+    # THE FIX: This flattens the entire string into one line so Markdown ignores it
+    clean_html = html_string.replace('\n', '')
+    st.markdown(clean_html, unsafe_allow_html=True)
+
 # --- 4. MAIN NAVIGATION & SIDEBAR PROJECT LIST ---
 st.sidebar.title("Main Navigation")
 
-# Workspace Selector (Using standard radio, or segmented_control if Streamlit 1.36+)
+# Workspace Selector 
 page_choice = st.sidebar.radio(
     "Select Workspace:", 
-    ["Cost Calculator", "Area Calculator"]
+    ["Portfolio Summary", "Cost Calculator", "Area Calculator"] # <-- Added Portfolio Summary here
 )
 
 st.sidebar.markdown("---")
@@ -724,19 +887,15 @@ st.sidebar.subheader("📂 Project List")
 if st.sidebar.button("➕ Add New Project", use_container_width=True):
     st.session_state.proj_counter += 1
     new_id = f"proj_{st.session_state.proj_counter}"
-    # Added "data": {} to new projects as well!
     st.session_state.projects[new_id] = {"name": f"New Project {st.session_state.proj_counter}", "type": "Hotel", "data": {}}
     st.session_state.current_proj_id = new_id
     st.rerun()
 
-# Format the list to show: "Name (Type)"
 proj_ids = list(st.session_state.projects.keys())
 proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
 
-# Find index of current project to keep it highlighted
 current_index = proj_ids.index(st.session_state.current_proj_id) if st.session_state.current_proj_id in proj_ids else 0
 
-# The Project Selection List
 selected_label = st.sidebar.radio(
     "Select Active Project:",
     options=proj_labels,
@@ -744,17 +903,18 @@ selected_label = st.sidebar.radio(
     key="project_selector"
 )
 
-# Sync sidebar clicks back to session state
 selected_idx = proj_labels.index(selected_label)
 if st.session_state.current_proj_id != proj_ids[selected_idx]:
     st.session_state.current_proj_id = proj_ids[selected_idx]
-    st.rerun() # Refresh to show the newly clicked project's data
+    st.rerun() 
 
 st.sidebar.markdown("---")
 
 
 # --- 5. EXECUTION LOGIC ---
-if page_choice == "Area Calculator":
+if page_choice == "Portfolio Summary":     # <-- Added Routing
+    show_portfolio_summary()
+elif page_choice == "Area Calculator":
     show_area_calculator()
 else:
     show_cost_estimator()
