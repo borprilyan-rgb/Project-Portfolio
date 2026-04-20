@@ -74,6 +74,12 @@ def load_state(filename):
     with open(filepath, 'r') as f:
         return json.load(f)
 
+def delete_state(filename):
+    """Deletes a project JSON file from the storage directory."""
+    filepath = os.path.join(STORAGE_DIR, f"{filename}.json")
+    if os.path.exists(filepath):
+        os.remove(filepath)        
+
 # --- 2.5 SESSION STATE (PROJECT MEMORY) ---
 if "projects" not in st.session_state:
     st.session_state.projects = {
@@ -945,19 +951,26 @@ if st.sidebar.button("💾 Save Current Project", use_container_width=True):
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
-# 2. LOAD MENU
+# 2. LOAD / DELETE MENU
 available_saves = get_save_list()
 if available_saves:
-    selected_save = st.sidebar.selectbox("Select a Save File to Load:", available_saves)
+    selected_save = st.sidebar.selectbox("Select a Save File:", available_saves)
     
-    if st.sidebar.button("📂 Load Selected Save", use_container_width=True):
+    col1, col2 = st.sidebar.columns(2)
+    
+    if col1.button("📂 Load", use_container_width=True):
         loaded_data = load_state(selected_save)
         
-        # Act like a video game: Load the save into a brand new "Tab" in the active project list
+        # Load into a brand new "Tab"
         st.session_state.proj_counter += 1
         new_id = f"proj_{st.session_state.proj_counter}"
         
         st.session_state.projects[new_id] = loaded_data
         st.session_state.current_proj_id = new_id
         
+        st.rerun()
+        
+    # We use type="primary" to give the delete button an accent color (often red/highlighted)
+    if col2.button("🗑️ Delete", type="primary", use_container_width=True):
+        delete_state(selected_save)
         st.rerun()
