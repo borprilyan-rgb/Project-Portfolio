@@ -893,10 +893,10 @@ def show_portfolio_summary():
 # --- 4. MAIN NAVIGATION & SIDEBAR PROJECT LIST ---
 st.sidebar.title("Main Navigation")
 
-# Workspace Selector 
+# Workspace Selector
 page_choice = st.sidebar.radio(
     "Select Workspace:", 
-    [ "Cost Calculator", "Portfolio Summary", "Area Calculator"] # <-- Added Portfolio Summary here
+    ["Cost Calculator", "Area Calculator", "Portfolio Summary"] 
 )
 
 st.sidebar.markdown("---")
@@ -915,18 +915,36 @@ proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.pro
 
 current_index = proj_ids.index(st.session_state.current_proj_id) if st.session_state.current_proj_id in proj_ids else 0
 
-selected_label = st.sidebar.radio(
-    "Select Active Project:",
-    options=proj_labels,
-    index=current_index,
-    key="project_selector"
-)
+# --- NEW: SELECT & DELETE LOGIC ---
+col_sel, col_del = st.sidebar.columns([4, 1]) # Make the selector wide, delete button small
 
-selected_idx = proj_labels.index(selected_label)
-if st.session_state.current_proj_id != proj_ids[selected_idx]:
-    st.session_state.current_proj_id = proj_ids[selected_idx]
-    st.rerun() 
+with col_sel:
+    selected_label = st.selectbox(
+        "Active Project:",
+        options=proj_labels,
+        index=current_index,
+        key="project_selector",
+        label_visibility="collapsed" # Hides the text so it aligns better with the trash icon
+    )
 
+with col_del:
+    # Disable the delete button if there's only 1 project left (prevent empty state crashes)
+    can_delete = len(st.session_state.projects) > 1
+    if st.button("🗑️", disabled=not can_delete, help="Delete Active Project"):
+        # Delete from memory
+        del st.session_state.projects[st.session_state.current_proj_id]
+        # Re-assign the active project to the first one available
+        st.session_state.current_proj_id = list(st.session_state.projects.keys())[0]
+        st.rerun()
+
+# Sync sidebar clicks back to session state (Only runs if we didn't just delete something)
+if selected_label in proj_labels: 
+    selected_idx = proj_labels.index(selected_label)
+    if st.session_state.current_proj_id != proj_ids[selected_idx]:
+        st.session_state.current_proj_id = proj_ids[selected_idx]
+        st.rerun() 
+
+st.sidebar.markdown("---")
 
 # --- 5. EXECUTION LOGIC ---
 if page_choice == "Portfolio Summary":     # <-- Added Routing
