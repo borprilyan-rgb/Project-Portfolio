@@ -49,60 +49,38 @@ PROJECT_DATABASE = {
 import os
 import json
 
-# --- 2.1 FILE STORAGE SETUP ---
-STORAGE_DIR = "project_data_store"
+# --- 2.1 SAVE/LOAD SYSTEM SETUP ---
+STORAGE_DIR = "project_saves"
 
-# Create the storage directory if it doesn't exist
+# Create the save folder if it doesn't exist
 if not os.path.exists(STORAGE_DIR):
     os.makedirs(STORAGE_DIR)
 
-def save_project_to_disk(proj_id, project_data):
-    """Saves a project's data to a JSON file in the storage directory."""
-    filepath = os.path.join(STORAGE_DIR, f"{proj_id}.json")
+def save_state(filename, data):
+    """Writes a project dictionary to a JSON file."""
+    filepath = os.path.join(STORAGE_DIR, f"{filename}.json")
     with open(filepath, 'w') as f:
-        json.dump(project_data, f)
+        json.dump(data, f)
 
-def load_all_projects_from_disk():
-    """Loads all saved JSON files from the storage directory into a dictionary."""
-    loaded_projects = {}
-    if os.path.exists(STORAGE_DIR):
-        for filename in os.listdir(STORAGE_DIR):
-            if filename.endswith(".json"):
-                proj_id = filename.replace(".json", "")
-                filepath = os.path.join(STORAGE_DIR, filename)
-                with open(filepath, 'r') as f:
-                    try:
-                        loaded_projects[proj_id] = json.load(f)
-                    except json.JSONDecodeError:
-                        st.error(f"Error loading {filename}")
-    return loaded_projects
+def get_save_list():
+    """Returns a list of all available save files."""
+    if not os.path.exists(STORAGE_DIR): return []
+    saves = [f.replace(".json", "") for f in os.listdir(STORAGE_DIR) if f.endswith(".json")]
+    return sorted(saves)
+
+def load_state(filename):
+    """Loads a project dictionary from a JSON file."""
+    filepath = os.path.join(STORAGE_DIR, f"{filename}.json")
+    with open(filepath, 'r') as f:
+        return json.load(f)
 
 # --- 2.5 SESSION STATE (PROJECT MEMORY) ---
 if "projects" not in st.session_state:
-    # 1. Try to load from disk first
-    saved_projects = load_all_projects_from_disk()
-    
-    if saved_projects:
-        # If we found saved files, load them into memory
-        st.session_state.projects = saved_projects
-        # Set the active project to the first one in the list
-        st.session_state.current_proj_id = list(saved_projects.keys())[0]
-        
-        # Figure out what the highest counter was so we don't overwrite
-        highest_num = 1
-        for pid in saved_projects.keys():
-            if pid.startswith("proj_"):
-                num = int(pid.split("_")[1])
-                if num > highest_num:
-                    highest_num = num
-        st.session_state.proj_counter = highest_num
-    else:
-        # 2. If nothing is saved, start fresh
-        st.session_state.projects = {
-            "proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}} 
-        }
-        st.session_state.current_proj_id = "proj_1"
-        st.session_state.proj_counter = 1
+    st.session_state.projects = {
+        "proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}
+    }
+    st.session_state.current_proj_id = "proj_1"
+    st.session_state.proj_counter = 1
 
 
 # --- 3. THE "SHEETS" (FUNCTIONS) ---
@@ -743,12 +721,6 @@ def show_cost_estimator():
     # Save live metrics into the master locker
     st.session_state.projects[curr_id]["data"] = current_metrics
 
-    st.sidebar.markdown("---")
-    if st.sidebar.button("💾 Save Project Data", use_container_width=True):
-        # Save the current project to disk
-        save_project_to_disk(curr_id, st.session_state.projects[curr_id])
-        st.sidebar.success(f"✅ Saved {new_name}!")
-
 def show_portfolio_summary():
     st.markdown("---")
     
@@ -957,3 +929,35 @@ elif page_choice == "Area Calculator":
     show_area_calculator()
 else:
     show_cost_estimator()
+
+    # --- 6. GLOBAL SAVE / LOAD UI (SIDEBAR) ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("💾 Save / Load Manager")
+
+# 1. SAVE MENU
+save_filename = st.sidebar.text_input("Save File As:", value=st.session_state.projects[st.session_state.current_proj_id]["name"])
+
+if st.sidebar.button("💾 Save Current Project", use_container_width=True):
+    # Grab the active project data and save it to the folder
+    active_data = st.session_state.projects[st.session_state.current_proj_id]
+    save_state(save_filename, active_data)
+    st.sidebar.success(f"Saved as '{save_filename}'!")
+
+st.sidebar.markdown("<br>", unsafe_allow_html=True)
+
+# 2. LOAD MENU
+available_saves = get_save_list()
+if available_saves:
+    selected_save = st.sidebar.selectbox("Select a Save File to Load:", available_saves)
+    
+    if st.sidebar.button("📂 Load Selected Save", use_container_width=True):
+        loaded_data = load_state(selected_save)
+        
+        # Act like a video game: Load the save into a brand new "Tab" in the active project list
+        st.session_state.proj_counter += 1
+        new_id = f"proj_{st.session_state.proj_counter}"
+        
+        st.session_state.projects[new_id] = loaded_data
+        st.session_state.current_proj_id = new_id
+        
+        st.rerun()
