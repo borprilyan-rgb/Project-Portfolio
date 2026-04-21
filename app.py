@@ -60,38 +60,49 @@ def save_state_to_gsheets(filename, data):
         # 1. Read existing data
         df = conn.read(worksheet="saves", ttl=0)
     except Exception:
-        # 2. If sheet is totally empty/missing, create the structure
+        # 2. If worksheet doesn't exist or is unreadable, start fresh
         df = pd.DataFrame(columns=['save_name', 'project_data'])
     
-    # Convert project data to a string for storage
+    # Convert project data to a string
     json_data = json.dumps(data)
     
-    # 3. Check if we are updating or adding
-    if not df.empty and filename in df['save_name'].values:
-        df.loc[df['save_name'] == filename, 'project_data'] = json_data
+    # 3. Handle empty dataframe or missing columns
+    if df is None or 'save_name' not in df.columns:
+        df = pd.DataFrame([{"save_name": filename, "project_data": json_data}])
     else:
-        new_row = pd.DataFrame([{"save_name": filename, "project_data": json_data}])
-        df = pd.concat([df, new_row], ignore_index=True)
+        # 4. Update or Append
+        if filename in df['save_name'].values:
+            df.loc[df['save_name'] == filename, 'project_data'] = json_data
+        else:
+            new_row = pd.DataFrame([{"save_name": filename, "project_data": json_data}])
+            df = pd.concat([df, new_row], ignore_index=True)
     
-    # 4. Critical: Use the connection to UPDATE
+    # 5. Write back to Google Sheets
     conn.update(worksheet="saves", data=df)
     
-    # 5. Force clear cache so the "Load" list updates immediately
+    # 6. CRITICAL: Clear Streamlit's memory so the 'Load' dropdown sees the change
     st.cache_data.clear()
 
 def get_gsheets_save_list():
     """Returns a list of all save names from the sheet."""
     try:
+        # ttl=0 ensures we don't look at old, "cached" data
         df = conn.read(worksheet="saves", ttl=0)
-        return df['save_name'].tolist()
+        if df is not None and not df.empty and 'save_name' in df.columns:
+            return df['save_name'].dropna().tolist()
+        return []
     except:
         return []
 
 def load_state_from_gsheets(filename):
     """Loads a project from the Google Sheet."""
     df = conn.read(worksheet="saves", ttl=0)
-    json_str = df.loc[df['save_name'] == filename, 'project_data'].values[0]
-    return json.loads(json_str)
+    # Filter for the specific row
+    row = df[df['save_name'] == filename]
+    if not row.empty:
+        json_str = row['project_data'].values[0]
+        return json.loads(json_str)
+    return None
 
 def delete_state_from_gsheets(filename):
     """Removes a project row from the Google Sheet."""
@@ -1122,34 +1133,39 @@ elif page_choice == "Area Calculator":
     show_area_calculator()
 else:
     show_cost_estimator()
-
+    
 # --- 6. GLOBAL SAVE / LOAD UI (SIDEBAR) ---
 st.sidebar.subheader("☁️ Cloud Save Manager")
 
 # 1. SAVE TO CLOUD
-save_filename = st.sidebar.text_input("Save Name:", value=st.session_state.projects[st.session_state.current_proj_id]["name"])
+active_name = st.session_state.projects[st.session_state.current_proj_id]["name"]
+save_filename = st.sidebar.text_input("Save Name:", value=active_name)
 
 if st.sidebar.button("💾 Save to Google Sheets", use_container_width=True):
     active_data = st.session_state.projects[st.session_state.current_proj_id]
     save_state_to_gsheets(save_filename, active_data)
     st.sidebar.success(f"Synced '{save_filename}' to Cloud!")
+    st.rerun() # Refresh to update the load list immediately
 
 # 2. LOAD FROM CLOUD
 available_saves = get_gsheets_save_list()
 if available_saves:
-    st.sidebar.selectbox("Select Cloud Save:", available_saves, key="cloud_save_selector")
+    selected_save = st.sidebar.selectbox("Select Cloud Save:", available_saves)
     
     c1, c2 = st.sidebar.columns(2)
     
     if c1.button("📂 Load Cloud", use_container_width=True):
-        loaded_data = load_state_from_gsheets(st.session_state.cloud_save_selector)
-        # Standard load logic...
-        st.session_state.proj_counter += 1
-        new_id = f"proj_{st.session_state.proj_counter}"
-        st.session_state.projects[new_id] = loaded_data
-        st.session_state.current_proj_id = new_id
-        st.rerun()
+        loaded_data = load_state_from_gsheets(selected_save)
+        if loaded_data:
+            st.session_state.proj_counter += 1
+            new_id = f"proj_{st.session_state.proj_counter}"
+            st.session_state.projects[new_id] = loaded_data
+            st.session_state.current_proj_id = new_id
+            st.rerun()
 
     if c2.button("🗑️ Delete Cloud", type="primary", use_container_width=True):
-        delete_state_from_gsheets(st.session_state.cloud_save_selector)
+        delete_state_from_gsheets(selected_save)
+        st.cache_data.clear() # Clear cache after delete
         st.rerun()
+else:
+    st.sidebar.info("No cloud saves found.")
