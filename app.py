@@ -55,60 +55,73 @@ from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def save_state_to_gsheets(filename, data):
-    """Saves or updates a project in the Google Sheet."""
+    """Saves or updates a project, returning True/False and an error message."""
     try:
-        # 1. Read existing data
-        df = conn.read(worksheet="saves", ttl=0)
-    except Exception:
-        # 2. If worksheet doesn't exist or is unreadable, start fresh
-        df = pd.DataFrame(columns=['save_name', 'project_data'])
-    
-    # Convert project data to a string
-    json_data = json.dumps(data)
-    
-    # 3. Handle empty dataframe or missing columns
-    if df is None or 'save_name' not in df.columns:
-        df = pd.DataFrame([{"save_name": filename, "project_data": json_data}])
-    else:
-        # 4. Update or Append
-        if filename in df['save_name'].values:
-            df.loc[df['save_name'] == filename, 'project_data'] = json_data
+        # 1. Read existing data safely
+        try:
+            df = conn.read(worksheet="saves", ttl=0)
+            if df is None or 'save_name' not in df.columns:
+                df = pd.DataFrame(columns=['save_name', 'project_data'])
+        except Exception as read_err:
+            st.sidebar.warning(f"Note: Creating new sheet structure. ({read_err})")
+            df = pd.DataFrame(columns=['save_name', 'project_data'])
+        
+        # 2. Package data
+        json_data = json.dumps(data)
+        
+        # Force filename to string to prevent mismatch errors
+        filename_str = str(filename)
+        df['save_name'] = df['save_name'].astype(str)
+        
+        # 3. Update or Append
+        if not df.empty and filename_str in df['save_name'].values:
+            df.loc[df['save_name'] == filename_str, 'project_data'] = json_data
         else:
-            new_row = pd.DataFrame([{"save_name": filename, "project_data": json_data}])
+            new_row = pd.DataFrame([{"save_name": filename_str, "project_data": json_data}])
             df = pd.concat([df, new_row], ignore_index=True)
-    
-    # 5. Write back to Google Sheets
-    conn.update(worksheet="saves", data=df)
-    
-    # 6. CRITICAL: Clear Streamlit's memory so the 'Load' dropdown sees the change
-    st.cache_data.clear()
+        
+        # 4. Write back to Google Sheets
+        conn.update(worksheet="saves", data=df)
+        st.cache_data.clear()
+        return True, ""
+        
+    except Exception as e:
+        # If anything fails during the save, catch it here!
+        return False, str(e)
 
 def get_gsheets_save_list():
-    """Returns a list of all save names from the sheet."""
     try:
-        # ttl=0 ensures we don't look at old, "cached" data
         df = conn.read(worksheet="saves", ttl=0)
         if df is not None and not df.empty and 'save_name' in df.columns:
-            return df['save_name'].dropna().tolist()
+            # Drop empty rows and return as a clean list
+            return df['save_name'].dropna().astype(str).tolist()
         return []
-    except:
+    except Exception as e:
+        st.sidebar.error(f"Failed to load save list: {e}")
         return []
 
 def load_state_from_gsheets(filename):
-    """Loads a project from the Google Sheet."""
-    df = conn.read(worksheet="saves", ttl=0)
-    # Filter for the specific row
-    row = df[df['save_name'] == filename]
-    if not row.empty:
-        json_str = row['project_data'].values[0]
-        return json.loads(json_str)
-    return None
+    try:
+        df = conn.read(worksheet="saves", ttl=0)
+        df['save_name'] = df['save_name'].astype(str)
+        row = df[df['save_name'] == str(filename)]
+        if not row.empty:
+            json_str = row['project_data'].values[0]
+            return json.loads(json_str)
+        return None
+    except Exception as e:
+        st.sidebar.error(f"Failed to load file: {e}")
+        return None
 
 def delete_state_from_gsheets(filename):
-    """Removes a project row from the Google Sheet."""
-    df = conn.read(worksheet="saves", ttl=0)
-    df = df[df['save_name'] != filename]
-    conn.update(worksheet="saves", data=df)
+    try:
+        df = conn.read(worksheet="saves", ttl=0)
+        df['save_name'] = df['save_name'].astype(str)
+        df = df[df['save_name'] != str(filename)]
+        conn.update(worksheet="saves", data=df)
+        st.cache_data.clear()
+    except Exception as e:
+        st.sidebar.error(f"Failed to delete: {e}")
 
 # --- 2.2 LIGHTNING-FAST CALLBACK FUNCTIONS ---
 def cb_add_project():
@@ -1135,6 +1148,8 @@ else:
     show_cost_estimator()
     
 # --- 6. GLOBAL SAVE / LOAD UI (SIDEBAR) ---
+import time
+
 st.sidebar.subheader("☁️ Cloud Save Manager")
 
 # 1. SAVE TO CLOUD
@@ -1143,9 +1158,17 @@ save_filename = st.sidebar.text_input("Save Name:", value=active_name)
 
 if st.sidebar.button("💾 Save to Google Sheets", use_container_width=True):
     active_data = st.session_state.projects[st.session_state.current_proj_id]
-    save_state_to_gsheets(save_filename, active_data)
-    st.sidebar.success(f"Synced '{save_filename}' to Cloud!")
-    st.rerun() # Refresh to update the load list immediately
+    
+    # Catch the success or failure from our new robust function
+    is_success, error_message = save_state_to_gsheets(save_filename, active_data)
+    
+    if is_success:
+        st.sidebar.success(f"✅ Synced '{save_filename}' to Cloud!")
+        time.sleep(1.5) # Pause so you can read the message!
+        st.rerun() 
+    else:
+        # This is the goldmine. It will print exactly why Google is rejecting the save.
+        st.sidebar.error(f"❌ Google API Error: {error_message}")
 
 # 2. LOAD FROM CLOUD
 available_saves = get_gsheets_save_list()
@@ -1163,9 +1186,9 @@ if available_saves:
             st.session_state.current_proj_id = new_id
             st.rerun()
 
-    if c2.button("🗑️ Delete Cloud", type="primary", use_container_width=True):
+    if c2.button("🗑️ Delete", type="primary", use_container_width=True):
         delete_state_from_gsheets(selected_save)
-        st.cache_data.clear() # Clear cache after delete
+        time.sleep(1)
         st.rerun()
 else:
     st.sidebar.info("No cloud saves found.")
