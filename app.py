@@ -56,22 +56,28 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 def save_state_to_gsheets(filename, data):
     """Saves or updates a project in the Google Sheet."""
-    # Read existing data
-    df = conn.read(worksheet="saves", ttl=0)
+    try:
+        # 1. Read existing data
+        df = conn.read(worksheet="saves", ttl=0)
+    except Exception:
+        # 2. If sheet is totally empty/missing, create the structure
+        df = pd.DataFrame(columns=['save_name', 'project_data'])
     
     # Convert project data to a string for storage
     json_data = json.dumps(data)
     
-    if filename in df['save_name'].values:
-        # Update existing row
+    # 3. Check if we are updating or adding
+    if not df.empty and filename in df['save_name'].values:
         df.loc[df['save_name'] == filename, 'project_data'] = json_data
     else:
-        # Append new row
         new_row = pd.DataFrame([{"save_name": filename, "project_data": json_data}])
         df = pd.concat([df, new_row], ignore_index=True)
     
-    # Write back to Google Sheets
+    # 4. Critical: Use the connection to UPDATE
     conn.update(worksheet="saves", data=df)
+    
+    # 5. Force clear cache so the "Load" list updates immediately
+    st.cache_data.clear()
 
 def get_gsheets_save_list():
     """Returns a list of all save names from the sheet."""
@@ -114,7 +120,7 @@ def cb_switch_project():
 
 def cb_load_save():
     selected_save = st.session_state.save_file_selector
-    loaded_data = load_state(selected_save)
+    loaded_data = load_state_from_gsheets(selected_save) # Updated
     st.session_state.proj_counter += 1
     new_id = f"proj_{st.session_state.proj_counter}"
     st.session_state.projects[new_id] = loaded_data
@@ -122,7 +128,7 @@ def cb_load_save():
     
 def cb_delete_save():
     selected_save = st.session_state.save_file_selector
-    delete_state(selected_save)                
+    delete_state_from_gsheets(selected_save) # Updated         
 
 # --- 2.5 SESSION STATE (PROJECT MEMORY) ---
 if "projects" not in st.session_state:
