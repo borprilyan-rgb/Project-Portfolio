@@ -2,9 +2,6 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import re
-import json  # Used for packaging data for Google Sheets
-import io    # Used for the Excel export buffer
-from streamlit_gsheets import GSheetsConnection # The Cloud connection
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="Project Portfolio", layout="wide")
@@ -20,8 +17,8 @@ PROJECT_DATABASE = {
         "door_steel": 7000000.0, "lobby": 1500000.0, "gondola": 600000000.0,
         "san_room_qty": 3.0, "san_room_rate": 26875000.0, "san_pub_m": 98075000.0, 
         "san_pub_f": 77050000.0, "san_dis": 30275000.0, "san_mushola": 36500000.0,
-        "fl_ht_pct": 90.0, "fl_ht_rate": 150000.0, "fl_vinyl_pct": 0.0, "fl_vinyl_rate": 750000.0,
-        "fl_marmer_pct": 10.0, "fl_marmer_rate": 750000.0,
+        "fl_ht_pct": 90.0, "fl_ht_rate": 150000.0, "fl_vinyl_pct": 0.0, "fl_vinyl_rate": {"Regular": 500000.0, "Premium": 750000.0},
+        "fl_marmer_pct": 10.0, "fl_marmer_rate": {"Regular": 750000.0, "Premium": 1500000.0},
         "kitchen": 0.0, "hw_wood": 750000.0, "hw_steel": 1850000.0, "carpet": 0.0,
         "glass": 0.0, "ffe": 32000000.0, "misc": 0.0, "mep": 2810941.24,
         "utility": 92098.0, "railing_qty": 5.0, "railing_rate": 2200000.0, 
@@ -49,115 +46,10 @@ PROJECT_DATABASE = {
     "Parking": {k: 0.0 for k in ["struc_earth", "struc_found", "struc_work", "facade_precast_pct", "facade_precast_rate", "facade_window_pct", "facade_window_rate", "facade_double_pct", "facade_double_rate", "arch_base", "door_wood", "door_glass", "door_steel", "lobby", "gondola", "san_room_qty", "san_room_rate", "san_pub_m", "san_pub_f", "san_dis", "san_mushola", "fl_ht_pct", "fl_ht_rate", "fl_vinyl_pct", "fl_vinyl_rate", "fl_marmer_pct", "fl_marmer_rate", "kitchen", "hw_wood", "hw_steel", "carpet", "glass", "ffe", "misc", "mep", "utility", "railing_qty", "railing_rate", "skylight_rate", "ext_land", "fac_pub", "fac_res", "fac_proj"]}
 }
 
-from streamlit_gsheets import GSheetsConnection
-
-# --- 2.1 PERMANENT GOOGLE SHEETS STORAGE ---
-conn = st.connection("gsheets", type=GSheetsConnection)
-
-def save_state_to_gsheets(filename, data):
-    """Saves or updates a project, returning True/False and an error message."""
-    try:
-        # 1. Read existing data safely
-        try:
-            df = conn.read(worksheet="saves", ttl=0)
-            if df is None or 'save_name' not in df.columns:
-                df = pd.DataFrame(columns=['save_name', 'project_data'])
-        except Exception as read_err:
-            st.sidebar.warning(f"Note: Creating new sheet structure. ({read_err})")
-            df = pd.DataFrame(columns=['save_name', 'project_data'])
-        
-        # 2. Package data
-        json_data = json.dumps(data)
-        
-        # Force filename to string to prevent mismatch errors
-        filename_str = str(filename)
-        df['save_name'] = df['save_name'].astype(str)
-        
-        # 3. Update or Append
-        if not df.empty and filename_str in df['save_name'].values:
-            df.loc[df['save_name'] == filename_str, 'project_data'] = json_data
-        else:
-            new_row = pd.DataFrame([{"save_name": filename_str, "project_data": json_data}])
-            df = pd.concat([df, new_row], ignore_index=True)
-        
-        # 4. Write back to Google Sheets
-        conn.update(worksheet="saves", data=df)
-        st.cache_data.clear()
-        return True, ""
-        
-    except Exception as e:
-        # If anything fails during the save, catch it here!
-        return False, str(e)
-
-def get_gsheets_save_list():
-    try:
-        df = conn.read(worksheet="saves", ttl=0)
-        if df is not None and not df.empty and 'save_name' in df.columns:
-            # Drop empty rows and return as a clean list
-            return df['save_name'].dropna().astype(str).tolist()
-        return []
-    except Exception as e:
-        st.sidebar.error(f"Failed to load save list: {e}")
-        return []
-
-def load_state_from_gsheets(filename):
-    try:
-        df = conn.read(worksheet="saves", ttl=0)
-        df['save_name'] = df['save_name'].astype(str)
-        row = df[df['save_name'] == str(filename)]
-        if not row.empty:
-            json_str = row['project_data'].values[0]
-            return json.loads(json_str)
-        return None
-    except Exception as e:
-        st.sidebar.error(f"Failed to load file: {e}")
-        return None
-
-def delete_state_from_gsheets(filename):
-    try:
-        df = conn.read(worksheet="saves", ttl=0)
-        df['save_name'] = df['save_name'].astype(str)
-        df = df[df['save_name'] != str(filename)]
-        conn.update(worksheet="saves", data=df)
-        st.cache_data.clear()
-    except Exception as e:
-        st.sidebar.error(f"Failed to delete: {e}")
-
-# --- 2.2 LIGHTNING-FAST CALLBACK FUNCTIONS ---
-def cb_add_project():
-    st.session_state.proj_counter += 1
-    new_id = f"proj_{st.session_state.proj_counter}"
-    st.session_state.projects[new_id] = {"name": f"New Project {st.session_state.proj_counter}", "type": "Hotel", "data": {}}
-    st.session_state.current_proj_id = new_id
-
-def cb_delete_project():
-    del st.session_state.projects[st.session_state.current_proj_id]
-    st.session_state.current_proj_id = list(st.session_state.projects.keys())[0]
-
-def cb_switch_project():
-    selected_label = st.session_state.project_selector
-    proj_ids = list(st.session_state.projects.keys())
-    proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
-    if selected_label in proj_labels:
-        selected_idx = proj_labels.index(selected_label)
-        st.session_state.current_proj_id = proj_ids[selected_idx]
-
-def cb_load_save():
-    selected_save = st.session_state.save_file_selector
-    loaded_data = load_state_from_gsheets(selected_save) # Updated
-    st.session_state.proj_counter += 1
-    new_id = f"proj_{st.session_state.proj_counter}"
-    st.session_state.projects[new_id] = loaded_data
-    st.session_state.current_proj_id = new_id
-    
-def cb_delete_save():
-    selected_save = st.session_state.save_file_selector
-    delete_state_from_gsheets(selected_save) # Updated         
-
 # --- 2.5 SESSION STATE (PROJECT MEMORY) ---
 if "projects" not in st.session_state:
     st.session_state.projects = {
-        "proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}
+        "proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}} # <-- Added "data": {}
     }
     st.session_state.current_proj_id = "proj_1"
     st.session_state.proj_counter = 1
@@ -356,7 +248,7 @@ def show_cost_estimator():
         return st.session_state.projects[curr_id]["data"].get(key, default)
 
     # --- PROJECT SETUP (Main Screen) ---
-    st.subheader("⚙️ Project Setup")
+    st.subheader("Project Setup")
     c1, c2 = st.columns(2)
 
     new_name = c1.text_input("Project Name", value=curr_proj["name"])
@@ -376,7 +268,7 @@ def show_cost_estimator():
     st.sidebar.markdown("---")
     st.sidebar.subheader("Upload CSV")
     
-    uploaded_file = st.sidebar.file_uploader("Upload Here:", type=["csv"])
+    uploaded_file = st.sidebar.file_uploader("Please wait for data to be loaded", type=["csv"])
     
     if uploaded_file is not None:
         if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != uploaded_file.file_id:
@@ -402,9 +294,9 @@ def show_cost_estimator():
 
     # --- TABS LAYOUT ---
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "🏗️ 1. Project Metrics", "🧮 2. Ratios", 
-        "💰 3. Unit Rates", "💼 4. Soft Costs", 
-        "➕ 5. Custom Items", "📊 6. Results & Summary"
+        "1. Project Metrics", "2. Ratios", 
+        "3. Unit Rates", "4. Soft Costs", 
+        "5. Custom Items", "6. Results & Summary"
     ])
 
     # --- TAB 1: PROJECT METRICS ---
@@ -485,10 +377,10 @@ def show_cost_estimator():
         with st.expander("🚪 Doors & Hardware Rates"):
             c1, c2 = st.columns(2)
             door_wood = c1.number_input("Wooden Door Rate", value=get_val("u_d_wood", pt_data["door_wood"]), key=f"u_d_wood_{curr_id}")
-            door_glass = c2.number_input("Glass Door Rate", value=get_val("u_d_glass", pt_data["door_glass"]), key=f"u_d_glass_{curr_id}")
+            door_glass = c1.number_input("Glass Door Rate", value=get_val("u_d_glass", pt_data["door_glass"]), key=f"u_d_glass_{curr_id}")
             door_steel = c1.number_input("Steel Door Rate", value=get_val("u_d_steel", pt_data["door_steel"]), key=f"u_d_steel_{curr_id}")
             hw_wood = c2.number_input("Hardware Wooden Door", value=get_val("u_hw_wood", pt_data["hw_wood"]), key=f"u_hw_wood_{curr_id}")
-            hw_steel = c1.number_input("Hardware Steel Door", value=get_val("u_hw_steel", pt_data["hw_steel"]), key=f"u_hw_steel_{curr_id}")
+            hw_steel = c2.number_input("Hardware Steel Door", value=get_val("u_hw_steel", pt_data["hw_steel"]), key=f"u_hw_steel_{curr_id}")
 
         with st.expander("🚽 Sanitary Rates"):
             c1, c2 = st.columns(2)
@@ -574,7 +466,7 @@ def show_cost_estimator():
             dep_name = row.get("Linked Dependency", "None (Flat Rate)")
             dep_value = dependency_map.get(dep_name, 1.0) 
             total_custom_cost += (rate * mult * dep_value)
-            
+         
         st.markdown(f"**Total Custom Costs: Rp {total_custom_cost:,.2f}**")
         
         # 5. Save back to locker
@@ -762,7 +654,7 @@ def show_cost_estimator():
             st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
 
 
-# --- 2. GLOBAL EXPORT SECTION ---
+# --- 2. GLOBAL EXPORT SECTION (Placed at the bottom) ---
     
     # Package ALL current variables into a dictionary
     current_metrics = {
@@ -798,397 +690,71 @@ def show_cost_estimator():
         "sc_pm_m": pm_months, "sc_pm_r": pm_rate, "sc_ins": insurance_pct
     }
     
-    # Save live metrics into the master locker
+    # MAGIC TRICK: Save live metrics into the master locker so they survive switching!
     st.session_state.projects[curr_id]["data"] = current_metrics
 
-def show_portfolio_summary():
-    import io
-    import xlsxwriter
-    st.markdown("---")
-    
-    # --- 1. HELPER FUNCTION ---
-    def get_project_totals(proj_dict):
-        d = proj_dict.get("data", {})
-        pt_data = PROJECT_DATABASE.get(proj_dict["type"], PROJECT_DATABASE["Hotel"])
-        
-        def v(key, default=0.0): 
-            return d.get(key, pt_data.get(key, default))
+    # Convert to CSV string format
+    df_export = pd.DataFrame(list(current_metrics.items()), columns=["Metric_Key", "Value"])
+    csv_data = df_export.to_csv(index=False).encode('utf-8')
 
-        gba = v("m_gba")
-        gfa = v("m_gfa")
-        sgfa = v("m_sgfa")
-        rooms = v("m_rooms")
-        facade = v("m_facade")
-        
-        f_mult = 1.32
-        hc = (
-            (gba * v("u_earth")) + (gba * v("u_found")) + (gba * v("u_struc")) +
-            (gfa * v("u_arch")) + 
-            (facade * (v("r_fac_pre")/100) * v("u_f_pre")) +
-            (facade * (v("r_fac_win")/100) * v("u_f_win")) +
-            (facade * (v("r_fac_doub")/100) * v("u_f_doub")) +
-            (v("m_door_w") * v("u_d_wood")) + (v("m_door_g") * v("u_d_glass")) + (v("m_door_s") * v("u_d_steel")) +
-            (v("m_lobby") * v("u_lobby")) + (v("m_gondola") * v("u_gondola")) +
-            (rooms * v("r_san_qty") * v("u_s_room")) + 
-            (v("m_toil_m") * v("u_s_pub_m")) + (v("m_toil_f") * v("u_s_pub_f")) + 
-            (v("m_toil_d") * v("u_s_dis")) + (v("m_mushola") * v("u_s_mushola")) +
-            (rooms * v("u_kit")) + (v("m_door_w") * v("u_hw_wood")) + (v("m_door_s") * v("u_hw_steel")) +
-            (gfa * (v("r_fl_ht")/100) * v("u_fl_ht") * f_mult) +
-            (gfa * (v("r_fl_vin")/100) * v("u_fl_vin") * f_mult) +
-            (gfa * (v("r_fl_mar")/100) * v("u_fl_mar") * f_mult) +
-            (v("m_carpet") * v("u_carpet")) + (v("m_glass") * v("u_glass")) + (rooms * v("u_ffe")) +
-            v("u_misc") + (gba * v("u_mep")) + (gba * v("u_util")) +
-            (rooms * v("r_rail_qty") * v("u_rail")) + (v("m_skylight") * v("u_sky")) +
-            (v("m_land_m2") * v("u_ext")) + (v("m_fac_pub") * v("u_fac_p")) +
-            (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr"))
-        )
-        
-        custom_costs = d.get("smart_custom_costs", [])
-        dep_map = {"None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa, "Land Area": v("m_land"), "Rooms": rooms, "Facade": facade, "Lobby": v("m_lobby")}
-        for item in custom_costs:
-            hc += float(item.get("Rate (Rp)", 0)) * float(item.get("Multiplier (Qty)", 1)) * dep_map.get(item.get("Linked Dependency"), 1.0)
-
-        hc_total = hc + (hc * 0.05) + (hc * 0.03) 
-        sc_total = (gfa * v("sc_cons")) + (v("sc_qs_m") * v("sc_qs_r")) + (v("sc_pm_m") * v("sc_pm_r")) + (hc * (v("sc_ins")/100))
-        
-        return {"gba": gba, "gfa": gfa, "sgfa": sgfa, "units": rooms, "budget": hc_total + sc_total}
-
-    # --- 2. CALCULATE DATA ---
-    table_rows_html = ""
-    total_gba = total_gfa = total_sgfa = total_budget = 0
-    project_results = []
-    
-    for idx, (p_id, p_data) in enumerate(st.session_state.projects.items(), 1):
-        m = get_project_totals(p_data)
-        
-        r_gba = m["budget"] / m["gba"] if m["gba"] > 0 else 0
-        r_gfa = m["budget"] / m["gfa"] if m["gfa"] > 0 else 0
-        r_sgfa = m["budget"] / m["sgfa"] if m["sgfa"] > 0 else 0
-        
-        total_gba += m["gba"]
-        total_gfa += m["gfa"]
-        total_sgfa += m["sgfa"]
-        total_budget += m["budget"]
-        
-        project_results.append({
-            "idx": idx, "name": p_data['name'].upper(), "gba": m["gba"], "gfa": m["gfa"], 
-            "sgfa": m["sgfa"], "units": m["units"], "budget": m["budget"], 
-            "r_gba": r_gba, "r_gfa": r_gfa, "r_sgfa": r_sgfa
-        })
-
-        # HTML String Generator
-        table_rows_html += f"""
-        <tr>
-            <td style="border: 1px solid black; padding: 5px;">{idx}</td>
-            <td style="border: 1px solid black; padding: 5px; text-align: left;"><b>{p_data['name'].upper()}</b></td>
-            <td style="border: 1px solid black; padding: 5px;">{m['gba']:,.0f}</td>
-            <td style="border: 1px solid black; padding: 5px;">{m['gfa']:,.0f}</td>
-            <td style="border: 1px solid black; padding: 5px;">{m['sgfa']:,.0f}</td>
-            <td style="border: 1px solid black; padding: 5px;">{m['units']:,.0f}</td>
-            <td style="border: 1px solid black; padding: 5px;">Units</td>
-            <td style="border: 1px solid black; padding: 5px; text-align: right;"><b>{m['budget']:,.0f}</b></td>
-            <td style="border: 1px solid black; padding: 5px;">{r_gba:,.0f}</td>
-            <td style="border: 1px solid black; padding: 5px;">{r_gfa:,.0f}</td>
-            <td style="border: 1px solid black; padding: 5px;">{r_sgfa:,.0f}</td>
-        </tr>
-        """
-
-    t_r_gba = total_budget / total_gba if total_gba > 0 else 0
-    t_r_gfa = total_budget / total_gfa if total_gfa > 0 else 0
-    t_r_sgfa = total_budget / total_sgfa if total_sgfa > 0 else 0
-
-    # --- 3. EXCEL BUILDER ENGINE ---
-    buffer = io.BytesIO()
-    workbook = xlsxwriter.Workbook(buffer, {'in_memory': True})
-    worksheet = workbook.add_worksheet('Portfolio Summary')
-
-    # Styles
-    f_blue_L = workbook.add_format({'bg_color': '#0062a8', 'font_color': 'white', 'bold': True, 'valign': 'vcenter'})
-    f_blue_R = workbook.add_format({'bg_color': '#0062a8', 'font_color': 'white', 'bold': True, 'align': 'right', 'valign': 'vcenter'})
-    f_th = workbook.add_format({'bg_color': '#f2f2f2', 'bold': True, 'align': 'center', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
-    f_td_c = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
-    f_td_L_b = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1, 'bold': True})
-    f_td_R_b = workbook.add_format({'align': 'right', 'valign': 'vcenter', 'border': 1, 'bold': True, 'num_format': '#,##0'})
-    f_td_num = workbook.add_format({'align': 'right', 'valign': 'vcenter', 'border': 1, 'num_format': '#,##0'})
-    
-    f_tot_L = workbook.add_format({'bg_color': '#e0e0e0', 'bold': True, 'align': 'center', 'valign': 'vcenter', 'border': 1})
-    f_tot_num = workbook.add_format({'bg_color': '#e0e0e0', 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1, 'num_format': '#,##0'})
-    f_tot_empty = workbook.add_format({'bg_color': '#e0e0e0', 'border': 1})
-
-    f_assum_h = workbook.add_format({'bg_color': '#ffdf70', 'bold': True, 'border': 1, 'valign': 'vcenter'})
-    f_assum_c = workbook.add_format({'align': 'center', 'border': 1})
-    f_assum_L = workbook.add_format({'align': 'left', 'border': 1})
-    f_assum_red = workbook.add_format({'align': 'left', 'border': 1, 'font_color': 'red'})
-
-    # Column Widths
-    worksheet.set_column('A:A', 5)
-    worksheet.set_column('B:B', 38)
-    worksheet.set_column('C:E', 15)
-    worksheet.set_column('F:F', 10)
-    worksheet.set_column('G:G', 8)
-    worksheet.set_column('H:H', 22)
-    worksheet.set_column('I:K', 15)
-
-    # 3.1 Write Blue Header (Merge across A to K)
-    for row in range(5):
-        worksheet.merge_range(row, 0, row, 10, "", f_blue_L) # Base background
-        
-    worksheet.write_string(0, 0, "ASG GROUP PROPERTY DEVELOPMENT", f_blue_L)
-    worksheet.write_string(0, 10, "VERSION      : R (0)", f_blue_R)
-    worksheet.write_string(1, 0, "QS & PROCUREMENT DIVISION", f_blue_L)
-    worksheet.write_string(2, 0, "PROJECT PORTFOLIO | ALL ACTIVE PROJECTS", f_blue_L)
-    worksheet.write_string(3, 0, "REF. DATA R(0) | CONCEPT PDF COMPARISON STUDY 2026-03-12 BY DPA", f_blue_L)
-    worksheet.write_string(3, 10, "UPDATED      : 12-03-2026", f_blue_R)
-    worksheet.write_string(4, 0, "BUDGET ESTIMATE R(0)", f_blue_L)
-    worksheet.write_string(4, 10, "CREATED      : 12-03-2026", f_blue_R)
-
-    # 3.2 Write Table Headers
-    worksheet.merge_range("A7:A8", "SN", f_th)
-    worksheet.merge_range("B7:B8", "AREA", f_th)
-    worksheet.merge_range("C7:E7", "BUILDING AREA (M2)", f_th)
-    worksheet.write_string("C8", "GBA", f_th)
-    worksheet.write_string("D8", "GFA", f_th)
-    worksheet.write_string("E8", "SGFA", f_th)
-    worksheet.merge_range("F7:G8", "UNIT", f_th)
-    worksheet.merge_range("H7:H8", "BUDGET ESTIMATE\nRP", f_th)
-    worksheet.merge_range("I7:K7", "COST RATIO RP/M2", f_th)
-    worksheet.write_string("I8", "GBA", f_th)
-    worksheet.write_string("J8", "GFA", f_th)
-    worksheet.write_string("K8", "SGFA", f_th)
-
-    # 3.3 Write Data Rows
-    row_idx = 8
-    for p in project_results:
-        worksheet.write_number(row_idx, 0, p['idx'], f_td_c)
-        worksheet.write_string(row_idx, 1, p['name'], f_td_L_b)
-        worksheet.write_number(row_idx, 2, p['gba'], f_td_num)
-        worksheet.write_number(row_idx, 3, p['gfa'], f_td_num)
-        worksheet.write_number(row_idx, 4, p['sgfa'], f_td_num)
-        worksheet.write_number(row_idx, 5, p['units'], f_td_c)
-        worksheet.write_string(row_idx, 6, "Units", f_td_c)
-        worksheet.write_number(row_idx, 7, p['budget'], f_td_R_b)
-        worksheet.write_number(row_idx, 8, p['r_gba'], f_td_num)
-        worksheet.write_number(row_idx, 9, p['r_gfa'], f_td_num)
-        worksheet.write_number(row_idx, 10, p['r_sgfa'], f_td_num)
-        row_idx += 1
-
-    # 3.4 Write Totals Row
-    worksheet.merge_range(row_idx, 0, row_idx, 1, "TOTAL", f_tot_L)
-    worksheet.write_number(row_idx, 2, total_gba, f_tot_num)
-    worksheet.write_number(row_idx, 3, total_gfa, f_tot_num)
-    worksheet.write_number(row_idx, 4, total_sgfa, f_tot_num)
-    worksheet.write_string(row_idx, 5, "", f_tot_empty)
-    worksheet.write_string(row_idx, 6, "", f_tot_empty)
-    worksheet.write_number(row_idx, 7, total_budget, f_tot_num)
-    worksheet.write_number(row_idx, 8, t_r_gba, f_tot_num)
-    worksheet.write_number(row_idx, 9, t_r_gfa, f_tot_num)
-    worksheet.write_number(row_idx, 10, t_r_sgfa, f_tot_num)
-
-    # 3.5 Write Assumptions
-    row_idx += 2
-    worksheet.write_string(row_idx, 0, "I.", f_assum_h)
-    worksheet.merge_range(row_idx, 1, row_idx, 10, "ASSUMPTIONS", f_assum_h)
-    
-    assumptions_list = [
-        "Foundation System standard pilecaps.", "No Basement.",
-        "Parking provison limited to ON STREET LEVEL parking", "Floor to Floor Height at 3.3M",
-        "Facade Alumunium Window Wall - No Double skin", "External Façade Precast, No double skin for parking podium if any.",
-        "Ground Lobby Finishes completed with Artificial stone & HT.", "Typical Corridor | Floor finishes : HT | Wall Finishes : Cement Sand Plaster c/w Emulsion Paint.",
-        "Aircon System | Apartement : AC Split", "SBO Rebars @ Rp. 10.000/kg", "Excluded Smarthome",
-        "Lift : 2 Passenger Lift + 1 Services Lift / TOWER", "Exclude Wardrobe",
-        "FFE : Kitchen cabinet, Hob & Hood, Refrigerator & Washing Machine", "Water Heater : Installation only",
-        "CALCULATION AREA refer to DP's calculation dated 12.03.2026"
-    ]
-    
-    for i, assum in enumerate(assumptions_list, 1):
-        row_idx += 1
-        worksheet.write_number(row_idx, 0, i, f_assum_c)
-        if "12.03.2026" in assum:
-            # Recreate the red text exactly
-            worksheet.merge_range(row_idx, 1, row_idx, 10, "", f_assum_L)
-            worksheet.write_rich_string(row_idx, 1, "CALCULATION AREA refer to DP's calculation dated ", workbook.add_format({'font_color': 'red'}), "12.03.2026", f_assum_L)
-        else:
-            worksheet.merge_range(row_idx, 1, row_idx, 10, assum, f_assum_L)
-
-    workbook.close()
-
-    # --- 4. RENDER UI ---
-    st.download_button(
-        label="📊 Download Portfolio as Excel (Exact Format)",
-        data=buffer.getvalue(),
-        file_name="ASG_Portfolio_Summary.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    # Ensure the subheader is OUTSIDE the button parentheses
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Download CSV")
+    st.sidebar.download_button(
+        label="Download Here",
+        data=csv_data,
+        file_name=f"{new_name.replace(' ', '_').lower()}_config.csv",
+        mime="text/csv",
         use_container_width=True
     )
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    html_string = f"""
-    <div style="font-family: Calibri, sans-serif; font-size: 13px; color: black; background-color: white; padding: 20px; border-radius: 5px;">
-        <div style="background-color: #0062a8; color: white; padding: 10px; font-weight: bold; line-height: 1.4; font-size: 14px;">
-            <div style="display: flex; justify-content: space-between;">
-                <div>ASG GROUP PROPERTY DEVELOPMENT</div>
-                <div>VERSION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: R (0)</div>
-            </div>
-            <div>QS & PROCUREMENT DIVISION</div>
-            <div>PROJECT PORTFOLIO | ALL ACTIVE PROJECTS</div>
-            <div style="display: flex; justify-content: space-between;">
-                <div>REF. DATA R(0) | CONCEPT PDF COMPARISON STUDY 2026-03-12 BY DPA</div>
-                <div>UPDATED &nbsp;&nbsp;&nbsp;&nbsp;: 12-03-2026</div>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-                <div>BUDGET ESTIMATE R(0)</div>
-                <div>CREATED &nbsp;&nbsp;&nbsp;&nbsp;: 12-03-2026</div>
-            </div>
-        </div>
-        <br>
-        <table style="width: 100%; border-collapse: collapse; border: 2px solid black; text-align: center;">
-            <tr style="background-color: #f2f2f2; font-weight: bold;">
-                <td rowspan="2" style="border: 1px solid black; padding: 5px;">SN</td>
-                <td rowspan="2" style="border: 1px solid black; padding: 5px;">AREA</td>
-                <td colspan="3" style="border: 1px solid black; padding: 5px;">BUILDING AREA (M2)</td>
-                <td colspan="2" rowspan="2" style="border: 1px solid black; padding: 5px;">UNIT</td>
-                <td rowspan="2" style="border: 1px solid black; padding: 5px;">BUDGET ESTIMATE<br>RP</td>
-                <td colspan="3" style="border: 1px solid black; padding: 5px;">COST RATIO RP/M2</td>
-            </tr>
-            <tr style="background-color: #f2f2f2; font-weight: bold;">
-                <td style="border: 1px solid black; padding: 5px;">GBA</td>
-                <td style="border: 1px solid black; padding: 5px;">GFA</td>
-                <td style="border: 1px solid black; padding: 5px;">SGFA</td>
-                <td style="border: 1px solid black; padding: 5px;">GBA</td>
-                <td style="border: 1px solid black; padding: 5px;">GFA</td>
-                <td style="border: 1px solid black; padding: 5px;">SGFA</td>
-            </tr>
-            {table_rows_html}
-            <tr style="background-color: #e0e0e0; font-weight: bold;">
-                <td colspan="2" style="border: 1px solid black; padding: 5px;">TOTAL</td>
-                <td style="border: 1px solid black; padding: 5px;">{total_gba:,.0f}</td>
-                <td style="border: 1px solid black; padding: 5px;">{total_gfa:,.0f}</td>
-                <td style="border: 1px solid black; padding: 5px;">{total_sgfa:,.0f}</td>
-                <td colspan="2" style="border: 1px solid black; padding: 5px;"></td>
-                <td style="border: 1px solid black; padding: 5px; text-align: right;">{total_budget:,.0f}</td>
-                <td style="border: 1px solid black; padding: 5px;">{t_r_gba:,.0f}</td>
-                <td style="border: 1px solid black; padding: 5px;">{t_r_gfa:,.0f}</td>
-                <td style="border: 1px solid black; padding: 5px;">{t_r_sgfa:,.0f}</td>
-            </tr>
-        </table>
-        <br>
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid #dcdcdc; text-align: left;">
-            <tr style="background-color: #ffdf70; font-weight: bold;">
-                <td style="border: 1px solid white; padding: 3px 5px; width: 30px; text-align: center;">I.</td>
-                <td style="border: 1px solid white; padding: 3px 5px;">ASSUMPTIONS</td>
-            </tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">1</td><td style="padding: 2px 5px;">Foundation System standard pilecaps.</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">2</td><td style="padding: 2px 5px;">No Basement.</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">3</td><td style="padding: 2px 5px;">Parking provison limited to ON STREET LEVEL parking</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">4</td><td style="padding: 2px 5px;">Floor to Floor Height at 3.3M</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">5</td><td style="padding: 2px 5px;">Facade Alumunium Window Wall - No Double skin</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">6</td><td style="padding: 2px 5px;">External Façade Precast, No double skin for parking podium if any.</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">7</td><td style="padding: 2px 5px;">Ground Lobby Finishes completed with Artificial stone & HT.</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">8</td><td style="padding: 2px 5px;">Typical Corridor | Floor finishes : HT | Wall Finishes : Cement Sand Plaster c/w Emulsion Paint.</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">9</td><td style="padding: 2px 5px;">Aircon System | Apartement : AC Split</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">10</td><td style="padding: 2px 5px;">SBO Rebars @ Rp. 10.000/kg</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">11</td><td style="padding: 2px 5px;">Excluded Smarthome</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">12</td><td style="padding: 2px 5px;">Lift : 2 Passenger Lift + 1 Services Lift / TOWER</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">13</td><td style="padding: 2px 5px;">Exclude Wardrobe</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">14</td><td style="padding: 2px 5px;">FFE : Kitchen cabinet, Hob & Hood, Refrigerator & Washing Machine</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">15</td><td style="padding: 2px 5px;">Water Heater : Installation only</td></tr>
-            <tr><td style="text-align: center; border-right: 1px solid #e0e0e0; padding: 2px;">16</td><td style="padding: 2px 5px;">CALCULATION AREA refer to DP's calculation dated <span style="color:red;">12.03.2026</span></td></tr>
-        </table>
-    </div>
-    """
-    
-    clean_html = html_string.replace('\n', '')
-    st.markdown(clean_html, unsafe_allow_html=True)
 
 # --- 4. MAIN NAVIGATION & SIDEBAR PROJECT LIST ---
 st.sidebar.title("Main Navigation")
 
+# Workspace Selector (Using standard radio, or segmented_control if Streamlit 1.36+)
 page_choice = st.sidebar.radio(
     "Select Workspace:", 
-    ["Cost Calculator", "Area Calculator", "Portfolio Summary"] 
+    ["Cost Calculator", "Area Calculator"]
 )
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("📂 Project List")
 
-# Use the callback to add projects instantly
-st.sidebar.button("➕ Add New Project", on_click=cb_add_project, use_container_width=True)
+# "Add Project" Button
+if st.sidebar.button("➕ Add New Project", use_container_width=True):
+    st.session_state.proj_counter += 1
+    new_id = f"proj_{st.session_state.proj_counter}"
+    # Added "data": {} to new projects as well!
+    st.session_state.projects[new_id] = {"name": f"New Project {st.session_state.proj_counter}", "type": "Hotel", "data": {}}
+    st.session_state.current_proj_id = new_id
+    st.rerun()
 
+# Format the list to show: "Name (Type)"
 proj_ids = list(st.session_state.projects.keys())
 proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
+
+# Find index of current project to keep it highlighted
 current_index = proj_ids.index(st.session_state.current_proj_id) if st.session_state.current_proj_id in proj_ids else 0
 
-col_sel, col_del = st.sidebar.columns([4, 1])
+# The Project Selection List
+selected_label = st.sidebar.radio(
+    "Select Active Project:",
+    options=proj_labels,
+    index=current_index,
+    key="project_selector"
+)
 
-with col_sel:
-    # on_change instantly updates the active project without a double-rerun
-    st.selectbox(
-        "Active Project:",
-        options=proj_labels,
-        index=current_index,
-        key="project_selector",
-        on_change=cb_switch_project,
-        label_visibility="collapsed"
-    )
-
-with col_del:
-    can_delete = len(st.session_state.projects) > 1
-    # on_click instantly deletes the project without a double-rerun
-    st.button("🗑️", disabled=not can_delete, on_click=cb_delete_project, help="Delete Active Project")
+# Sync sidebar clicks back to session state
+selected_idx = proj_labels.index(selected_label)
+if st.session_state.current_proj_id != proj_ids[selected_idx]:
+    st.session_state.current_proj_id = proj_ids[selected_idx]
+    st.rerun() # Refresh to show the newly clicked project's data
 
 st.sidebar.markdown("---")
 
+
 # --- 5. EXECUTION LOGIC ---
-if page_choice == "Portfolio Summary":     # <-- Added Routing
-    show_portfolio_summary()
-elif page_choice == "Area Calculator":
+if page_choice == "Area Calculator":
     show_area_calculator()
 else:
     show_cost_estimator()
-    
-# --- 6. GLOBAL SAVE / LOAD UI (SIDEBAR) ---
-import time
-
-st.sidebar.subheader("☁️ Cloud Save Manager")
-
-# 1. SAVE TO CLOUD
-active_name = st.session_state.projects[st.session_state.current_proj_id]["name"]
-save_filename = st.sidebar.text_input("Save Name:", value=active_name)
-
-if st.sidebar.button("💾 Save to Google Sheets", use_container_width=True):
-    active_data = st.session_state.projects[st.session_state.current_proj_id]
-    
-    # Catch the success or failure from our new robust function
-    is_success, error_message = save_state_to_gsheets(save_filename, active_data)
-    
-    if is_success:
-        st.sidebar.success(f"✅ Synced '{save_filename}' to Cloud!")
-        time.sleep(1.5) # Pause so you can read the message!
-        st.rerun() 
-    else:
-        # This is the goldmine. It will print exactly why Google is rejecting the save.
-        st.sidebar.error(f"❌ Google API Error: {error_message}")
-
-# 2. LOAD FROM CLOUD
-available_saves = get_gsheets_save_list()
-if available_saves:
-    selected_save = st.sidebar.selectbox("Select Cloud Save:", available_saves)
-    
-    c1, c2 = st.sidebar.columns(2)
-    
-    if c1.button("📂 Load Cloud", use_container_width=True):
-        loaded_data = load_state_from_gsheets(selected_save)
-        if loaded_data:
-            st.session_state.proj_counter += 1
-            new_id = f"proj_{st.session_state.proj_counter}"
-            st.session_state.projects[new_id] = loaded_data
-            st.session_state.current_proj_id = new_id
-            st.rerun()
-
-    if c2.button("🗑️ Delete", type="primary", use_container_width=True):
-        delete_state_from_gsheets(selected_save)
-        time.sleep(1)
-        st.rerun()
-else:
-    st.sidebar.info("No cloud saves found.")
