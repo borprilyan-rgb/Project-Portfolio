@@ -284,19 +284,23 @@ def show_rate_database():
 
 
 def update_price(metric_key, db_key):
-    """Fungsi umum untuk update harga apapun berdasarkan radio"""
+    """Fungsi umum untuk update harga DAN teks spek berdasarkan radio"""
     c_id = st.session_state.current_proj_id
     p_type = st.session_state.projects[c_id]["type"]
     
-    # Ambil pilihan spek dari radio yang bersangkutan
+    # 1. Ambil pilihan spek dari radio (Standard/Premium)
     selected_spec = st.session_state[f"temp_spec_{metric_key}_{c_id}"]
     
-    # Ambil data dari database
+    # 2. Update TEKS spek di data locker agar masuk ke CSV
+    # Ini yang membuat data di image Bapak tidak berubah tadi
+    st.session_state.projects[c_id]["data"][f"{metric_key}_spec_type"] = selected_spec
+    
+    # 3. Ambil data harga dari database
     db_val = PROJECT_DATABASE[p_type][db_key]
     
     if isinstance(db_val, dict):
         new_val = db_val.get(selected_spec, 0.0)
-        # TIMPA nilai di number_input
+        # 4. TIMPA nilai angka di number_input
         st.session_state[f"u_fl_{metric_key}_{c_id}"] = float(new_val)
 
 # COST ESTIMATOR ---
@@ -533,6 +537,7 @@ def show_cost_estimator():
                 fl_marmer_rate = st.number_input("Marmer Rate (Rp)", 
                                                 value=get_val("u_fl_mar", pt_data["fl_marmer_rate"]["Standard"]), 
                                                 key=f"u_fl_mar_{curr_id}")
+                
             carpet_rate = c1.number_input("Carpet Rate (Rp)", value=get_val("u_carpet", pt_data["carpet"]), key=f"u_carpet_{curr_id}")
             glass_rate = c2.number_input("Glass Work Rate (Rp)", value=get_val("u_glass", pt_data["glass"]), key=f"u_glass_{curr_id}")
             skylight_rate = c3.number_input("Skylight Rate (Rp)", value=get_val("u_sky", pt_data["skylight_rate"]), key=f"u_sky_{curr_id}")
