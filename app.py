@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import re
+import json  # Used for packaging data for Google Sheets
+import io    # Used for the Excel export buffer
+from streamlit_gsheets import GSheetsConnection # The Cloud connection
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="Project Portfolio", layout="wide")
@@ -46,39 +49,49 @@ PROJECT_DATABASE = {
     "Parking": {k: 0.0 for k in ["struc_earth", "struc_found", "struc_work", "facade_precast_pct", "facade_precast_rate", "facade_window_pct", "facade_window_rate", "facade_double_pct", "facade_double_rate", "arch_base", "door_wood", "door_glass", "door_steel", "lobby", "gondola", "san_room_qty", "san_room_rate", "san_pub_m", "san_pub_f", "san_dis", "san_mushola", "fl_ht_pct", "fl_ht_rate", "fl_vinyl_pct", "fl_vinyl_rate", "fl_marmer_pct", "fl_marmer_rate", "kitchen", "hw_wood", "hw_steel", "carpet", "glass", "ffe", "misc", "mep", "utility", "railing_qty", "railing_rate", "skylight_rate", "ext_land", "fac_pub", "fac_res", "fac_proj"]}
 }
 
-import os
-import json
+from streamlit_gsheets import GSheetsConnection
 
-# --- 2.1 SAVE/LOAD SYSTEM SETUP ---
-STORAGE_DIR = "project_saves"
+# --- 2.1 PERMANENT GOOGLE SHEETS STORAGE ---
+conn = st.connection("gsheets", type=GSheetsConnection)
 
-# Create the save folder if it doesn't exist
-if not os.path.exists(STORAGE_DIR):
-    os.makedirs(STORAGE_DIR)
+def save_state_to_gsheets(filename, data):
+    """Saves or updates a project in the Google Sheet."""
+    # Read existing data
+    df = conn.read(worksheet="saves", ttl=0)
+    
+    # Convert project data to a string for storage
+    json_data = json.dumps(data)
+    
+    if filename in df['save_name'].values:
+        # Update existing row
+        df.loc[df['save_name'] == filename, 'project_data'] = json_data
+    else:
+        # Append new row
+        new_row = pd.DataFrame([{"save_name": filename, "project_data": json_data}])
+        df = pd.concat([df, new_row], ignore_index=True)
+    
+    # Write back to Google Sheets
+    conn.update(worksheet="saves", data=df)
 
-def save_state(filename, data):
-    """Writes a project dictionary to a JSON file."""
-    filepath = os.path.join(STORAGE_DIR, f"{filename}.json")
-    with open(filepath, 'w') as f:
-        json.dump(data, f)
+def get_gsheets_save_list():
+    """Returns a list of all save names from the sheet."""
+    try:
+        df = conn.read(worksheet="saves", ttl=0)
+        return df['save_name'].tolist()
+    except:
+        return []
 
-def get_save_list():
-    """Returns a list of all available save files."""
-    if not os.path.exists(STORAGE_DIR): return []
-    saves = [f.replace(".json", "") for f in os.listdir(STORAGE_DIR) if f.endswith(".json")]
-    return sorted(saves)
+def load_state_from_gsheets(filename):
+    """Loads a project from the Google Sheet."""
+    df = conn.read(worksheet="saves", ttl=0)
+    json_str = df.loc[df['save_name'] == filename, 'project_data'].values[0]
+    return json.loads(json_str)
 
-def load_state(filename):
-    """Loads a project dictionary from a JSON file."""
-    filepath = os.path.join(STORAGE_DIR, f"{filename}.json")
-    with open(filepath, 'r') as f:
-        return json.load(f)
-
-def delete_state(filename):
-    """Deletes a project JSON file from the storage directory."""
-    filepath = os.path.join(STORAGE_DIR, f"{filename}.json")
-    if os.path.exists(filepath):
-        os.remove(filepath)
+def delete_state_from_gsheets(filename):
+    """Removes a project row from the Google Sheet."""
+    df = conn.read(worksheet="saves", ttl=0)
+    df = df[df['save_name'] != filename]
+    conn.update(worksheet="saves", data=df)
 
 # --- 2.2 LIGHTNING-FAST CALLBACK FUNCTIONS ---
 def cb_add_project():
@@ -1105,26 +1118,32 @@ else:
     show_cost_estimator()
 
 # --- 6. GLOBAL SAVE / LOAD UI (SIDEBAR) ---
-st.sidebar.subheader("💾 Save / Load Manager")
+st.sidebar.subheader("☁️ Cloud Save Manager")
 
-# 1. SAVE MENU
-save_filename = st.sidebar.text_input("Save File As:", value=st.session_state.projects[st.session_state.current_proj_id]["name"])
+# 1. SAVE TO CLOUD
+save_filename = st.sidebar.text_input("Save Name:", value=st.session_state.projects[st.session_state.current_proj_id]["name"])
 
-if st.sidebar.button("💾 Save Current Project", use_container_width=True):
+if st.sidebar.button("💾 Save to Google Sheets", use_container_width=True):
     active_data = st.session_state.projects[st.session_state.current_proj_id]
-    save_state(save_filename, active_data)
-    st.sidebar.success(f"Saved as '{save_filename}'!")
+    save_state_to_gsheets(save_filename, active_data)
+    st.sidebar.success(f"Synced '{save_filename}' to Cloud!")
 
-st.sidebar.markdown("<br>", unsafe_allow_html=True)
-
-# 2. LOAD / DELETE MENU
-available_saves = get_save_list()
+# 2. LOAD FROM CLOUD
+available_saves = get_gsheets_save_list()
 if available_saves:
-    # The key connects this selectbox directly to our load/delete callbacks
-    st.sidebar.selectbox("Select a Save File:", available_saves, key="save_file_selector")
+    st.sidebar.selectbox("Select Cloud Save:", available_saves, key="cloud_save_selector")
     
-    col1, col2 = st.sidebar.columns(2)
+    c1, c2 = st.sidebar.columns(2)
     
-    # These buttons now trigger the callbacks instantly
-    col1.button("📂 Load", on_click=cb_load_save, use_container_width=True)
-    col2.button("🗑️ Delete", type="primary", on_click=cb_delete_save, use_container_width=True)
+    if c1.button("📂 Load Cloud", use_container_width=True):
+        loaded_data = load_state_from_gsheets(st.session_state.cloud_save_selector)
+        # Standard load logic...
+        st.session_state.proj_counter += 1
+        new_id = f"proj_{st.session_state.proj_counter}"
+        st.session_state.projects[new_id] = loaded_data
+        st.session_state.current_proj_id = new_id
+        st.rerun()
+
+    if c2.button("🗑️ Delete Cloud", type="primary", use_container_width=True):
+        delete_state_from_gsheets(st.session_state.cloud_save_selector)
+        st.rerun()
