@@ -356,8 +356,17 @@ def show_cost_estimator():
                     elif key == "proj_type":
                         st.session_state.projects[curr_id]["type"] = str(val)
                     else:
-                        # Save directly into the master data locker
-                        st.session_state.projects[curr_id]["data"][key] = float(val)
+                        # LOGIKA BARU: Cek apakah nilai adalah teks spek atau angka
+                        if str(val) in ["Standard", "Premium"]:
+                            # Simpan sebagai teks jika Standard/Premium
+                            st.session_state.projects[curr_id]["data"][key] = str(val)
+                        else:
+                            try:
+                                # Simpan sebagai angka untuk volume/harga
+                                st.session_state.projects[curr_id]["data"][key] = float(val)
+                            except:
+                                # Backup jika ada teks lain
+                                st.session_state.projects[curr_id]["data"][key] = str(val)
                 
                 st.session_state.last_loaded_file = uploaded_file.file_id
                 st.sidebar.success("✅ Loaded successfully!")
