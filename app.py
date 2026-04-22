@@ -5,80 +5,119 @@ import altair as alt
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="Project Portfolio", layout="wide")
 
-# --- 2. THE DATABASE ---
 PROJECT_DATABASE = {
-    "Hotel": {
+    "Apartment": {
+        "arch_base": 1058000.0, "door_wood": 3500000.0, "door_steel": 7000000.0,
+        "hw_wood": 750000.0, "hw_steel": 1850000.0, "lobby": 1500000.0,
+        "gondola": 600000000.0, "carpet": 1200000.0, "glass": 700000.0,
+        "san_room_rate": 26875000.0, "san_pub_f": 98075000.0, "san_pub_m": 77050000.0,
+        "ffe": 32000000.0, "misc": 32000000.0, "kitchen": 0.0,  # Recovered
+        "fl_ht_rate": {"Type 1": 150000.0, "Type 2": 350000.0},
+        "fl_vinyl_rate": {"Type 1": 500000.0, "Type 2": 750000.0},
+        "fl_marmer_rate": {"Type 1": 750000.0, "Type 2": 1500000.0},
+        "facade_precast_pct": 10.0, "facade_window_pct": 80.0, "facade_double_pct": 10.0,
+        "fl_ht_pct": 90.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 10.0,
+        "san_room_qty": 1.0, "railing_qty": 0.0,
+        "mep": 4000000.0, "utility": 150000.0, # Recovered
         "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
-        "facade_precast_pct": 60.0, "facade_precast_rate": 800000.0,
-        "facade_window_pct": 30.0, "facade_window_rate": 1250000.0,
-        "facade_double_pct": 10.0, "facade_double_rate": 2500000.0,
-        "arch_base": 1058000.0, "door_wood": 3500000.0, "door_glass": 1000000.0,
-        "door_steel": 7000000.0, "lobby": 1500000.0, "gondola": 600000000.0,
-        "san_room_qty": 3.0, "san_room_rate": 26875000.0, "san_pub_m": 98075000.0, 
-        "san_pub_f": 77050000.0, "san_dis": 30275000.0, "san_mushola": 36500000.0,
-        "fl_ht_pct": 90.0, "fl_ht_rate": {"Standard": 150000.0, "Premium": 350000.0}, 
-        "fl_vinyl_pct": 0.0, "fl_vinyl_rate": {"Standard": 500000.0, "Premium": 750000.0},
-        "fl_marmer_pct": 10.0, "fl_marmer_rate": {"Standard": 750000.0, "Premium": 1500000.0},
-        "kitchen": 0.0, "hw_wood": 750000.0, "hw_steel": 1850000.0, "carpet": 0.0,
-        "glass": 0.0, "ffe": 32000000.0, "misc": 0.0, "mep": 2810941.24,
-        "utility": 92098.0, "railing_qty": 5.0, "railing_rate": 2200000.0, 
-        "skylight_rate": 0.0,
-        "ext_land": 1563000.0, "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0
+        "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
+        "door_glass": 1000000.0, "railing_rate": 2200000.0, "skylight_rate": 4500000.0,
+        "san_dis": 30275000.0, "san_mushola": 36500000.0, "ext_land": 1563000.0,
+        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0
+    },
+    "Hotel": {
+        "arch_base": 1079000.0, "door_wood": 4750000.0, "door_steel": 8000000.0,
+        "hw_wood": 8250000.0, "hw_steel": 2850000.0, "lobby": 2000000.0,
+        "gondola": 2000000000.0, "carpet": 1200000.0, "glass": 800000.0,
+        "san_room_rate": 62050000.0, "san_pub_f": 107825000.0, "san_pub_m": 86050000.0,
+        "ffe": 59650000.0, "misc": 5250000000.0, "kitchen": 0.0, # Recovered
+        "fl_ht_rate": {"Type 1": 150000.0, "Type 2": 350000.0},
+        "fl_vinyl_rate": {"Type 1": 500000.0, "Type 2": 750000.0},
+        "fl_marmer_rate": {"Type 1": 750000.0, "Type 2": 1500000.0},
+        "facade_precast_pct": 60.0, "facade_window_pct": 30.0, "facade_double_pct": 10.0,
+        "fl_ht_pct": 90.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 10.0,
+        "san_room_qty": 3.0, "railing_qty": 5.0,
+        "mep": 2810941.24, "utility": 92098.0, # Recovered
+        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
+        "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
+        "door_glass": 1000000.0, "railing_rate": 2200000.0, "skylight_rate": 4500000.0,
+        "san_dis": 30275000.0, "san_mushola": 36500000.0, "ext_land": 1563000.0,
+        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0
     },
     "Retail": {
-        "struc_earth": 120000.0, "struc_found": 450000.0, "struc_work": 3000000.0,
-        "facade_precast_pct": 10.0, "facade_precast_rate": 750000.0,
-        "facade_window_pct": 80.0, "facade_window_rate": 1100000.0,
-        "facade_double_pct": 10.0, "facade_double_rate": 2200000.0,
-        "arch_base": 2500000.0, "door_wood": 2000000.0, "door_glass": 6000000.0,
-        "door_steel": 5000000.0, "lobby": 6000000.0, "gondola": 450000000.0,
-        "san_room_qty": 0.0, "san_room_rate": 0.0, "san_pub_m": 35000000.0, 
-        "san_pub_f": 35000000.0, "san_dis": 35000000.0, "san_mushola": 15000000.0,
-        "fl_ht_pct": 90.0, "fl_ht_rate": {"Standard": 150000.0, "Premium": 350000.0}, 
-        "fl_vinyl_pct": 0.0, "fl_vinyl_rate": {"Standard": 500000.0, "Premium": 750000.0},
-        "fl_marmer_pct": 10.0, "fl_marmer_rate": {"Standard": 750000.0, "Premium": 1500000.0},
-        "kitchen": 0.0, "hw_wood": 400000.0, "hw_steel": 700000.0, "carpet": 250000.0,
-        "glass": 550000.0, "ffe": 0.0, "misc": 100000000.0, "mep": 4000000.0,
-        "utility": 150000.0, "railing_qty": 0.0, "railing_rate": 800000.0, 
-        "skylight_rate": 2500000.0,
-        "ext_land": 600000.0, "fac_pub": 2000000.0, "fac_res": 0.0, "fac_proj": 3000000.0
-    },
-    "Apartment": {
-        "struc_earth": 120000.0, "struc_found": 450000.0, "struc_work": 3000000.0,
-        "facade_precast_pct": 10.0, "facade_precast_rate": 750000.0,
-        "facade_window_pct": 80.0, "facade_window_rate": 1100000.0,
-        "facade_double_pct": 10.0, "facade_double_rate": 2200000.0,
-        "arch_base": 2500000.0, "door_wood": 2000000.0, "door_glass": 6000000.0,
-        "door_steel": 5000000.0, "lobby": 6000000.0, "gondola": 450000000.0,
-        "san_room_qty": 0.0, "san_room_rate": 0.0, "san_pub_m": 35000000.0, 
-        "san_pub_f": 35000000.0, "san_dis": 35000000.0, "san_mushola": 15000000.0,
-        "fl_ht_pct": 90.0, "fl_ht_rate": {"Standard": 150000.0, "Premium": 350000.0}, 
-        "fl_vinyl_pct": 0.0, "fl_vinyl_rate": {"Standard": 500000.0, "Premium": 750000.0},
-        "fl_marmer_pct": 10.0, "fl_marmer_rate": {"Standard": 750000.0, "Premium": 1500000.0},
-        "kitchen": 0.0, "hw_wood": 400000.0, "hw_steel": 700000.0, "carpet": 250000.0,
-        "glass": 550000.0, "ffe": 0.0, "misc": 100000000.0, "mep": 4000000.0,
-        "utility": 150000.0, "railing_qty": 0.0, "railing_rate": 800000.0, 
-        "skylight_rate": 2500000.0,
-        "ext_land": 600000.0, "fac_pub": 2000000.0, "fac_res": 0.0, "fac_proj": 3000000.0
+        "arch_base": 1084000.0, "door_wood": 6000000.0, "door_steel": 8000000.0,
+        "hw_wood": 6500000.0, "hw_steel": 2850000.0, "lobby": 2500000.0,
+        "gondola": 2500000000.0, "carpet": 1500000.0, "glass": 800000.0,
+        "san_room_rate": 0.0, "san_pub_f": 154175000.0, "san_pub_m": 126225000.0,
+        "ffe": 0.0, "misc": 0.0, "kitchen": 0.0, # Recovered
+        "fl_ht_rate": {"Type 1": 150000.0, "Type 2": 350000.0},
+        "fl_vinyl_rate": {"Type 1": 500000.0, "Type 2": 750000.0},
+        "fl_marmer_rate": {"Type 1": 750000.0, "Type 2": 1500000.0},
+        "facade_precast_pct": 10.0, "facade_window_pct": 80.0, "facade_double_pct": 10.0,
+        "fl_ht_pct": 90.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 10.0,
+        "san_room_qty": 0.0, "railing_qty": 0.0,
+        "mep": 4000000.0, "utility": 150000.0, # Recovered
+        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
+        "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
+        "door_glass": 1000000.0, "railing_rate": 2200000.0, "skylight_rate": 4500000.0,
+        "san_dis": 30275000.0, "san_mushola": 36500000.0, "ext_land": 1563000.0,
+        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0
     },
     "Parking": {
-        "struc_earth": 120000.0, "struc_found": 450000.0, "struc_work": 3000000.0,
-        "facade_precast_pct": 10.0, "facade_precast_rate": 750000.0,
-        "facade_window_pct": 80.0, "facade_window_rate": 1100000.0,
-        "facade_double_pct": 10.0, "facade_double_rate": 2200000.0,
-        "arch_base": 2500000.0, "door_wood": 2000000.0, "door_glass": 6000000.0,
-        "door_steel": 5000000.0, "lobby": 6000000.0, "gondola": 450000000.0,
-        "san_room_qty": 0.0, "san_room_rate": 0.0, "san_pub_m": 35000000.0, 
-        "san_pub_f": 35000000.0, "san_dis": 35000000.0, "san_mushola": 15000000.0,
-        "fl_ht_pct": 90.0, "fl_ht_rate": {"Standard": 150000.0, "Premium": 350000.0}, 
-        "fl_vinyl_pct": 0.0, "fl_vinyl_rate": {"Standard": 500000.0, "Premium": 750000.0},
-        "fl_marmer_pct": 10.0, "fl_marmer_rate": {"Standard": 750000.0, "Premium": 1500000.0},
-        "kitchen": 0.0, "hw_wood": 400000.0, "hw_steel": 700000.0, "carpet": 250000.0,
-        "glass": 550000.0, "ffe": 0.0, "misc": 100000000.0, "mep": 4000000.0,
-        "utility": 150000.0, "railing_qty": 0.0, "railing_rate": 800000.0, 
-        "skylight_rate": 2500000.0,
-        "ext_land": 600000.0, "fac_pub": 2000000.0, "fac_res": 0.0, "fac_proj": 3000000.0
-    }}
+        # --- Rates Dasar (Update dari Gambar) ---
+        "arch_base": 668000.0, 
+        "mep": 4000000.0, 
+        "utility": 150000.0,
+        
+        # --- Variabel Pelengkap (Set ke 0.0) ---
+        "door_wood": 0.0, 
+        "door_steel": 0.0, 
+        "door_glass": 0.0,
+        "hw_wood": 0.0, 
+        "hw_steel": 0.0, 
+        "lobby": 0.0, 
+        "gondola": 0.0,
+        "carpet": 0.0, 
+        "glass": 0.0, 
+        "ffe": 0.0, 
+        "misc": 0.0, 
+        "kitchen": 0.0,
+        "san_room_rate": 0.0, 
+        "san_pub_f": 0.0, 
+        "san_pub_m": 0.0,
+        
+        # --- Flooring Rates (Format Type 1 & 2) ---
+        "fl_ht_rate": {"Type 1": 0.0, "Type 2": 0.0},
+        "fl_vinyl_rate": {"Type 1": 0.0, "Type 2": 0.0},
+        "fl_marmer_rate": {"Type 1": 0.0, "Type 2": 0.0},
+        
+        # --- Percentages & Multipliers ---
+        "facade_precast_pct": 10.0, 
+        "facade_window_pct": 80.0, 
+        "facade_double_pct": 10.0,
+        "fl_ht_pct": 90.0, 
+        "fl_vinyl_pct": 0.0, 
+        "fl_marmer_pct": 10.0,
+        "san_room_qty": 0.0, 
+        "railing_qty": 0.0,
+        
+        # --- General Data (Standard untuk Semua Proyek) ---
+        "struc_earth": 25000.0, 
+        "struc_found": 400000.0, 
+        "struc_work": 1933000.0,
+        "facade_precast_rate": 800000.0, 
+        "facade_window_rate": 1250000.0, 
+        "facade_double_rate": 2500000.0,
+        "railing_rate": 2200000.0, 
+        "skylight_rate": 4500000.0,
+        "san_dis": 30275000.0, 
+        "san_mushola": 36500000.0, 
+        "ext_land": 1563000.0,
+        "fac_pub": 31000000.0, 
+        "fac_res": 10000000.0, 
+        "fac_proj": 2000000000.0
+    }
+}
 
 # --- 2.2 LIGHTNING-FAST CALLBACK FUNCTIONS ---
 def cb_add_project():
@@ -275,20 +314,18 @@ def show_area_calculator():
     sgfa_placeholder.metric("Grand Total SGFA", f"{grand_total_sgfa:,.2f} m2")
     units_placeholder.metric("Grand Total Units", f"{int(grand_total_units)} Units")
     
-# RATE DATABASE ---
 def show_rate_database():
     st.title("🗄️ Project Rate Database")
     st.info("View and manage the standard unit rates for all project types.")
     # We will later display your PROJECT_DATABASE dictionary as a clean table here
     st.dataframe(pd.DataFrame(PROJECT_DATABASE).T)
 
-
 def update_price(metric_key, db_key):
     """Fungsi umum untuk update harga DAN teks spek berdasarkan radio"""
     c_id = st.session_state.current_proj_id
     p_type = st.session_state.projects[c_id]["type"]
     
-    # 1. Ambil pilihan spek dari radio (Standard/Premium)
+    # 1. Ambil pilihan spek dari radio (Type 1/Type 2)
     selected_spec = st.session_state[f"temp_spec_{metric_key}_{c_id}"]
     
     # 2. Update TEKS spek di data locker agar masuk ke CSV
@@ -303,7 +340,6 @@ def update_price(metric_key, db_key):
         # 4. TIMPA nilai angka di number_input
         st.session_state[f"u_fl_{metric_key}_{c_id}"] = float(new_val)
 
-# COST ESTIMATOR ---
 def show_cost_estimator():
     st.title("Cost Calculator")
     st.markdown("---")
@@ -338,8 +374,7 @@ def show_cost_estimator():
     st.markdown("---")
 
     # --- 1. GLOBAL IMPORT SECTION (Sidebar) ---
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Upload .csv")
+    st.sidebar.subheader("Upload & Download")
     
     uploaded_file = st.sidebar.file_uploader("Upload Here:", type=["csv"])
     
@@ -357,8 +392,8 @@ def show_cost_estimator():
                         st.session_state.projects[curr_id]["type"] = str(val)
                     else:
                         # LOGIKA BARU: Cek apakah nilai adalah teks spek atau angka
-                        if str(val) in ["Standard", "Premium"]:
-                            # Simpan sebagai teks jika Standard/Premium
+                        if str(val) in ["Type 1", "Type 2"]:
+                            # Simpan sebagai teks jika Type 1/Type 2
                             st.session_state.projects[curr_id]["data"][key] = str(val)
                         else:
                             try:
@@ -518,35 +553,33 @@ def show_cost_estimator():
 
         with st.expander("Lantai, Finishing, dan Interior"):
             c1, c2, c3 = st.columns(3)
-            st.markdown("**HT/Ceramic Specification**")
-            with c1:
+            with c1: #Harga HT
                 # --- HT ---
-                st.radio("Spek HT", ["Standard", "Premium"], 
+                st.radio("Spek HT", ["Type 1", "Type 2"], 
                     key=f"temp_spec_ht_{curr_id}", # Key Unik
                     horizontal=True, 
                     on_change=update_price, args=("ht", "fl_ht_rate")) # Kirim info HT
                 fl_ht_rate = st.number_input("HT Rate (Rp)", 
-                                            value=get_val("u_fl_ht", pt_data["fl_ht_rate"]["Standard"]), 
+                                            value=get_val("u_fl_ht", pt_data["fl_ht_rate"]["Type 1"]), 
                                             key=f"u_fl_ht_{curr_id}")
-            with c2:
+            with c2: #Harga Vinyl
                 # --- VINYL ---
-                st.radio("Spek Vinyl", ["Standard", "Premium"], 
+                st.radio("Spek Vinyl", ["Type 1", "Type 2"], 
                     key=f"temp_spec_vin_{curr_id}", # Key Unik
                     horizontal=True, 
                     on_change=update_price, args=("vin", "fl_vinyl_rate")) # Kirim info Vinyl
                 fl_vinyl_rate = st.number_input("Vinyl Rate (Rp)", 
-                                                value=get_val("u_fl_vin", pt_data["fl_vinyl_rate"]["Standard"]), 
+                                                value=get_val("u_fl_vin", pt_data["fl_vinyl_rate"]["Type 1"]), 
                                                 key=f"u_fl_vin_{curr_id}")
-            with c3:
+            with c3: #Harga Marmer
                 # --- MARMER ---
-                st.radio("Spek Marmer", ["Standard", "Premium"], 
+                st.radio("Spek Marmer", ["Type 1", "Type 2"], 
                     key=f"temp_spec_mar_{curr_id}", # Key Unik
                     horizontal=True, 
                     on_change=update_price, args=("mar", "fl_marmer_rate")) # Kirim info Marmer
                 fl_marmer_rate = st.number_input("Marmer Rate (Rp)", 
-                                                value=get_val("u_fl_mar", pt_data["fl_marmer_rate"]["Standard"]), 
+                                                value=get_val("u_fl_mar", pt_data["fl_marmer_rate"]["Type 1"]), 
                                                 key=f"u_fl_mar_{curr_id}")
-                
             carpet_rate = c1.number_input("Carpet Rate (Rp)", value=get_val("u_carpet", pt_data["carpet"]), key=f"u_carpet_{curr_id}")
             glass_rate = c2.number_input("Glass Work Rate (Rp)", value=get_val("u_glass", pt_data["glass"]), key=f"u_glass_{curr_id}")
             skylight_rate = c3.number_input("Skylight Rate (Rp)", value=get_val("u_sky", pt_data["skylight_rate"]), key=f"u_sky_{curr_id}")
@@ -730,39 +763,8 @@ def show_cost_estimator():
         st.success("Calculations complete! View metrics below.")
         
         st.markdown("---")
-        
-        # Cost Breakdown Chart
-        st.subheader("Total Project Cost Breakdown (Hard & Soft)")
-        chart_data = pd.DataFrame({
-            "Category": [
-                "Structure/Foundation", "Architecture & Finishes", "Facade", 
-                "Sanitary/Plumbing", "MEP & FF&E", "External/Facilities", 
-                "Custom Additions (Hard)", # <--- Added Label here
-                "Prelim & Contingency", 
-                "Consultancy Fee (Soft)", "Quantity Surveyor (Soft)", 
-                "Project Management (Soft)", "Insurance (Soft)"
-            ],
-            "Amount (Rp)": [
-                group_structure, group_arch, group_facade, 
-                group_sanitary, group_mep, group_ext,
-                total_custom_cost,
-                group_contingency, 
-                t_consultancy, t_qs, 
-                t_pm, t_insurance
-            ]
-        })
-        
-        chart = alt.Chart(chart_data).mark_bar().encode(
-            x=alt.X("Amount (Rp):Q", title="Cost (Rp)"),
-            y=alt.Y("Category:N", sort="-x", title=""),
-            color=alt.Color("Category:N", legend=None),
-            tooltip=["Category", alt.Tooltip("Amount (Rp):Q", format=",.2f")]
-        ).properties(height=450)
-        st.altair_chart(chart, use_container_width=True)
 
-        st.markdown("---")
-
-        with st.expander("View Detailed Project Cost Table"):
+        with st.expander("View Detailed Project Cost Table", expanded=True):
             raw_amounts = [
                 t_preliminary, t_earth, t_found, t_struc, t_arch_base,
                 t_precast, t_window, t_double, t_w_door, t_g_door,
@@ -811,7 +813,7 @@ def show_cost_estimator():
                     f"{rooms:,.0f} Rooms x Rp {kitchen_rate:,.0f}", 
                     f"{wooden_door:,.0f} Doors x Rp {hw_wood:,.0f}", 
                     f"{steel_door:,.0f} Doors x Rp {hw_steel:,.0f}", 
-                    f"{fl_ht_pct}% of GFA x {f_mult} x Rp {fl_ht_rate:,.0f} ({get_val('ht_spec_type', 'Standard')})", 
+                    f"{fl_ht_pct}% of GFA x {f_mult} x Rp {fl_ht_rate:,.0f} ({get_val('ht_spec_type', 'Type 1')})", 
                     f"{fl_vinyl_pct}% of GFA x {f_mult} x Rp {fl_vinyl_rate:,.0f}", 
                     f"{fl_marmer_pct}% of GFA x {f_mult} x Rp {fl_marmer_rate:,.0f}", 
                     f"{carpet_m2:,.0f} m2 x Rp {carpet_rate:,.0f}", 
@@ -837,6 +839,37 @@ def show_cost_estimator():
             }
             st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
 
+        # Cost Breakdown Chart
+        st.subheader("Total Project Cost Breakdown (Hard & Soft)")
+        chart_data = pd.DataFrame({
+            "Category": [
+                "Structure/Foundation", "Architecture & Finishes", "Facade", 
+                "Sanitary/Plumbing", "MEP & FF&E", "External/Facilities", 
+                "Custom Additions (Hard)", # <--- Added Label here
+                "Prelim & Contingency", 
+                "Consultancy Fee (Soft)", "Quantity Surveyor (Soft)", 
+                "Project Management (Soft)", "Insurance (Soft)"
+            ],
+            "Amount (Rp)": [
+                group_structure, group_arch, group_facade, 
+                group_sanitary, group_mep, group_ext,
+                total_custom_cost,
+                group_contingency, 
+                t_consultancy, t_qs, 
+                t_pm, t_insurance
+            ]
+        })
+        
+        chart = alt.Chart(chart_data).mark_bar().encode(
+            x=alt.X("Amount (Rp):Q", title="Cost (Rp)"),
+            y=alt.Y("Category:N", sort="-x", title=""),
+            color=alt.Color("Category:N", legend=None),
+            tooltip=["Category", alt.Tooltip("Amount (Rp):Q", format=",.2f")]
+        ).properties(height=450)
+        st.altair_chart(chart, use_container_width=True)
+
+        st.markdown("---")
+
 
 # --- 2. GLOBAL EXPORT SECTION ---
     
@@ -846,9 +879,9 @@ def show_cost_estimator():
         "proj_name": new_name, 
         "proj_type": new_type,
         "misc_switch": misc_switch,
-        "ht_spec_type": get_val("ht_spec_type", "Standard"),
-        "vin_spec_type": get_val("vin_spec_type", "Standard"),
-        "mar_spec_type": get_val("mar_spec_type", "Standard"),
+        "ht_spec_type": get_val("ht_spec_type", "Type 1"),
+        "vin_spec_type": get_val("vin_spec_type", "Type 1"),
+        "mar_spec_type": get_val("mar_spec_type", "Type 1"),
         
         # Tab 1
         "m_land": land_area, "m_gba": gba, "m_gfa": gfa, "m_sgfa": sgfa,
@@ -1073,7 +1106,7 @@ def show_portfolio_summary():
     """
     st.markdown(html_string.replace('\n', ''), unsafe_allow_html=True)
 
-# --- 4. MAIN NAVIGATION & SIDEBAR PROJECT LIST ---
+#region info: Sidebar Navigation 
 st.sidebar.title("Main Navigation")
 
 page_choice = st.sidebar.radio(
@@ -1106,11 +1139,13 @@ with col_del:
     st.button("Hapus", disabled=not can_delete, on_click=cb_delete_project, help="Delete Active Project", use_container_width=True)
 
 st.sidebar.markdown("---")
+#endregion
 
-# --- 5. EXECUTION LOGIC ---
+#region info: Main Page Routing
 if page_choice == "Portfolio Summary":     # <-- Added Routing
     show_portfolio_summary()
 elif page_choice == "Area Calculator":
     show_area_calculator()
 else:
     show_cost_estimator()
+#endregion
