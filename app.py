@@ -631,12 +631,6 @@ def show_cost_estimator():
         st.markdown("---")
         st.markdown(f"""
             <div style="margin-bottom: 20px;">
-                <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Hard Cost (Exclude Preliminary & Contingency)</div>
-                <div style="font-size: 28px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.2;">
-                    Rp {construction_subtotal:,.2f}
-                </div>
-            </div>
-            <div style="margin-bottom: 20px;">
                 <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Total Project Hard Cost</div>
                 <div style="font-size: 28px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.2;">
                     Rp {grand_total_hc:,.2f}
