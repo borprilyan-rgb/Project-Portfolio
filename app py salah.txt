@@ -1,3 +1,4 @@
-kurang utility
+#kurang utility
 
-ganti (construction_subtotal - t_utility) > construction_subtotal
+#ganti (construction_subtotal - t_utility) jadi construction_subtotal
+#ganti (hc_sub - v_util) jadi hc_sub
