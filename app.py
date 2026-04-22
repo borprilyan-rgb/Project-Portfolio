@@ -844,10 +844,12 @@ def show_portfolio_summary():
         ed_assum = st.data_editor(df_assum, num_rows="dynamic", use_container_width=True, key=f"ed_sum_{active_id}")
 
         new_list = ed_assum["Note"].dropna().tolist()
+        
+        # Jika ada yang diketik/diubah, simpan ke memori
         if new_list != current_assums:
             st.session_state.projects[active_id]["data"]["assumptions"] = new_list
-            st.rerun()
-
+            
+        # (Baris st.rerun() dihapus total)
     rev_label = f"R({rev_input})"
     h_upd = upd_input
     h_cre = cre_input
