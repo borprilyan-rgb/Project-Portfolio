@@ -444,12 +444,12 @@ def show_cost_estimator():
             fac_double_rate = c5.number_input("Double Skin Rate (Rp)", value=get_val("u_f_doub", pt_data["facade_double_rate"]), key=f"u_f_doub_{curr_id}")
 
         with st.expander("Pintu dan Hardware"):
-            c1, c2 = st.columns(2)
+            c1, c2, c3 = st.columns(3)
             door_wood = c1.number_input("Wooden Door Rate (Rp)", value=get_val("u_d_wood", pt_data["door_wood"]), key=f"u_d_wood_{curr_id}")
             door_glass = c2.number_input("Glass Door Rate (Rp)", value=get_val("u_d_glass", pt_data["door_glass"]), key=f"u_d_glass_{curr_id}")
-            door_steel = c1.number_input("Steel Door Rate (Rp)", value=get_val("u_d_steel", pt_data["door_steel"]), key=f"u_d_steel_{curr_id}")
-            hw_wood = c2.number_input("Hardware Wooden Door (Rp)", value=get_val("u_hw_wood", pt_data["hw_wood"]), key=f"u_hw_wood_{curr_id}")
-            hw_steel = c1.number_input("Hardware Steel Door (Rp)", value=get_val("u_hw_steel", pt_data["hw_steel"]), key=f"u_hw_steel_{curr_id}")
+            door_steel = c3.number_input("Steel Door Rate (Rp)", value=get_val("u_d_steel", pt_data["door_steel"]), key=f"u_d_steel_{curr_id}")
+            hw_wood = c1.number_input("Hardware Wooden Door (Rp)", value=get_val("u_hw_wood", pt_data["hw_wood"]), key=f"u_hw_wood_{curr_id}")
+            hw_steel = c2.number_input("Hardware Steel Door (Rp)", value=get_val("u_hw_steel", pt_data["hw_steel"]), key=f"u_hw_steel_{curr_id}")
 
         with st.expander("Sanitari"):
             c1, c2 = st.columns(2)
@@ -819,7 +819,7 @@ def show_portfolio_summary():
             "rev_no": "0", "updated": today_str, "created": today_str
         }
 
-    with st.expander("📝 Edit Report Header & Assumptions", expanded=False):
+    with st.expander("Edit Report Header & Assumptions", expanded=True):
         h_col1, h_col2, h_col3 = st.columns(3)
         rev_input = h_col1.text_input("Revision Number:", value=st.session_state.projects[active_id]["data"]["header_info"]["rev_no"], key=f"rev_{active_id}")
         upd_input = h_col2.text_input("Updated Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["updated"], key=f"upd_{active_id}")
@@ -828,28 +828,30 @@ def show_portfolio_summary():
 
         st.divider()
         current_assums = st.session_state.projects[active_id]["data"].get("assumptions", [
-            "Foundation system utilize standard pilecaps with no basement construction.",
-            "Parking provision is limited to on-street level only.",
-            "Standard floor-to-floor height is established at 3.3 meters.",
-            "Facade utilizes Aluminum Window Wall and Precast panels; double skin systems are excluded for both main building and parking podium.",
-            "Ground Floor Lobby finishes comprise Artificial Stone and Homogeneous Tile (HT).",
-            "Typical Corridor finishes include Homogeneous Tile (HT) for flooring and Cement Sand Plaster with Emulsion Paint for walls.",
-            "Mechanical systems include AC Split for Apartment units and provision only for Water Heater installation.",
-            "Material price basis for SBO Rebars is fixed at Rp 10,000/kg.",
-            "Exclusions: Smart Home systems, Lift/Elevator units (unless specified), and Wardrobes.",
-            "FF&E includes Kitchen Cabinet, Hob & Hood, Refrigerator, and Washing Machine.",
-            "Calculation area refers to the Design Planning (DP) calculation dated March 12, 2026."
+            "Foundation System Standard Pilecaps. No Basement.",
+            "Parking Provision Limited To On Street Level Parking",
+            "Floor To Floor Height At 3.3M",
+            "Facade Alumunium Window Wall - No Double Skin",
+            "External Façade Precast, No Double Skin For Parking Podium If Any.",
+            "Ground Lobby Finishes Completed With Artificial Stone & HT.",
+            "Typical Corridor | Floor Finishes : HT | Wall Finishes : Cement Sand Plaster C/W Emulsion Paint.",
+            "Aircon System | Apartement : AC Split",
+            "SBO Rebars @ Rp. 10.000/Kg",
+            "Excluded Smarthome",
+            "Lift : Exclude",
+            "Wardrobe",
+            "FFE : Kitchen Cabinet, Hob & Hood, Refrigerator & Washing Machine",
+            "Water Heater : Installation Only",
+            "Calculation Area Refer To DP's Calculation Dated 12.03.2026"
         ])
+
         df_assum = pd.DataFrame(current_assums, columns=["Note"])
         ed_assum = st.data_editor(df_assum, num_rows="dynamic", use_container_width=True, key=f"ed_sum_{active_id}")
 
         new_list = ed_assum["Note"].dropna().tolist()
-        
-        # Jika ada yang diketik/diubah, simpan ke memori
         if new_list != current_assums:
             st.session_state.projects[active_id]["data"]["assumptions"] = new_list
-            
-        # (Baris st.rerun() dihapus total)
+
     rev_label = f"R({rev_input})"
     h_upd = upd_input
     h_cre = cre_input
