@@ -853,7 +853,7 @@ def show_portfolio_summary():
     rev_label = f"R({rev_input})"
     h_upd = upd_input
     h_cre = cre_input
-    dynamic_assumptions = st.session_state.projects[active_id]["data"].get("assumptions", [])
+    dynamic_assumptions = current_assums
 
     def get_project_totals(proj_dict):
         d = proj_dict.get("data", {})
