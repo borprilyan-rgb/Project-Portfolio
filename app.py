@@ -846,7 +846,6 @@ def show_portfolio_summary():
         new_list = ed_assum["Note"].dropna().tolist()
         if new_list != current_assums:
             st.session_state.projects[active_id]["data"]["assumptions"] = new_list
-            st.rerun()
 
     rev_label = f"R({rev_input})"
     h_upd = upd_input
