@@ -605,14 +605,14 @@ def show_cost_estimator():
         total_custom_cost
     ])
 
-    t_preliminary = construction_subtotal * 0.05
-    t_contingency = construction_subtotal * 0.03
+    t_preliminary = (construction_subtotal - t_utility) * 0.05
+    t_contingency = (construction_subtotal - t_utility) * 0.03
     grand_total_hc = construction_subtotal + t_preliminary + t_contingency
 
     t_consultancy = gfa * consultancy_rate
     t_qs = qs_months * qs_rate
     t_pm = pm_months * pm_rate
-    t_insurance = construction_subtotal * (insurance_pct / 100.0)
+    t_insurance = (construction_subtotal - t_utility) * (insurance_pct / 100.0)
 
     total_soft_cost = t_consultancy + t_qs + t_pm + t_insurance
     grand_total_project = grand_total_hc + total_soft_cost
@@ -681,7 +681,7 @@ def show_cost_estimator():
                     "38. Contingencies", "39. Consultancy Fee", "40. Quantity Surveyor", "41. Project Management", "42. Insurance Coverage"
                 ],
                 "Basis": [
-                    f"5% x Rp {construction_subtotal:,.0f}",
+                    f"5% x Rp {(construction_subtotal - t_utility):,.0f}",
                     f"{gba:,.0f} m2 x Rp {struc_earth:,.0f}",
                     f"{gba:,.0f} m2 x Rp {struc_found:,.0f}",
                     f"{gba:,.0f} m2 x Rp {struc_work:,.0f}",
@@ -718,11 +718,11 @@ def show_cost_estimator():
                     f"{res_fac_m2:,.0f} m2 x Rp {fac_res_rate:,.0f}",
                     f"{proj_fac_u:,.0f} Units x Rp {fac_proj_rate:,.0f}",
                     " | ".join(get_val("extra_items_summary_list", ["-"])),
-                    f"3% x Rp {construction_subtotal:,.0f}",
+                    f"3% x Rp {(construction_subtotal - t_utility):,.0f}",
                     f"{gfa:,.0f} m2 x Rp {consultancy_rate:,.0f}",
                     f"{qs_months} Months x Rp {qs_rate:,.0f}/Mo",
                     f"{pm_months} Months x Rp {pm_rate:,.0f}/Mo",
-                    f"{insurance_pct}% x Rp {construction_subtotal:,.0f}"
+                    f"{insurance_pct}% x Rp {(construction_subtotal - t_utility):,.0f}"
                 ],
                 "Amount": [f"Rp {val:,.2f}" for val in raw_amounts]
             }
