@@ -810,10 +810,10 @@ def show_portfolio_summary():
     import re
     from datetime import date
 
-    tab_summary, tab_detailed = st.tabs(["📊 Portfolio Summary", "📋 Detailed Estimate"])
+    tab_summary, tab_detailed = st.tabs(["FAD", "Rekap"])
     
     with tab_summary:
-        st.markdown("---")
+        st.subheader("Tabel FAD")
         active_id = st.session_state.current_proj_id
         today_str = date.today().strftime("%d-%m-%Y")
 
@@ -822,7 +822,7 @@ def show_portfolio_summary():
                 "rev_no": "0", "updated": today_str, "created": today_str
             }
 
-        with st.expander("Edit Report Header & Assumptions", expanded=True):
+        with st.expander("Edit Tabel FAD", expanded=False):
             h_col1, h_col2, h_col3 = st.columns(3)
             rev_input = h_col1.text_input("Revision Number:", value=st.session_state.projects[active_id]["data"]["header_info"]["rev_no"], key=f"rev_{active_id}")
             upd_input = h_col2.text_input("Updated Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["updated"], key=f"upd_{active_id}")
@@ -1023,7 +1023,7 @@ def show_portfolio_summary():
         workbook.close()
 
         st.download_button(
-            label="📊 Download Portfolio as Excel",
+            label="Download FAD as .xlsx",
             data=buffer.getvalue(),
             file_name=f"ASG_Portfolio_{active_id}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1092,7 +1092,7 @@ def show_portfolio_summary():
         st.markdown(html_string.replace("\n", ""), unsafe_allow_html=True)
 
         with tab_detailed:
-            st.subheader("Detailed Estimate Breakdown (All Active Projects)")
+            st.subheader("Tabel Rekapitulasi")
 
             # 1. SETUP: Prepare to collect data for ALL projects
             all_projects_data = []
@@ -1436,7 +1436,7 @@ def show_portfolio_summary():
             wb.close()
 
             st.download_button(
-                label="📊 Download Detailed Estimate as Excel",
+                label="Download Rekap as .xlsx",
                 data=buffer_det.getvalue(),
                 file_name="ASG_Detailed_Estimate_All_Projects.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
