@@ -906,6 +906,26 @@ def show_portfolio_summary():
                     (v("m_land_m2") * v("u_ext")) + (v("m_fac_pub") * v("u_fac_p")) +
                     (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr"))
                 )
+                hc_without_util = (
+                    (gba * v("u_earth")) + (gba * v("u_found")) + (gba * v("u_struc")) + (gfa * v("u_arch")) +
+                    (facade * (v("r_fac_pre") / 100) * v("u_f_pre")) + (facade * (v("r_fac_win") / 100) * v("u_f_win")) +
+                    (facade * (v("r_fac_doub") / 100) * v("u_f_doub")) + (v("m_door_w") * v("u_d_wood")) +
+                    (v("m_door_g") * v("u_d_glass")) + (v("m_door_s") * v("u_d_steel")) +
+                    (v("m_lobby") * v("u_lobby")) + (v("m_gondola") * v("u_gondola")) +
+                    (rooms * v("r_san_qty") * v("u_s_room")) + (v("m_toil_m") * v("u_s_pub_m")) +
+                    (v("m_toil_f") * v("u_s_pub_f")) + (v("m_toil_d") * v("u_s_dis")) +
+                    (v("m_mushola") * v("u_s_mushola")) + (rooms * v("u_kit")) +
+                    (v("m_door_w") * v("u_hw_wood")) + (v("m_door_s") * v("u_hw_steel")) +
+                    (gfa * (v("r_fl_ht") / 100) * v("u_fl_ht") * f_mult) +
+                    (gfa * (v("r_fl_vin") / 100) * v("u_fl_vin") * f_mult) +
+                    (gfa * (v("r_fl_mar") / 100) * v("u_fl_mar") * f_mult) +
+                    (v("m_carpet") * v("u_carpet")) + (v("m_glass") * v("u_glass")) +
+                    (rooms * v("u_ffe")) + (v("u_misc") * d.get("misc_switch", 0)) +
+                    (gba * v("u_mep")) +
+                    (rooms * v("r_rail_qty") * v("u_rail")) + (v("m_skylight") * v("u_sky")) +
+                    (v("m_land_m2") * v("u_ext")) + (v("m_fac_pub") * v("u_fac_p")) +
+                    (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr"))
+                )
                 custom_costs = d.get("smart_custom_costs", [])
                 dep_map = {
                     "None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa,
@@ -914,9 +934,9 @@ def show_portfolio_summary():
                 for item in custom_costs:
                     hc += (float(item.get("Rate (Rp)", 0)) * float(item.get("Multiplier (Qty)", 1)) *
                         dep_map.get(item.get("Linked Dependency"), 1.0))
-                hc_total = hc + (hc * 0.05) + (hc * 0.03)
+                hc_total = hc + (hc_without_util * 0.05) + (hc_without_util * 0.03)
                 sc_total = ((gfa * v("sc_cons")) + (v("sc_qs_m") * v("sc_qs_r")) +
-                            (v("sc_pm_m") * v("sc_pm_r")) + (hc * (v("sc_ins") / 100)))
+                            (v("sc_pm_m") * v("sc_pm_r")) + (hc_without_util * (v("sc_ins") / 100)))
                 return {"gba": gba, "gfa": gfa, "sgfa": sgfa, "units": rooms, "budget": hc_total + sc_total}
 
             # --- DATA AGGREGATION (CALCULATED + MANUAL) ---
@@ -1196,15 +1216,15 @@ def show_portfolio_summary():
                 v_custom = sum([(float(item.get("Rate (Rp)", 0)) * float(item.get("Multiplier (Qty)", 1)) * dep_map.get(item.get("Linked Dependency"), 1.0)) for item in c_costs])
 
                 hc_sub = v_earth + v_found + v_struc + v_arch + v_ffe + v_mep + v_util + v_ext + v_fac + v_custom
-                v_prelim = hc_sub * 0.05
-                v_cont = hc_sub * 0.03
+                v_prelim = (hc_sub - v_util) * 0.05
+                v_cont = (hc_sub - v_util) * 0.03
                 hc_tot = hc_sub + v_prelim + v_cont
 
                 # Softcosts
                 v_cons = gfa * v("sc_cons")
                 v_qs = v("sc_qs_m") * v("sc_qs_r")
                 v_pm = v("sc_pm_m") * v("sc_pm_r")
-                v_ins = hc_sub * (v("sc_ins") / 100)
+                v_ins = (hc_sub - v_util) * (v("sc_ins") / 100)
                 sc_tot = v_cons + v_qs + v_pm + v_ins
                 
                 p_grand = hc_tot + sc_tot
