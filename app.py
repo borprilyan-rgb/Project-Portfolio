@@ -872,7 +872,6 @@ def show_portfolio_summary():
                     "Budget Estimate (Rp)": st.column_config.NumberColumn("Budget Estimate (Rp)", min_value=0, format="%.0f")
                 }
             )
-            st.session_state.manual_fad_projects = edited_manual_df
 
             rev_label = f"R({rev_input})"
             h_upd = upd_input
