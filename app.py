@@ -681,7 +681,7 @@ def show_cost_estimator():
                     "38. Contingencies", "39. Consultancy Fee", "40. Quantity Surveyor", "41. Project Management", "42. Insurance Coverage"
                 ],
                 "Basis": [
-                    "5% Subtotal Hard Cost",
+                    f"5% x Rp {construction_subtotal:,.0f}",
                     f"{gba:,.0f} m2 x Rp {struc_earth:,.0f}",
                     f"{gba:,.0f} m2 x Rp {struc_found:,.0f}",
                     f"{gba:,.0f} m2 x Rp {struc_work:,.0f}",
@@ -718,11 +718,11 @@ def show_cost_estimator():
                     f"{res_fac_m2:,.0f} m2 x Rp {fac_res_rate:,.0f}",
                     f"{proj_fac_u:,.0f} Units x Rp {fac_proj_rate:,.0f}",
                     " | ".join(get_val("extra_items_summary_list", ["-"])),
-                    "3% Subtotal Hard Cost",
+                    f"3% x Rp {construction_subtotal:,.0f}",
                     f"{gfa:,.0f} m2 x Rp {consultancy_rate:,.0f}",
                     f"{qs_months} Months x Rp {qs_rate:,.0f}/Mo",
                     f"{pm_months} Months x Rp {pm_rate:,.0f}/Mo",
-                    f"{insurance_pct}% of Construction Subtotal"
+                    f"{insurance_pct}% x Rp {construction_subtotal:,.0f}"
                 ],
                 "Amount": [f"Rp {val:,.2f}" for val in raw_amounts]
             }
@@ -807,285 +807,340 @@ def show_portfolio_summary():
     tab_summary, tab_detailed = st.tabs(["FAD", "Rekap"])
     
     with tab_summary:
-        st.subheader("Tabel FAD")
-        active_id = st.session_state.current_proj_id
-        today_str = date.today().strftime("%d-%m-%Y")
+            st.subheader("Tabel FAD")
+            active_id = st.session_state.current_proj_id
+            today_str = date.today().strftime("%d-%m-%Y")
 
-        if "header_info" not in st.session_state.projects[active_id]["data"]:
-            st.session_state.projects[active_id]["data"]["header_info"] = {
-                "rev_no": "0", "updated": today_str, "created": today_str
-            }
+            if "header_info" not in st.session_state.projects[active_id]["data"]:
+                st.session_state.projects[active_id]["data"]["header_info"] = {
+                    "rev_no": "0", "updated": today_str, "created": today_str
+                }
 
-        with st.expander("Edit Tabel FAD", expanded=False):
-            h_col1, h_col2, h_col3 = st.columns(3)
-            rev_input = h_col1.text_input("Revision Number:", value=st.session_state.projects[active_id]["data"]["header_info"]["rev_no"], key=f"rev_{active_id}")
-            upd_input = h_col2.text_input("Updated Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["updated"], key=f"upd_{active_id}")
-            cre_input = h_col3.text_input("Created Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["created"], key=f"cre_{active_id}")
-            st.session_state.projects[active_id]["data"]["header_info"] = {"rev_no": rev_input, "updated": upd_input, "created": cre_input}
+            with st.expander("Edit Header & Assumptions", expanded=False):
+                h_col1, h_col2, h_col3 = st.columns(3)
+                rev_input = h_col1.text_input("Revision Number:", value=st.session_state.projects[active_id]["data"]["header_info"]["rev_no"], key=f"rev_{active_id}")
+                upd_input = h_col2.text_input("Updated Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["updated"], key=f"upd_{active_id}")
+                cre_input = h_col3.text_input("Created Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["created"], key=f"cre_{active_id}")
+                st.session_state.projects[active_id]["data"]["header_info"] = {"rev_no": rev_input, "updated": upd_input, "created": cre_input}
 
-            st.divider()
-            current_assums = st.session_state.projects[active_id]["data"].get("assumptions", [
-                "Foundation System Standard Pilecaps. No Basement.",
-                "Parking Provision Limited To On Street Level Parking",
-                "Floor To Floor Height At 3.3M",
-                "Facade Alumunium Window Wall - No Double Skin",
-                "External Façade Precast, No Double Skin For Parking Podium If Any.",
-                "Ground Lobby Finishes Completed With Artificial Stone & HT.",
-                "Typical Corridor | Floor Finishes : HT | Wall Finishes : Cement Sand Plaster C/W Emulsion Paint.",
-                "Aircon System | Apartement : AC Split",
-                "SBO Rebars @ Rp. 10.000/Kg",
-                "Excluded Smarthome",
-                "Lift : Exclude",
-                "Wardrobe",
-                "FFE : Kitchen Cabinet, Hob & Hood, Refrigerator & Washing Machine",
-                "Water Heater : Installation Only",
-                "Calculation Area Refer To DP's Calculation Dated 12.03.2026"
-            ])
+                st.divider()
+                current_assums = st.session_state.projects[active_id]["data"].get("assumptions", [
+                    "Foundation System Standard Pilecaps. No Basement.",
+                    "Parking Provision Limited To On Street Level Parking",
+                    "Floor To Floor Height At 3.3M",
+                    "Facade Alumunium Window Wall - No Double Skin",
+                    "External Façade Precast, No Double Skin For Parking Podium If Any.",
+                    "Ground Lobby Finishes Completed With Artificial Stone & HT.",
+                    "Typical Corridor | Floor Finishes : HT | Wall Finishes : Cement Sand Plaster C/W Emulsion Paint.",
+                    "Aircon System | Apartement : AC Split",
+                    "SBO Rebars @ Rp. 10.000/Kg",
+                    "Excluded Smarthome",
+                    "Lift : Exclude",
+                    "Wardrobe",
+                    "FFE : Kitchen Cabinet, Hob & Hood, Refrigerator & Washing Machine",
+                    "Water Heater : Installation Only",
+                    "Calculation Area Refer To DP's Calculation Dated 12.03.2026"
+                ])
 
-            df_assum = pd.DataFrame(current_assums, columns=["Note"])
-            ed_assum = st.data_editor(df_assum, num_rows="dynamic", use_container_width=True, key=f"ed_sum_{active_id}")
+                df_assum = pd.DataFrame(current_assums, columns=["Note"])
+                ed_assum = st.data_editor(df_assum, num_rows="dynamic", use_container_width=True, key=f"ed_sum_{active_id}")
 
-            new_list = ed_assum["Note"].dropna().tolist()
-            if new_list != current_assums:
-                st.session_state.projects[active_id]["data"]["assumptions"] = new_list
+                new_list = ed_assum["Note"].dropna().tolist()
+                if new_list != current_assums:
+                    st.session_state.projects[active_id]["data"]["assumptions"] = new_list
 
-        rev_label = f"R({rev_input})"
-        h_upd = upd_input
-        h_cre = cre_input
-        dynamic_assumptions = current_assums
+            # --- MANUAL PROJECTS EDITOR ---
+            st.markdown("---")
+            st.subheader("Manual Additional Projects")
+            st.caption("Add custom projects to the FAD summary below. Cost Ratios (Rp/m2) will be calculated automatically.")
+            
+            if "manual_fad_projects" not in st.session_state:
+                st.session_state.manual_fad_projects = pd.DataFrame(columns=[
+                    "Project Name", "GBA", "GFA", "SGFA", "Units", "Budget Estimate (Rp)"
+                ])
 
-        def get_project_totals(proj_dict):
-            d = proj_dict.get("data", {})
-            pt_data = PROJECT_DATABASE.get(proj_dict["type"], PROJECT_DATABASE["Hotel"])
-            def v(key, default=0.0):
-                return d.get(key, pt_data.get(key, default))
-            gba = v("m_gba"); gfa = v("m_gfa"); sgfa = v("m_sgfa")
-            rooms = v("m_rooms"); facade = v("m_facade")
-            f_mult = 1.32
-            hc = (
-                (gba * v("u_earth")) + (gba * v("u_found")) + (gba * v("u_struc")) + (gfa * v("u_arch")) +
-                (facade * (v("r_fac_pre") / 100) * v("u_f_pre")) + (facade * (v("r_fac_win") / 100) * v("u_f_win")) +
-                (facade * (v("r_fac_doub") / 100) * v("u_f_doub")) + (v("m_door_w") * v("u_d_wood")) +
-                (v("m_door_g") * v("u_d_glass")) + (v("m_door_s") * v("u_d_steel")) +
-                (v("m_lobby") * v("u_lobby")) + (v("m_gondola") * v("u_gondola")) +
-                (rooms * v("r_san_qty") * v("u_s_room")) + (v("m_toil_m") * v("u_s_pub_m")) +
-                (v("m_toil_f") * v("u_s_pub_f")) + (v("m_toil_d") * v("u_s_dis")) +
-                (v("m_mushola") * v("u_s_mushola")) + (rooms * v("u_kit")) +
-                (v("m_door_w") * v("u_hw_wood")) + (v("m_door_s") * v("u_hw_steel")) +
-                (gfa * (v("r_fl_ht") / 100) * v("u_fl_ht") * f_mult) +
-                (gfa * (v("r_fl_vin") / 100) * v("u_fl_vin") * f_mult) +
-                (gfa * (v("r_fl_mar") / 100) * v("u_fl_mar") * f_mult) +
-                (v("m_carpet") * v("u_carpet")) + (v("m_glass") * v("u_glass")) +
-                (rooms * v("u_ffe")) + (v("u_misc") * d.get("misc_switch", 0)) +
-                (gba * v("u_mep")) + (gba * v("u_util")) +
-                (rooms * v("r_rail_qty") * v("u_rail")) + (v("m_skylight") * v("u_sky")) +
-                (v("m_land_m2") * v("u_ext")) + (v("m_fac_pub") * v("u_fac_p")) +
-                (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr"))
+            edited_manual_df = st.data_editor(
+                st.session_state.manual_fad_projects,
+                num_rows="dynamic",
+                use_container_width=True,
+                key="manual_fad_editor",
+                column_config={
+                    "GBA": st.column_config.NumberColumn("GBA", min_value=0, format="%.0f"),
+                    "GFA": st.column_config.NumberColumn("GFA", min_value=0, format="%.0f"),
+                    "SGFA": st.column_config.NumberColumn("SGFA", min_value=0, format="%.0f"),
+                    "Units": st.column_config.NumberColumn("Units", min_value=0, format="%.0f"),
+                    "Budget Estimate (Rp)": st.column_config.NumberColumn("Budget Estimate (Rp)", min_value=0, format="%.0f")
+                }
             )
-            custom_costs = d.get("smart_custom_costs", [])
-            dep_map = {
-                "None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa,
-                "Land Area": v("m_land"), "Rooms": rooms, "Facade": facade, "Lobby": v("m_lobby")
-            }
-            for item in custom_costs:
-                hc += (float(item.get("Rate (Rp)", 0)) * float(item.get("Multiplier (Qty)", 1)) *
-                    dep_map.get(item.get("Linked Dependency"), 1.0))
-            hc_total = hc + (hc * 0.05) + (hc * 0.03)
-            sc_total = ((gfa * v("sc_cons")) + (v("sc_qs_m") * v("sc_qs_r")) +
-                        (v("sc_pm_m") * v("sc_pm_r")) + (hc * (v("sc_ins") / 100)))
-            return {"gba": gba, "gfa": gfa, "sgfa": sgfa, "units": rooms, "budget": hc_total + sc_total}
+            st.session_state.manual_fad_projects = edited_manual_df
 
-        table_rows_html = ""
-        total_gba = total_gfa = total_sgfa = total_budget = 0
-        project_results = []
+            rev_label = f"R({rev_input})"
+            h_upd = upd_input
+            h_cre = cre_input
+            dynamic_assumptions = current_assums
 
-        for idx, (p_id, p_data) in enumerate(st.session_state.projects.items(), 1):
-            m = get_project_totals(p_data)
-            r_gba  = m["budget"] / m["gba"]  if m["gba"]  > 0 else 0
-            r_gfa  = m["budget"] / m["gfa"]  if m["gfa"]  > 0 else 0
-            r_sgfa = m["budget"] / m["sgfa"] if m["sgfa"] > 0 else 0
-            total_gba += m["gba"]; total_gfa += m["gfa"]; total_sgfa += m["sgfa"]; total_budget += m["budget"]
-            project_results.append({
-                "idx": idx, "name": p_data["name"].upper(),
-                "gba": m["gba"], "gfa": m["gfa"], "sgfa": m["sgfa"],
-                "units": m["units"], "budget": m["budget"],
-                "r_gba": r_gba, "r_gfa": r_gfa, "r_sgfa": r_sgfa
-            })
-            table_rows_html += (
-                f"<tr>"
-                f"<td style='border:1px solid black;padding:5px;'>{idx}</td>"
-                f"<td style='border:1px solid black;padding:5px;text-align:left;'><b>{p_data['name'].upper()}</b></td>"
-                f"<td style='border:1px solid black;padding:5px;'>{m['gba']:,.0f}</td>"
-                f"<td style='border:1px solid black;padding:5px;'>{m['gfa']:,.0f}</td>"
-                f"<td style='border:1px solid black;padding:5px;'>{m['sgfa']:,.0f}</td>"
-                f"<td style='border:1px solid black;padding:5px;'>{m['units']:,.0f}</td>"
-                f"<td style='border:1px solid black;padding:5px;'>Units</td>"
-                f"<td style='border:1px solid black;padding:5px;text-align:right;'><b>{m['budget']:,.0f}</b></td>"
-                f"<td style='border:1px solid black;padding:5px;'>{r_gba:,.0f}</td>"
-                f"<td style='border:1px solid black;padding:5px;'>{r_gfa:,.0f}</td>"
-                f"<td style='border:1px solid black;padding:5px;'>{r_sgfa:,.0f}</td>"
-                f"</tr>"
+            def get_project_totals(proj_dict):
+                d = proj_dict.get("data", {})
+                pt_data = PROJECT_DATABASE.get(proj_dict["type"], PROJECT_DATABASE["Hotel"])
+                def v(key, default=0.0):
+                    return d.get(key, pt_data.get(key, default))
+                gba = v("m_gba"); gfa = v("m_gfa"); sgfa = v("m_sgfa")
+                rooms = v("m_rooms"); facade = v("m_facade")
+                f_mult = 1.32
+                hc = (
+                    (gba * v("u_earth")) + (gba * v("u_found")) + (gba * v("u_struc")) + (gfa * v("u_arch")) +
+                    (facade * (v("r_fac_pre") / 100) * v("u_f_pre")) + (facade * (v("r_fac_win") / 100) * v("u_f_win")) +
+                    (facade * (v("r_fac_doub") / 100) * v("u_f_doub")) + (v("m_door_w") * v("u_d_wood")) +
+                    (v("m_door_g") * v("u_d_glass")) + (v("m_door_s") * v("u_d_steel")) +
+                    (v("m_lobby") * v("u_lobby")) + (v("m_gondola") * v("u_gondola")) +
+                    (rooms * v("r_san_qty") * v("u_s_room")) + (v("m_toil_m") * v("u_s_pub_m")) +
+                    (v("m_toil_f") * v("u_s_pub_f")) + (v("m_toil_d") * v("u_s_dis")) +
+                    (v("m_mushola") * v("u_s_mushola")) + (rooms * v("u_kit")) +
+                    (v("m_door_w") * v("u_hw_wood")) + (v("m_door_s") * v("u_hw_steel")) +
+                    (gfa * (v("r_fl_ht") / 100) * v("u_fl_ht") * f_mult) +
+                    (gfa * (v("r_fl_vin") / 100) * v("u_fl_vin") * f_mult) +
+                    (gfa * (v("r_fl_mar") / 100) * v("u_fl_mar") * f_mult) +
+                    (v("m_carpet") * v("u_carpet")) + (v("m_glass") * v("u_glass")) +
+                    (rooms * v("u_ffe")) + (v("u_misc") * d.get("misc_switch", 0)) +
+                    (gba * v("u_mep")) + (gba * v("u_util")) +
+                    (rooms * v("r_rail_qty") * v("u_rail")) + (v("m_skylight") * v("u_sky")) +
+                    (v("m_land_m2") * v("u_ext")) + (v("m_fac_pub") * v("u_fac_p")) +
+                    (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr"))
+                )
+                custom_costs = d.get("smart_custom_costs", [])
+                dep_map = {
+                    "None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa,
+                    "Land Area": v("m_land"), "Rooms": rooms, "Facade": facade, "Lobby": v("m_lobby")
+                }
+                for item in custom_costs:
+                    hc += (float(item.get("Rate (Rp)", 0)) * float(item.get("Multiplier (Qty)", 1)) *
+                        dep_map.get(item.get("Linked Dependency"), 1.0))
+                hc_total = hc + (hc * 0.05) + (hc * 0.03)
+                sc_total = ((gfa * v("sc_cons")) + (v("sc_qs_m") * v("sc_qs_r")) +
+                            (v("sc_pm_m") * v("sc_pm_r")) + (hc * (v("sc_ins") / 100)))
+                return {"gba": gba, "gfa": gfa, "sgfa": sgfa, "units": rooms, "budget": hc_total + sc_total}
+
+            # --- DATA AGGREGATION (CALCULATED + MANUAL) ---
+            combined_results = []
+            idx = 1
+            
+            # 1. Add Auto-Calculated Projects
+            for p_id, p_data in st.session_state.projects.items():
+                m = get_project_totals(p_data)
+                combined_results.append({
+                    "idx": idx, "name": p_data["name"].upper(),
+                    "gba": m["gba"], "gfa": m["gfa"], "sgfa": m["sgfa"],
+                    "units": m["units"], "budget": m["budget"]
+                })
+                idx += 1
+
+            # 2. Add Manual Projects
+            edited_manual_df = edited_manual_df.fillna(0) # <--- ADD THIS LINE
+            for _, row in edited_manual_df.iterrows():
+                p_name = str(row.get("Project Name", f"MANUAL PROJECT {idx}"))
+                if p_name == "nan" or not p_name.strip(): p_name = f"MANUAL PROJECT {idx}"
+                
+                combined_results.append({
+                    "idx": idx, "name": p_name.upper(),
+                    "gba": float(row.get("GBA", 0) or 0),
+                    "gfa": float(row.get("GFA", 0) or 0),
+                    "sgfa": float(row.get("SGFA", 0) or 0),
+                    "units": float(row.get("Units", 0) or 0),
+                    "budget": float(row.get("Budget Estimate (Rp)", 0) or 0)
+                })
+                idx += 1
+
+            # 3. Calculate Ratios & Totals
+            table_rows_html = ""
+            total_gba = total_gfa = total_sgfa = total_budget = 0
+
+            for p in combined_results:
+                r_gba  = p["budget"] / p["gba"]  if p["gba"]  > 0 else 0
+                r_gfa  = p["budget"] / p["gfa"]  if p["gfa"]  > 0 else 0
+                r_sgfa = p["budget"] / p["sgfa"] if p["sgfa"] > 0 else 0
+
+                p["r_gba"] = r_gba
+                p["r_gfa"] = r_gfa
+                p["r_sgfa"] = r_sgfa
+
+                total_gba += p["gba"]
+                total_gfa += p["gfa"]
+                total_sgfa += p["sgfa"]
+                total_budget += p["budget"]
+
+                table_rows_html += (
+                    f"<tr>"
+                    f"<td style='border:1px solid black;padding:5px;'>{p['idx']}</td>"
+                    f"<td style='border:1px solid black;padding:5px;text-align:left;'><b>{p['name']}</b></td>"
+                    f"<td style='border:1px solid black;padding:5px;'>{p['gba']:,.0f}</td>"
+                    f"<td style='border:1px solid black;padding:5px;'>{p['gfa']:,.0f}</td>"
+                    f"<td style='border:1px solid black;padding:5px;'>{p['sgfa']:,.0f}</td>"
+                    f"<td style='border:1px solid black;padding:5px;'>{p['units']:,.0f}</td>"
+                    f"<td style='border:1px solid black;padding:5px;'>Units</td>"
+                    f"<td style='border:1px solid black;padding:5px;text-align:right;'><b>{p['budget']:,.0f}</b></td>"
+                    f"<td style='border:1px solid black;padding:5px;'>{r_gba:,.0f}</td>"
+                    f"<td style='border:1px solid black;padding:5px;'>{r_gfa:,.0f}</td>"
+                    f"<td style='border:1px solid black;padding:5px;'>{r_sgfa:,.0f}</td>"
+                    f"</tr>"
+                )
+
+            t_r_gba  = total_budget / total_gba  if total_gba  > 0 else 0
+            t_r_gfa  = total_budget / total_gfa  if total_gfa  > 0 else 0
+            t_r_sgfa = total_budget / total_sgfa if total_sgfa > 0 else 0
+
+            # --- EXCEL BUILDER ---
+            buffer = io.BytesIO()
+            workbook = xlsxwriter.Workbook(buffer, {"in_memory": True, "nan_inf_to_errors": True})
+            worksheet = workbook.add_worksheet("Portfolio Summary")
+
+            f_blue_L    = workbook.add_format({"bg_color": "#0062a8", "font_color": "white", "bold": True, "valign": "vcenter"})
+            f_th        = workbook.add_format({"bg_color": "#f2f2f2", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "text_wrap": True})
+            f_td_c      = workbook.add_format({"align": "center", "valign": "vcenter", "border": 1})
+            f_td_L_b    = workbook.add_format({"align": "left", "valign": "vcenter", "border": 1, "bold": True})
+            f_td_R_b    = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1, "bold": True, "num_format": "#,##0"})
+            f_td_num    = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
+            f_tot_L     = workbook.add_format({"bg_color": "#e0e0e0", "bold": True, "align": "center", "valign": "vcenter", "border": 1})
+            f_tot_num   = workbook.add_format({"bg_color": "#e0e0e0", "bold": True, "align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
+            f_tot_empty = workbook.add_format({"bg_color": "#e0e0e0", "border": 1})
+            f_assum_h   = workbook.add_format({"bg_color": "#ffdf70", "bold": True, "border": 1, "valign": "vcenter"})
+            f_assum_c   = workbook.add_format({"align": "center", "border": 1})
+            f_assum_L   = workbook.add_format({"align": "left", "border": 1})
+
+            worksheet.set_column("A:A", 5); worksheet.set_column("B:B", 38); worksheet.set_column("C:E", 15)
+            worksheet.set_column("F:F", 10); worksheet.set_column("G:G", 8); worksheet.set_column("H:H", 22)
+            worksheet.set_column("I:K", 15)
+
+            for row in range(5):
+                worksheet.merge_range(row, 0, row, 10, "", f_blue_L)
+            worksheet.write_string(0, 0, f"ASG GROUP PROPERTY DEVELOPMENT | VERSION : {rev_label}", f_blue_L)
+            worksheet.write_string(1, 0, "QS & PROCUREMENT DIVISION", f_blue_L)
+            worksheet.write_string(2, 0, "PROJECT PORTFOLIO | ALL ACTIVE PROJECTS", f_blue_L)
+            worksheet.write_string(3, 0, f"REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA | UPDATED : {h_upd}", f_blue_L)
+            worksheet.write_string(4, 0, f"BUDGET ESTIMATE {rev_label} | CREATED : {h_cre}", f_blue_L)
+
+            worksheet.merge_range("A7:A8", "SN", f_th); worksheet.merge_range("B7:B8", "AREA", f_th)
+            worksheet.merge_range("C7:E7", "BUILDING AREA (M2)", f_th)
+            worksheet.write_string("C8", "GBA", f_th); worksheet.write_string("D8", "GFA", f_th); worksheet.write_string("E8", "SGFA", f_th)
+            worksheet.merge_range("F7:G8", "UNIT", f_th); worksheet.merge_range("H7:H8", "BUDGET ESTIMATE\nRP", f_th)
+            worksheet.merge_range("I7:K7", "COST RATIO RP/M2", f_th)
+            worksheet.write_string("I8", "GBA", f_th); worksheet.write_string("J8", "GFA", f_th); worksheet.write_string("K8", "SGFA", f_th)
+
+            row_idx = 8
+            for p in combined_results:
+                worksheet.write_number(row_idx, 0, p["idx"], f_td_c)
+                worksheet.write_string(row_idx, 1, p["name"], f_td_L_b)
+                worksheet.write_number(row_idx, 2, p["gba"], f_td_num)
+                worksheet.write_number(row_idx, 3, p["gfa"], f_td_num)
+                worksheet.write_number(row_idx, 4, p["sgfa"], f_td_num)
+                worksheet.write_number(row_idx, 5, p["units"], f_td_c)
+                worksheet.write_string(row_idx, 6, "Units", f_td_c)
+                worksheet.write_number(row_idx, 7, p["budget"], f_td_R_b)
+                worksheet.write_number(row_idx, 8, p["r_gba"], f_td_num)
+                worksheet.write_number(row_idx, 9, p["r_gfa"], f_td_num)
+                worksheet.write_number(row_idx, 10, p["r_sgfa"], f_td_num)
+                row_idx += 1
+
+            worksheet.merge_range(row_idx, 0, row_idx, 1, "TOTAL", f_tot_L)
+            worksheet.write_number(row_idx, 2, total_gba, f_tot_num)
+            worksheet.write_number(row_idx, 3, total_gfa, f_tot_num)
+            worksheet.write_number(row_idx, 4, total_sgfa, f_tot_num)
+            worksheet.write_string(row_idx, 5, "", f_tot_empty)
+            worksheet.write_string(row_idx, 6, "", f_tot_empty)
+            worksheet.write_number(row_idx, 7, total_budget, f_tot_num)
+            worksheet.write_number(row_idx, 8, t_r_gba, f_tot_num)
+            worksheet.write_number(row_idx, 9, t_r_gfa, f_tot_num)
+            worksheet.write_number(row_idx, 10, t_r_sgfa, f_tot_num)
+
+            row_idx += 2
+            worksheet.write_string(row_idx, 0, "I.", f_assum_h)
+            worksheet.merge_range(row_idx, 1, row_idx, 10, "ASSUMPTIONS", f_assum_h)
+            for i, assum in enumerate(dynamic_assumptions, 1):
+                row_idx += 1
+                worksheet.write_number(row_idx, 0, i, f_assum_c)
+                text = str(assum)
+                date_match = re.search(r"(\d{2}[./-]\d{2}[./-]\d{4})", text)
+                if date_match:
+                    worksheet.merge_range(row_idx, 1, row_idx, 10, "", f_assum_L)
+                    parts = text.split(date_match.group(1))
+                    rich_args = []
+                    if parts[0]: rich_args.append(parts[0])
+                    rich_args.extend([workbook.add_format({"font_color": "red"}), date_match.group(1)])
+                    if len(parts) > 1 and parts[1]: rich_args.append(parts[1])
+                    worksheet.write_rich_string(row_idx, 1, *rich_args, f_assum_L)
+                else:
+                    worksheet.merge_range(row_idx, 1, row_idx, 10, text, f_assum_L)
+            workbook.close()
+
+            st.download_button(
+                label="Download FAD as .xlsx",
+                data=buffer.getvalue(),
+                file_name=f"ASG_Portfolio_{active_id}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
             )
 
-        t_r_gba  = total_budget / total_gba  if total_gba  > 0 else 0
-        t_r_gfa  = total_budget / total_gfa  if total_gfa  > 0 else 0
-        t_r_sgfa = total_budget / total_sgfa if total_sgfa > 0 else 0
+            # --- HTML TABLE RENDER ---
+            assum_html_rows = ""
+            for i, assum in enumerate(dynamic_assumptions, 1):
+                display_text = re.sub(r"(\d{2}[./-]\d{2}[./-]\d{4})", r"<span style='color:red;'>\1</span>", str(assum))
+                assum_html_rows += (
+                    f"<tr><td style='text-align:center;border-right:1px solid #e0e0e0;padding:2px;'>{i}</td>"
+                    f"<td style='padding:2px 5px;'>{display_text}</td></tr>"
+                )
 
-        # --- EXCEL BUILDER ---
-        buffer = io.BytesIO()
-        workbook = xlsxwriter.Workbook(buffer, {"in_memory": True})
-        worksheet = workbook.add_worksheet("Portfolio Summary")
-
-        f_blue_L    = workbook.add_format({"bg_color": "#0062a8", "font_color": "white", "bold": True, "valign": "vcenter"})
-        f_th        = workbook.add_format({"bg_color": "#f2f2f2", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "text_wrap": True})
-        f_td_c      = workbook.add_format({"align": "center", "valign": "vcenter", "border": 1})
-        f_td_L_b    = workbook.add_format({"align": "left", "valign": "vcenter", "border": 1, "bold": True})
-        f_td_R_b    = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1, "bold": True, "num_format": "#,##0"})
-        f_td_num    = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
-        f_tot_L     = workbook.add_format({"bg_color": "#e0e0e0", "bold": True, "align": "center", "valign": "vcenter", "border": 1})
-        f_tot_num   = workbook.add_format({"bg_color": "#e0e0e0", "bold": True, "align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
-        f_tot_empty = workbook.add_format({"bg_color": "#e0e0e0", "border": 1})
-        f_assum_h   = workbook.add_format({"bg_color": "#ffdf70", "bold": True, "border": 1, "valign": "vcenter"})
-        f_assum_c   = workbook.add_format({"align": "center", "border": 1})
-        f_assum_L   = workbook.add_format({"align": "left", "border": 1})
-
-        worksheet.set_column("A:A", 5); worksheet.set_column("B:B", 38); worksheet.set_column("C:E", 15)
-        worksheet.set_column("F:F", 10); worksheet.set_column("G:G", 8); worksheet.set_column("H:H", 22)
-        worksheet.set_column("I:K", 15)
-
-        for row in range(5):
-            worksheet.merge_range(row, 0, row, 10, "", f_blue_L)
-        worksheet.write_string(0, 0, f"ASG GROUP PROPERTY DEVELOPMENT | VERSION : {rev_label}", f_blue_L)
-        worksheet.write_string(1, 0, "QS & PROCUREMENT DIVISION", f_blue_L)
-        worksheet.write_string(2, 0, "PROJECT PORTFOLIO | ALL ACTIVE PROJECTS", f_blue_L)
-        worksheet.write_string(3, 0, f"REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA | UPDATED : {h_upd}", f_blue_L)
-        worksheet.write_string(4, 0, f"BUDGET ESTIMATE {rev_label} | CREATED : {h_cre}", f_blue_L)
-
-        worksheet.merge_range("A7:A8", "SN", f_th); worksheet.merge_range("B7:B8", "AREA", f_th)
-        worksheet.merge_range("C7:E7", "BUILDING AREA (M2)", f_th)
-        worksheet.write_string("C8", "GBA", f_th); worksheet.write_string("D8", "GFA", f_th); worksheet.write_string("E8", "SGFA", f_th)
-        worksheet.merge_range("F7:G8", "UNIT", f_th); worksheet.merge_range("H7:H8", "BUDGET ESTIMATE\nRP", f_th)
-        worksheet.merge_range("I7:K7", "COST RATIO RP/M2", f_th)
-        worksheet.write_string("I8", "GBA", f_th); worksheet.write_string("J8", "GFA", f_th); worksheet.write_string("K8", "SGFA", f_th)
-
-        row_idx = 8
-        for p in project_results:
-            worksheet.write_number(row_idx, 0, p["idx"], f_td_c)
-            worksheet.write_string(row_idx, 1, p["name"], f_td_L_b)
-            worksheet.write_number(row_idx, 2, p["gba"], f_td_num)
-            worksheet.write_number(row_idx, 3, p["gfa"], f_td_num)
-            worksheet.write_number(row_idx, 4, p["sgfa"], f_td_num)
-            worksheet.write_number(row_idx, 5, p["units"], f_td_c)
-            worksheet.write_string(row_idx, 6, "Units", f_td_c)
-            worksheet.write_number(row_idx, 7, p["budget"], f_td_R_b)
-            worksheet.write_number(row_idx, 8, p["r_gba"], f_td_num)
-            worksheet.write_number(row_idx, 9, p["r_gfa"], f_td_num)
-            worksheet.write_number(row_idx, 10, p["r_sgfa"], f_td_num)
-            row_idx += 1
-
-        worksheet.merge_range(row_idx, 0, row_idx, 1, "TOTAL", f_tot_L)
-        worksheet.write_number(row_idx, 2, total_gba, f_tot_num)
-        worksheet.write_number(row_idx, 3, total_gfa, f_tot_num)
-        worksheet.write_number(row_idx, 4, total_sgfa, f_tot_num)
-        worksheet.write_string(row_idx, 5, "", f_tot_empty)
-        worksheet.write_string(row_idx, 6, "", f_tot_empty)
-        worksheet.write_number(row_idx, 7, total_budget, f_tot_num)
-        worksheet.write_number(row_idx, 8, t_r_gba, f_tot_num)
-        worksheet.write_number(row_idx, 9, t_r_gfa, f_tot_num)
-        worksheet.write_number(row_idx, 10, t_r_sgfa, f_tot_num)
-
-        row_idx += 2
-        worksheet.write_string(row_idx, 0, "I.", f_assum_h)
-        worksheet.merge_range(row_idx, 1, row_idx, 10, "ASSUMPTIONS", f_assum_h)
-        for i, assum in enumerate(dynamic_assumptions, 1):
-            row_idx += 1
-            worksheet.write_number(row_idx, 0, i, f_assum_c)
-            text = str(assum)
-            date_match = re.search(r"(\d{2}[./-]\d{2}[./-]\d{4})", text)
-            if date_match:
-                worksheet.merge_range(row_idx, 1, row_idx, 10, "", f_assum_L)
-                parts = text.split(date_match.group(1))
-                rich_args = []
-                if parts[0]:
-                    rich_args.append(parts[0])
-                rich_args.extend([workbook.add_format({"font_color": "red"}), date_match.group(1)])
-                if len(parts) > 1 and parts[1]:
-                    rich_args.append(parts[1])
-                worksheet.write_rich_string(row_idx, 1, *rich_args, f_assum_L)
-            else:
-                worksheet.merge_range(row_idx, 1, row_idx, 10, text, f_assum_L)
-        workbook.close()
-
-        st.download_button(
-            label="Download FAD as .xlsx",
-            data=buffer.getvalue(),
-            file_name=f"ASG_Portfolio_{active_id}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
-
-        # --- HTML TABLE RENDER ---
-        assum_html_rows = ""
-        for i, assum in enumerate(dynamic_assumptions, 1):
-            display_text = re.sub(r"(\d{2}[./-]\d{2}[./-]\d{4})", r"<span style='color:red;'>\1</span>", str(assum))
-            assum_html_rows += (
-                f"<tr><td style='text-align:center;border-right:1px solid #e0e0e0;padding:2px;'>{i}</td>"
-                f"<td style='padding:2px 5px;'>{display_text}</td></tr>"
-            )
-
-        html_string = f"""
-        <div style="font-family:Calibri,sans-serif;font-size:13px;color:black;background-color:white;padding:20px;border-radius:5px;">
-            <div style="background-color:#0062a8;color:white;padding:12px;font-weight:bold;line-height:1.6;font-size:14px;text-align:left;">
-                <div>ASG GROUP PROPERTY DEVELOPMENT <span style="margin-left:20px;">VERSION : {rev_label}</span></div>
-                <div>QS &amp; PROCUREMENT DIVISION</div>
-                <div>PROJECT PORTFOLIO | ALL ACTIVE PROJECTS</div>
-                <div>REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA <span style="margin-left:20px;">UPDATED : {h_upd}</span></div>
-                <div>BUDGET ESTIMATE {rev_label} <span style="margin-left:20px;">CREATED : {h_cre}</span></div>
+            html_string = f"""
+            <div style="font-family:Calibri,sans-serif;font-size:13px;color:black;background-color:white;padding:20px;border-radius:5px;">
+                <div style="background-color:#0062a8;color:white;padding:12px;font-weight:bold;line-height:1.6;font-size:14px;text-align:left;">
+                    <div>ASG GROUP PROPERTY DEVELOPMENT <span style="margin-left:20px;">VERSION : {rev_label}</span></div>
+                    <div>QS &amp; PROCUREMENT DIVISION</div>
+                    <div>PROJECT PORTFOLIO | ALL ACTIVE PROJECTS</div>
+                    <div>REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA <span style="margin-left:20px;">UPDATED : {h_upd}</span></div>
+                    <div>BUDGET ESTIMATE {rev_label} <span style="margin-left:20px;">CREATED : {h_cre}</span></div>
+                </div>
+                <br>
+                <table style="width:100%;border-collapse:collapse;border:2px solid black;text-align:center;">
+                    <tr style="background-color:#f2f2f2;font-weight:bold;">
+                        <td rowspan="2" style="border:1px solid black;padding:5px;">SN</td>
+                        <td rowspan="2" style="border:1px solid black;padding:5px;">AREA</td>
+                        <td colspan="3" style="border:1px solid black;padding:5px;">BUILDING AREA (M2)</td>
+                        <td colspan="2" rowspan="2" style="border:1px solid black;padding:5px;">UNIT</td>
+                        <td rowspan="2" style="border:1px solid black;padding:5px;">BUDGET ESTIMATE<br>RP</td>
+                        <td colspan="3" style="border:1px solid black;padding:5px;">COST RATIO RP/M2</td>
+                    </tr>
+                    <tr style="background-color:#f2f2f2;font-weight:bold;">
+                        <td style="border:1px solid black;padding:5px;">GBA</td>
+                        <td style="border:1px solid black;padding:5px;">GFA</td>
+                        <td style="border:1px solid black;padding:5px;">SGFA</td>
+                        <td style="border:1px solid black;padding:5px;">GBA</td>
+                        <td style="border:1px solid black;padding:5px;">GFA</td>
+                        <td style="border:1px solid black;padding:5px;">SGFA</td>
+                    </tr>
+                    {table_rows_html}
+                    <tr style="background-color:#e0e0e0;font-weight:bold;">
+                        <td colspan="2" style="border:1px solid black;padding:5px;">TOTAL</td>
+                        <td style="border:1px solid black;padding:5px;">{total_gba:,.0f}</td>
+                        <td style="border:1px solid black;padding:5px;">{total_gfa:,.0f}</td>
+                        <td style="border:1px solid black;padding:5px;">{total_sgfa:,.0f}</td>
+                        <td colspan="2" style="border:1px solid black;padding:5px;"></td>
+                        <td style="border:1px solid black;padding:5px;text-align:right;">{total_budget:,.0f}</td>
+                        <td style="border:1px solid black;padding:5px;">{t_r_gba:,.0f}</td>
+                        <td style="border:1px solid black;padding:5px;">{t_r_gfa:,.0f}</td>
+                        <td style="border:1px solid black;padding:5px;">{t_r_sgfa:,.0f}</td>
+                    </tr>
+                </table>
+                <br>
+                <table style="width:100%;border-collapse:collapse;border:1px solid #dcdcdc;text-align:left;">
+                    <tr style="background-color:#ffdf70;font-weight:bold;">
+                        <td style="border:1px solid white;padding:3px 5px;width:30px;text-align:center;">I.</td>
+                        <td style="border:1px solid white;padding:3px 5px;">ASSUMPTIONS</td>
+                    </tr>
+                    {assum_html_rows}
+                </table>
             </div>
-            <br>
-            <table style="width:100%;border-collapse:collapse;border:2px solid black;text-align:center;">
-                <tr style="background-color:#f2f2f2;font-weight:bold;">
-                    <td rowspan="2" style="border:1px solid black;padding:5px;">SN</td>
-                    <td rowspan="2" style="border:1px solid black;padding:5px;">AREA</td>
-                    <td colspan="3" style="border:1px solid black;padding:5px;">BUILDING AREA (M2)</td>
-                    <td colspan="2" rowspan="2" style="border:1px solid black;padding:5px;">UNIT</td>
-                    <td rowspan="2" style="border:1px solid black;padding:5px;">BUDGET ESTIMATE<br>RP</td>
-                    <td colspan="3" style="border:1px solid black;padding:5px;">COST RATIO RP/M2</td>
-                </tr>
-                <tr style="background-color:#f2f2f2;font-weight:bold;">
-                    <td style="border:1px solid black;padding:5px;">GBA</td>
-                    <td style="border:1px solid black;padding:5px;">GFA</td>
-                    <td style="border:1px solid black;padding:5px;">SGFA</td>
-                    <td style="border:1px solid black;padding:5px;">GBA</td>
-                    <td style="border:1px solid black;padding:5px;">GFA</td>
-                    <td style="border:1px solid black;padding:5px;">SGFA</td>
-                </tr>
-                {table_rows_html}
-                <tr style="background-color:#e0e0e0;font-weight:bold;">
-                    <td colspan="2" style="border:1px solid black;padding:5px;">TOTAL</td>
-                    <td style="border:1px solid black;padding:5px;">{total_gba:,.0f}</td>
-                    <td style="border:1px solid black;padding:5px;">{total_gfa:,.0f}</td>
-                    <td style="border:1px solid black;padding:5px;">{total_sgfa:,.0f}</td>
-                    <td colspan="2" style="border:1px solid black;padding:5px;"></td>
-                    <td style="border:1px solid black;padding:5px;text-align:right;">{total_budget:,.0f}</td>
-                    <td style="border:1px solid black;padding:5px;">{t_r_gba:,.0f}</td>
-                    <td style="border:1px solid black;padding:5px;">{t_r_gfa:,.0f}</td>
-                    <td style="border:1px solid black;padding:5px;">{t_r_sgfa:,.0f}</td>
-                </tr>
-            </table>
-            <br>
-            <table style="width:100%;border-collapse:collapse;border:1px solid #dcdcdc;text-align:left;">
-                <tr style="background-color:#ffdf70;font-weight:bold;">
-                    <td style="border:1px solid white;padding:3px 5px;width:30px;text-align:center;">I.</td>
-                    <td style="border:1px solid white;padding:3px 5px;">ASSUMPTIONS</td>
-                </tr>
-                {assum_html_rows}
-            </table>
-        </div>
-        """
-        st.markdown(html_string.replace("\n", ""), unsafe_allow_html=True)
+            """
+            st.markdown(html_string.replace("\n", ""), unsafe_allow_html=True)
 
-        with tab_detailed:
+    with tab_detailed:
             st.subheader("Tabel Rekapitulasi")
 
             # 1. SETUP: Prepare to collect data for ALL projects
