@@ -2,3 +2,4 @@
 
 #ganti (construction_subtotal - t_utility) jadi construction_subtotal
 #ganti (hc_sub - v_util) jadi hc_sub
+#ganti hc_without_util jadi hc
