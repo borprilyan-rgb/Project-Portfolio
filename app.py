@@ -824,8 +824,10 @@ def show_portfolio_summary():
                 st.session_state.projects[active_id]["data"]["header_info"] = {"rev_no": rev_input, "updated": upd_input, "created": cre_input}
 
                 st.divider()
+                st.divider()
                 current_assums = st.session_state.projects[active_id]["data"].get("assumptions", [
-                    "Foundation System Standard Pilecaps. No Basement.",
+                    "Foundation System Standard Pilecaps.",
+                    "No Basement.",
                     "Parking Provision Limited To On Street Level Parking",
                     "Floor To Floor Height At 3.3M",
                     "Facade Alumunium Window Wall - No Double Skin",
@@ -835,8 +837,8 @@ def show_portfolio_summary():
                     "Aircon System | Apartement : AC Split",
                     "SBO Rebars @ Rp. 10.000/Kg",
                     "Excluded Smarthome",
-                    "Lift : Exclude",
-                    "Wardrobe",
+                    "Lift : 2 Passenger Lift + 1 Services Lift / TOWER",
+                    "Exclude Wardrobe",
                     "FFE : Kitchen Cabinet, Hob & Hood, Refrigerator & Washing Machine",
                     "Water Heater : Installation Only",
                     "Calculation Area Refer To DP's Calculation Dated 12.03.2026"
