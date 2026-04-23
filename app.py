@@ -511,7 +511,7 @@ def show_cost_estimator():
     with tab4:
         sc_col1, sc_col2 = st.columns(2)
         with sc_col1:
-            consultancy_rate = st.number_input("Consultancy Rate (Rp)", value=get_val("sc_cons", 0.0), step=1000.0, key=f"sc_cons_{curr_id}")
+            consultancy_rate = st.number_input("Consultancy Rate (Rp) x GFA", value=get_val("sc_cons", 0.0), step=1000.0, key=f"sc_cons_{curr_id}")
             qs_months = st.number_input("QS Duration (Months)", value=get_val("sc_qs_m", 0.0), step=1.0, key=f"sc_qs_m_{curr_id}")
             qs_rate = st.number_input("QS Rate (per Month) (Rp)", value=get_val("sc_qs_r", 0.0), step=1000000.0, key=f"sc_qs_r_{curr_id}")
         with sc_col2:
