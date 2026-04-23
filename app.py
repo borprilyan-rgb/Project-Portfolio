@@ -23,7 +23,8 @@ PROJECT_DATABASE = {
         "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
         "door_glass": 1000000.0, "railing_rate": 2200000.0, "skylight_rate": 4500000.0,
         "san_dis": 30275000.0, "san_mushola": 36500000.0, "ext_land": 1563000.0,
-        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0
+        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0,
+        "cons": 174000.0
     },
     "Hotel": {
         "arch_base": 1079000.0, "door_wood": 4750000.0, "door_steel": 8000000.0,
@@ -42,7 +43,8 @@ PROJECT_DATABASE = {
         "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
         "door_glass": 1000000.0, "railing_rate": 2200000.0, "skylight_rate": 4500000.0,
         "san_dis": 30275000.0, "san_mushola": 36500000.0, "ext_land": 1563000.0,
-        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0
+        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0,
+        "cons": 199000.0
     },
     "Retail": {
         "arch_base": 1084000.0, "door_wood": 6000000.0, "door_steel": 8000000.0,
@@ -61,7 +63,8 @@ PROJECT_DATABASE = {
         "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
         "door_glass": 1000000.0, "railing_rate": 2200000.0, "skylight_rate": 4500000.0,
         "san_dis": 30275000.0, "san_mushola": 36500000.0, "ext_land": 1563000.0,
-        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0
+        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0,
+        "cons": 174000.0
     },
     "Parking": {
         "arch_base": 668000.0,
@@ -81,7 +84,8 @@ PROJECT_DATABASE = {
         "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
         "railing_rate": 2200000.0, "skylight_rate": 4500000.0,
         "san_dis": 30275000.0, "san_mushola": 36500000.0, "ext_land": 1563000.0,
-        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0
+        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0,
+        "cons": 53000.0
     }
 }
 
@@ -259,12 +263,13 @@ def update_price(metric_key, db_key):
     """Update flooring price based on spec radio selection."""
     c_id = st.session_state.current_proj_id
     p_type = st.session_state.projects[c_id]["type"]
-    selected_spec = st.session_state[f"temp_spec_{metric_key}_{c_id}"]
+    c_type_key = f"{c_id}_{p_type}"
+    selected_spec = st.session_state[f"temp_spec_{metric_key}_{c_type_key}"]
     st.session_state.projects[c_id]["data"][f"{metric_key}_spec_type"] = selected_spec
     db_val = PROJECT_DATABASE[p_type][db_key]
     if isinstance(db_val, dict):
         new_val = db_val.get(selected_spec, 0.0)
-        st.session_state[f"u_fl_{metric_key}_{c_id}"] = float(new_val)
+        st.session_state[f"u_fl_{metric_key}_{c_type_key}"] = float(new_val)
 
 
 def show_cost_estimator():
@@ -278,7 +283,11 @@ def show_cost_estimator():
         st.session_state.projects[curr_id]["data"] = {}
 
     def get_val(key, default=0.0):
-        return st.session_state.projects[curr_id]["data"].get(key, default)
+        val = st.session_state.projects[curr_id]["data"].get(key, 0.0)
+        # If the value is 0 (uninitiated), use the database default
+        if val == 0.0:
+            return default
+        return val
 
     # --- PROJECT SETUP ---
     st.subheader("Data Proyek")
@@ -289,12 +298,18 @@ def show_cost_estimator():
     type_index = types_list.index(curr_proj["type"]) if curr_proj["type"] in types_list else 0
     new_type = c2.selectbox("Jenis Proyek", types_list, index=type_index)
 
-    if new_name != curr_proj["name"] or new_type != curr_proj["type"]:
-        st.session_state.projects[curr_id]["name"] = new_name
+    if new_type != curr_proj["type"]:
         st.session_state.projects[curr_id]["type"] = new_type
+        st.session_state.projects[curr_id]["data"] = {} # Clear old rates
+        st.rerun()
+
+    if new_name != curr_proj["name"]:
+        st.session_state.projects[curr_id]["name"] = new_name
+        
         st.rerun()
 
     pt_data = PROJECT_DATABASE[new_type]
+    curr_type_key = f"{curr_id}_{new_type}"
     st.markdown("---")
 
     # --- SIDEBAR: UPLOAD ---
@@ -360,7 +375,7 @@ def show_cost_estimator():
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 
         with col_m1:
-            with st.expander("Ukuran Proyek (GBA, GFA, SGFA)", expanded=True):
+            with st.expander("Ukuran Proyek", expanded=True):
                 st.subheader("Ukuran")
                 land_area = st.number_input("Luas Tanah (m2)", value=get_val("m_land", 0.0), step=100.0, key=f"m_land_{curr_id}")
                 gba = st.number_input("GBA (m2)", value=get_val("m_gba", 0.0), step=100.0, key=f"m_gba_{curr_id}")
@@ -370,14 +385,14 @@ def show_cost_estimator():
         with col_m2:
             with st.expander("Arsitektur", expanded=True):
                 st.subheader("Interior")
-                rooms = st.number_input("Ruang (unit)", help="Jumlah ruang dalam proyek", value=get_val("m_rooms", 0.0), step=1.0, key=f"m_rooms_{curr_id}")
-                facade = st.number_input("Facade (m2)", value=get_val("m_facade", 0.0), step=100.0, key=f"m_facade_{curr_id}")
-                lobby_interior = st.number_input("Lobby Interior (m2)", value=get_val("m_lobby", 0.0), step=10.0, key=f"m_lobby_{curr_id}")
+                rooms = st.number_input("Ruang (unit)", help="cth. 500 unit untuk 1 proyek Apartement A", value=get_val("m_rooms", 0.0), step=1.0, key=f"m_rooms_{curr_id}")
+                lobby_interior = st.number_input("Lobby Interior (m2)", help="cth. 500 m2 lobby untuk 1 proyek Apartement A", value=get_val("m_lobby", 0.0), step=10.0, key=f"m_lobby_{curr_id}")
                 carpet_m2 = st.number_input("Karpet (m2)", value=get_val("m_carpet", 0.0), step=10.0, key=f"m_carpet_{curr_id}")
                 glass_m2 = st.number_input("Kaca (m2)", value=get_val("m_glass", 0.0), step=10.0, key=f"m_glass_{curr_id}")
                 st.subheader("Eksterior")
+                facade = st.number_input("Facade (m2)", value=get_val("m_facade", 0.0), step=100.0, key=f"m_facade_{curr_id}")
                 gondola_unit = st.number_input("Gondola (unit)", value=get_val("m_gondola", 0.0), step=1.0, key=f"m_gondola_{curr_id}")
-                skylight_area = st.number_input("Skylight (m2)", value=get_val("m_skylight", 0.0), step=10.0, key=f"m_skylight_{curr_id}")
+                skylight_area = st.number_input("Skylight (m2)", value=get_val("m_skylight", 0.0), step=10.0, key=f"m_skylight_{curr_id}")    
                 st.subheader("Pintu")
                 glass_door = st.number_input("Glass Door (unit)", value=get_val("m_door_g", 0.0), step=1.0, key=f"m_door_g_{curr_id}")
                 wooden_door = st.number_input("Wooden Door (unit)", value=get_val("m_door_w", 0.0), step=10.0, key=f"m_door_w_{curr_id}")
@@ -386,7 +401,7 @@ def show_cost_estimator():
         with col_m3:
             with st.expander("Sanitari", expanded=True):
                 st.subheader("Toilet Unit")
-                san_qty_room = st.number_input("Toilet Private (unit/ruang)", help="Cth. 3 Toilet/1 Kamar (Apt)", value=get_val("r_san_qty", pt_data["san_room_qty"]), key=f"r_san_qty_{curr_id}")
+                san_qty_room = st.number_input("Toilet Private (unit/ruang)", help="Cth. 3 Toilet/1 Kamar (Apt)", value=get_val("r_san_qty", pt_data["san_room_qty"]), key=f"r_san_qty_{curr_type_key}")
                 st.subheader("Toilet Umum")
                 toilet_male = st.number_input("Toilet Umum - Pria (units)", value=get_val("m_toil_m", 0.0), step=1.0, key=f"m_toil_m_{curr_id}")
                 toilet_female = st.number_input("Toilet Umum - Wanita (units)", value=get_val("m_toil_f", 0.0), step=1.0, key=f"m_toil_f_{curr_id}")
@@ -414,110 +429,125 @@ def show_cost_estimator():
         col_r1, col_r2, col_r3 = st.columns(3)
         with col_r1:
             st.subheader("Facade Ratio (%)")
-            facade_precast_pct = st.number_input("Precast (%)", value=get_val("r_fac_pre", pt_data["facade_precast_pct"]), key=f"r_fac_pre_{curr_id}")
-            facade_window_pct = st.number_input("Window Wall (%)", value=get_val("r_fac_win", pt_data["facade_window_pct"]), key=f"r_fac_win_{curr_id}")
-            facade_double_pct = st.number_input("Double Skin (%)", value=get_val("r_fac_doub", pt_data["facade_double_pct"]), key=f"r_fac_doub_{curr_id}")
+            facade_precast_pct = st.number_input("Precast (%)", value=get_val("r_fac_pre", pt_data["facade_precast_pct"]), step=5.0, key=f"r_fac_pre_{curr_type_key}")
+            facade_window_pct = st.number_input("Window Wall (%)", value=get_val("r_fac_win", pt_data["facade_window_pct"]), step=5.0, key=f"r_fac_win_{curr_type_key}")
+            facade_double_pct = st.number_input("Double Skin (%)", value=get_val("r_fac_doub", pt_data["facade_double_pct"]), step=5.0, key=f"r_fac_doub_{curr_type_key}")
+            t_fac_pct = facade_precast_pct + facade_window_pct + facade_double_pct
+
+            if t_fac_pct != 100:
+                st.warning(f"⚠️ Total is **{t_fac_pct}%** (bukan 100%)")
+
         with col_r2:
             st.subheader("Flooring Ratio (%)")
-            fl_ht_pct = st.number_input("HT/Ceramic Tile (%)", value=get_val("r_fl_ht", pt_data["fl_ht_pct"]), key=f"r_fl_ht_{curr_id}")
-            fl_vinyl_pct = st.number_input("Vinyl (%)", value=get_val("r_fl_vin", pt_data["fl_vinyl_pct"]), key=f"r_fl_vin_{curr_id}")
-            fl_marmer_pct = st.number_input("Marmer (%)", value=get_val("r_fl_mar", pt_data["fl_marmer_pct"]), key=f"r_fl_mar_{curr_id}")
+            fl_ht_pct = st.number_input("HT/Ceramic Tile (%)", value=get_val("r_fl_ht", pt_data["fl_ht_pct"]), step=5.0, key=f"r_fl_ht_{curr_type_key}")
+            fl_vinyl_pct = st.number_input("Vinyl (%)", value=get_val("r_fl_vin", pt_data["fl_vinyl_pct"]), step=5.0, key=f"r_fl_vin_{curr_type_key}")
+            fl_marmer_pct = st.number_input("Marmer (%)", value=get_val("r_fl_mar", pt_data["fl_marmer_pct"]), step=5.0, key=f"r_fl_mar_{curr_type_key}")
+            t_fl_pct = fl_ht_pct + fl_vinyl_pct + fl_marmer_pct
+
+            if t_fl_pct != 100:
+                st.warning(f"⚠️ Total is **{t_fl_pct}%** (bukan 100%)")
+
         with col_r3:
             st.subheader("Per-Room Multipliers")
-            railing_qty = st.number_input("Railing Length (m'/room)", value=get_val("r_rail_qty", pt_data["railing_qty"]), key=f"r_rail_qty_{curr_id}")
+            railing_qty = st.number_input("Railing Length (m'/room)", value=get_val("r_rail_qty", pt_data["railing_qty"]), step=1.0, key=f"r_rail_qty_{curr_type_key}")
 
     # --- TAB 3: UNIT RATES ---
     with tab3:
         with st.expander("Harga Fondasi & Struktur", expanded=True):
             c1, c2, c3 = st.columns(3)
-            struc_earth = c1.number_input("Earthwork Rate (Rp)", value=get_val("u_earth", pt_data["struc_earth"]), key=f"u_earth_{curr_id}")
-            struc_found = c2.number_input("Foundation Rate (Rp)", value=get_val("u_found", pt_data["struc_found"]), key=f"u_found_{curr_id}")
-            struc_work = c3.number_input("Structural Work Rate (Rp)", value=get_val("u_struc", pt_data["struc_work"]), key=f"u_struc_{curr_id}")
+            struc_earth = c1.number_input("Earthwork Rate (Rp)", value=get_val("u_earth", pt_data["struc_earth"]), key=f"u_earth_{curr_type_key}")
+            struc_found = c2.number_input("Foundation Rate (Rp)", value=get_val("u_found", pt_data["struc_found"]), key=f"u_found_{curr_type_key}")
+            struc_work = c3.number_input("Structural Work Rate (Rp)", value=get_val("u_struc", pt_data["struc_work"]), key=f"u_struc_{curr_type_key}")
 
         with st.expander("Arsitektur & Fasad"):
             c1, c2 = st.columns(2)
-            arch_base = c1.number_input("Architecture Base (Rp)", value=get_val("u_arch", pt_data["arch_base"]), key=f"u_arch_{curr_id}")
-            lobby_rate = c2.number_input("Lobby Interior Rate (Rp)", value=get_val("u_lobby", pt_data["lobby"]), key=f"u_lobby_{curr_id}")
+            arch_base = c1.number_input("Architecture Base (Rp)", value=get_val("u_arch", pt_data["arch_base"]), key=f"u_arch_{curr_type_key}")
+            lobby_rate = c2.number_input("Lobby Interior Rate (Rp)", value=get_val("u_lobby", pt_data["lobby"]), key=f"u_lobby_{curr_type_key}")
             c3, c4, c5 = st.columns(3)
-            fac_precast_rate = c3.number_input("Precast Rate (Rp)", value=get_val("u_f_pre", pt_data["facade_precast_rate"]), key=f"u_f_pre_{curr_id}")
-            fac_window_rate = c4.number_input("Window Wall Rate (Rp)", value=get_val("u_f_win", pt_data["facade_window_rate"]), key=f"u_f_win_{curr_id}")
-            fac_double_rate = c5.number_input("Double Skin Rate (Rp)", value=get_val("u_f_doub", pt_data["facade_double_rate"]), key=f"u_f_doub_{curr_id}")
+            fac_precast_rate = c3.number_input("Precast Rate (Rp)", value=get_val("u_f_pre", pt_data["facade_precast_rate"]), key=f"u_f_pre_{curr_type_key}")
+            fac_window_rate = c4.number_input("Window Wall Rate (Rp)", value=get_val("u_f_win", pt_data["facade_window_rate"]), key=f"u_f_win_{curr_type_key}")
+            fac_double_rate = c5.number_input("Double Skin Rate (Rp)", value=get_val("u_f_doub", pt_data["facade_double_rate"]), key=f"u_f_doub_{curr_type_key}")
 
         with st.expander("Pintu dan Hardware"):
             c1, c2, c3 = st.columns(3)
-            door_wood = c1.number_input("Wooden Door Rate (Rp)", value=get_val("u_d_wood", pt_data["door_wood"]), key=f"u_d_wood_{curr_id}")
-            door_glass = c2.number_input("Glass Door Rate (Rp)", value=get_val("u_d_glass", pt_data["door_glass"]), key=f"u_d_glass_{curr_id}")
-            door_steel = c3.number_input("Steel Door Rate (Rp)", value=get_val("u_d_steel", pt_data["door_steel"]), key=f"u_d_steel_{curr_id}")
-            hw_wood = c1.number_input("Hardware Wooden Door (Rp)", value=get_val("u_hw_wood", pt_data["hw_wood"]), key=f"u_hw_wood_{curr_id}")
-            hw_steel = c2.number_input("Hardware Steel Door (Rp)", value=get_val("u_hw_steel", pt_data["hw_steel"]), key=f"u_hw_steel_{curr_id}")
+            door_wood = c1.number_input("Wooden Door Rate (Rp)", value=get_val("u_d_wood", pt_data["door_wood"]), key=f"u_d_wood_{curr_type_key}")
+            door_glass = c2.number_input("Glass Door Rate (Rp)", value=get_val("u_d_glass", pt_data["door_glass"]), key=f"u_d_glass_{curr_type_key}")
+            door_steel = c3.number_input("Steel Door Rate (Rp)", value=get_val("u_d_steel", pt_data["door_steel"]), key=f"u_d_steel_{curr_type_key}")
+            hw_wood = c1.number_input("Hardware Wooden Door (Rp)", value=get_val("u_hw_wood", pt_data["hw_wood"]), key=f"u_hw_wood_{curr_type_key}")
+            hw_steel = c2.number_input("Hardware Steel Door (Rp)", value=get_val("u_hw_steel", pt_data["hw_steel"]), key=f"u_hw_steel_{curr_type_key}")
 
         with st.expander("Sanitari"):
             c1, c2 = st.columns(2)
-            san_room_rate = c1.number_input("Typical Unit Sanitary Rate (Rp)", value=get_val("u_s_room", pt_data["san_room_rate"]), key=f"u_s_room_{curr_id}")
-            san_pub_m = c2.number_input("Public Toilet Male Rate (Rp)", value=get_val("u_s_pub_m", pt_data["san_pub_m"]), key=f"u_s_pub_m_{curr_id}")
-            san_pub_f = c1.number_input("Public Toilet Female Rate (Rp)", value=get_val("u_s_pub_f", pt_data["san_pub_f"]), key=f"u_s_pub_f_{curr_id}")
-            san_dis = c2.number_input("Disabled Toilet Rate (Rp)", value=get_val("u_s_dis", pt_data["san_dis"]), key=f"u_s_dis_{curr_id}")
-            san_mushola = c1.number_input("Mushola Rate (Rp)", value=get_val("u_s_mushola", pt_data["san_mushola"]), key=f"u_s_mushola_{curr_id}")
+            san_room_rate = c1.number_input("Typical Unit Sanitary Rate (Rp)", value=get_val("u_s_room", pt_data["san_room_rate"]), key=f"u_s_room_{curr_type_key}")
+            san_pub_m = c2.number_input("Public Toilet Male Rate (Rp)", value=get_val("u_s_pub_m", pt_data["san_pub_m"]), key=f"u_s_pub_m_{curr_type_key}")
+            san_pub_f = c1.number_input("Public Toilet Female Rate (Rp)", value=get_val("u_s_pub_f", pt_data["san_pub_f"]), key=f"u_s_pub_f_{curr_type_key}")
+            san_dis = c2.number_input("Disabled Toilet Rate (Rp)", value=get_val("u_s_dis", pt_data["san_dis"]), key=f"u_s_dis_{curr_type_key}")
+            san_mushola = c1.number_input("Mushola Rate (Rp)", value=get_val("u_s_mushola", pt_data["san_mushola"]), key=f"u_s_mushola_{curr_type_key}")
 
         with st.expander("Lantai, Finishing, dan Interior"):
             c1, c2, c3 = st.columns(3)
             with c1:
                 st.radio("Spek HT", ["Type 1", "Type 2"],
-                    key=f"temp_spec_ht_{curr_id}",
+                    key=f"temp_spec_ht_{curr_type_key}",
                     horizontal=True,
                     on_change=update_price, args=("ht", "fl_ht_rate"))
                 fl_ht_rate = st.number_input("HT Rate (Rp)",
                                             value=get_val("u_fl_ht", pt_data["fl_ht_rate"]["Type 1"]),
-                                            key=f"u_fl_ht_{curr_id}")
+                                            key=f"u_fl_ht_{curr_type_key}")
             with c2:
                 st.radio("Spek Vinyl", ["Type 1", "Type 2"],
-                    key=f"temp_spec_vin_{curr_id}",
+                    key=f"temp_spec_vin_{curr_type_key}",
                     horizontal=True,
                     on_change=update_price, args=("vin", "fl_vinyl_rate"))
                 fl_vinyl_rate = st.number_input("Vinyl Rate (Rp)",
                                                 value=get_val("u_fl_vin", pt_data["fl_vinyl_rate"]["Type 1"]),
-                                                key=f"u_fl_vin_{curr_id}")
+                                                key=f"u_fl_vin_{curr_type_key}")
             with c3:
                 st.radio("Spek Marmer", ["Type 1", "Type 2"],
-                    key=f"temp_spec_mar_{curr_id}",
+                    key=f"temp_spec_mar_{curr_type_key}",
                     horizontal=True,
                     on_change=update_price, args=("mar", "fl_marmer_rate"))
                 fl_marmer_rate = st.number_input("Marmer Rate (Rp)",
                                                 value=get_val("u_fl_mar", pt_data["fl_marmer_rate"]["Type 1"]),
-                                                key=f"u_fl_mar_{curr_id}")
-            carpet_rate = c1.number_input("Carpet Rate (Rp)", value=get_val("u_carpet", pt_data["carpet"]), key=f"u_carpet_{curr_id}")
-            glass_rate = c2.number_input("Glass Work Rate (Rp)", value=get_val("u_glass", pt_data["glass"]), key=f"u_glass_{curr_id}")
-            skylight_rate = c3.number_input("Skylight Rate (Rp)", value=get_val("u_sky", pt_data["skylight_rate"]), key=f"u_sky_{curr_id}")
-            gondola_rate = c1.number_input("Gondola Rate (Rp)", value=get_val("u_gondola", pt_data["gondola"]), key=f"u_gondola_{curr_id}")
-            railing_rate = c2.number_input("Railing Rate (Rp)", value=get_val("u_rail", pt_data["railing_rate"]), key=f"u_rail_{curr_id}")
+                                                key=f"u_fl_mar_{curr_type_key}")
+            carpet_rate = c1.number_input("Carpet Rate (Rp)", value=get_val("u_carpet", pt_data["carpet"]), key=f"u_carpet_{curr_type_key}")
+            glass_rate = c2.number_input("Glass Work Rate (Rp)", value=get_val("u_glass", pt_data["glass"]), key=f"u_glass_{curr_type_key}")
+            skylight_rate = c3.number_input("Skylight Rate (Rp)", value=get_val("u_sky", pt_data["skylight_rate"]), key=f"u_sky_{curr_type_key}")
+            gondola_rate = c1.number_input("Gondola Rate (Rp)", value=get_val("u_gondola", pt_data["gondola"]), key=f"u_gondola_{curr_type_key}")
+            railing_rate = c2.number_input("Railing Rate (Rp)", value=get_val("u_rail", pt_data["railing_rate"]), key=f"u_rail_{curr_type_key}")
 
         with st.expander("MEP, Dapur dan FF&E"):
             c1, c2 = st.columns(2)
-            mep_rate = c1.number_input("MEP Works (Rp)", value=get_val("u_mep", pt_data["mep"]), key=f"u_mep_{curr_id}")
-            utility_rate = c2.number_input("Utility Connection (Rp)", value=get_val("u_util", pt_data["utility"]), key=f"u_util_{curr_id}")
-            ffe_rate = c1.number_input("FF&E (Rp)", value=get_val("u_ffe", pt_data["ffe"]), key=f"u_ffe_{curr_id}")
-            kitchen_rate = c2.number_input("Kitchen Equipment (Rp)", value=get_val("u_kit", pt_data["kitchen"]), key=f"u_kit_{curr_id}")
+            mep_rate = c1.number_input("MEP Works (Rp)", value=get_val("u_mep", pt_data["mep"]), key=f"u_mep_{curr_type_key}")
+            utility_rate = c2.number_input("Utility Connection (Rp)", value=get_val("u_util", pt_data["utility"]), key=f"u_util_{curr_type_key}")
+            ffe_rate = c1.number_input("FF&E (Rp)", value=get_val("u_ffe", pt_data["ffe"]), key=f"u_ffe_{curr_type_key}")
+            kitchen_rate = c2.number_input("Kitchen Equipment (Rp)", value=get_val("u_kit", pt_data["kitchen"]), key=f"u_kit_{curr_type_key}")
             # FIX: misc_rate is now only defined here (single source of truth)
-            misc_rate = c1.number_input("Misc (Linen/Gym Equipment) (Rp)", value=get_val("u_misc", pt_data["misc"]), key=f"u_misc_{curr_id}")
+            misc_rate = c1.number_input("Misc (Linen/Gym Equipment) (Rp)", value=get_val("u_misc", pt_data["misc"]), key=f"u_misc_{curr_type_key}")
 
         with st.expander("External & Facility Rates"):
             c1, c2 = st.columns(2)
-            ext_land_rate = c1.number_input("External Works (Landscape) (Rp)", value=get_val("u_ext", pt_data["ext_land"]), key=f"u_ext_{curr_id}")
-            fac_pub_rate = c2.number_input("Public Facilities (Rp)", value=get_val("u_fac_p", pt_data["fac_pub"]), key=f"u_fac_p_{curr_id}")
-            fac_res_rate = c1.number_input("Resident Facilities (Rp)", value=get_val("u_fac_r", pt_data["fac_res"]), key=f"u_fac_r_{curr_id}")
-            fac_proj_rate = c2.number_input("Project Facilities (Rp)", value=get_val("u_fac_pr", pt_data["fac_proj"]), key=f"u_fac_pr_{curr_id}")
+            ext_land_rate = c1.number_input("External Works (Landscape) (Rp)", value=get_val("u_ext", pt_data["ext_land"]), key=f"u_ext_{curr_type_key}")
+            fac_pub_rate = c2.number_input("Public Facilities (Rp)", value=get_val("u_fac_p", pt_data["fac_pub"]), key=f"u_fac_p_{curr_type_key}")
+            fac_res_rate = c1.number_input("Resident Facilities (Rp)", value=get_val("u_fac_r", pt_data["fac_res"]), key=f"u_fac_r_{curr_type_key}")
+            fac_proj_rate = c2.number_input("Project Facilities (Rp)", value=get_val("u_fac_pr", pt_data["fac_proj"]), key=f"u_fac_pr_{curr_type_key}")
 
     # --- TAB 4: SOFT COSTS ---
     with tab4:
-        sc_col1, sc_col2 = st.columns(2)
+        sc_col1, sc_col2, sc_col3 = st.columns(3)
         with sc_col1:
-            consultancy_rate = st.number_input("Consultancy Rate (Rp) x GFA", value=get_val("sc_cons", 0.0), step=1000.0, key=f"sc_cons_{curr_id}")
-            qs_months = st.number_input("QS Duration (Months)", value=get_val("sc_qs_m", 0.0), step=1.0, key=f"sc_qs_m_{curr_id}")
-            qs_rate = st.number_input("QS Rate (per Month) (Rp)", value=get_val("sc_qs_r", 0.0), step=1000000.0, key=f"sc_qs_r_{curr_id}")
+            with st.expander("QS", expanded=True):
+                qs_months = st.number_input("Durasi QS (Bulan)", value=get_val("sc_qs_m", 0.0), step=1.0, key=f"sc_qs_m_{curr_id}")
+                qs_rate = st.number_input("Harga QS (per Bulan) (Rp)", value=get_val("sc_qs_r", 0.0), step=1000000.0, key=f"sc_qs_r_{curr_id}")
         with sc_col2:
-            pm_months = st.number_input("PM Duration (Months)", value=get_val("sc_pm_m", 0.0), step=1.0, key=f"sc_pm_m_{curr_id}")
-            pm_rate = st.number_input("PM Rate (per Month) (Rp)", value=get_val("sc_pm_r", 0.0), step=1000000.0, key=f"sc_pm_r_{curr_id}")
-            insurance_pct = st.number_input("Insurance (%)", value=get_val("sc_ins", 0.0), step=0.01, key=f"sc_ins_{curr_id}")
+            with st.expander("PM", expanded=True):
+                pm_months = st.number_input("Durasi PM (Bulan)", value=get_val("sc_pm_m", 0.0), step=1.0, key=f"sc_pm_m_{curr_id}")
+                pm_rate = st.number_input("Harga PM (per Bulan) (Rp)", value=get_val("sc_pm_r", 0.0), step=1000000.0, key=f"sc_pm_r_{curr_id}")
+        with sc_col3:
+            with st.expander("Lainnya", expanded=True):
+                consultancy_rate = st.number_input("Biaya Konsultan (Rp) per m2 GFA", help="Biaya konsultan per m2 GFA", value=get_val("sc_cons", pt_data["cons"]), key=f"sc_cons_{curr_type_key}")
+                insurance_pct = st.number_input("Insurance (%)", help="Persentase premi asuransi", value=get_val("sc_ins", 0.0), step=0.01, key=f"sc_ins_{curr_id}")
+
 
     # --- TAB 5: CUSTOM ITEMS ---
     with tab5:
@@ -823,7 +853,6 @@ def show_portfolio_summary():
                 cre_input = h_col3.text_input("Created Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["created"], key=f"cre_{active_id}")
                 st.session_state.projects[active_id]["data"]["header_info"] = {"rev_no": rev_input, "updated": upd_input, "created": cre_input}
 
-                st.divider()
                 st.divider()
                 current_assums = st.session_state.projects[active_id]["data"].get("assumptions", [
                     "Foundation System Standard Pilecaps.",
