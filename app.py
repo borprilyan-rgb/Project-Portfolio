@@ -460,9 +460,9 @@ def show_cost_estimator():
             struc_found = c2.number_input("Foundation Rate (Rp)", value=get_val("u_found", pt_data["struc_found"]), key=f"u_found_{curr_type_key}")
             struc_work = c3.number_input("Structural Work Rate (Rp)", value=get_val("u_struc", pt_data["struc_work"]), key=f"u_struc_{curr_type_key}")
             #caption
-            st.caption(f"Total Earthwork: {struc_earth:.0f} m x GBA: {gba:.0f} unit = Rp {struc_earth * gba:.0f}")
-            st.caption(f"Total Foundation: {struc_found:.0f} m x GBA: {gba:.0f} unit = Rp {struc_found * gba:.0f}")
-            st.caption(f"Total Structural Work: {struc_work:.0f} m x GBA: {gba:.0f} unit = Rp {struc_work * gba:.0f}")
+            st.caption(f"Total Earthwork: {struc_earth:,.0f} m x GBA: {gba:.0f} m2 = Rp {struc_earth * gba:,.0f}")
+            st.caption(f"Total Foundation: {struc_found:,.0f} m x GBA: {gba:.0f} m2 = Rp {struc_found * gba:,.0f}")
+            st.caption(f"Total Structural Work: {struc_work:,.0f} m x GBA: {gba:.0f} m2 = Rp {struc_work * gba:,.0f}")
 
         with st.expander("Arsitektur & Fasad"):
             c1, c2 = st.columns(2)
@@ -472,7 +472,8 @@ def show_cost_estimator():
             fac_precast_rate = c3.number_input("Precast Rate (Rp)", value=get_val("u_f_pre", pt_data["facade_precast_rate"]), key=f"u_f_pre_{curr_type_key}")
             fac_window_rate = c4.number_input("Window Wall Rate (Rp)", value=get_val("u_f_win", pt_data["facade_window_rate"]), key=f"u_f_win_{curr_type_key}")
             fac_double_rate = c5.number_input("Double Skin Rate (Rp)", value=get_val("u_f_doub", pt_data["facade_double_rate"]), key=f"u_f_doub_{curr_type_key}")
-
+            st.caption(f"Total Architecture Base: {arch_base:,.0f} m x GFA: {gba:.0f} m2 = Rp {arch_base * gba:,.0f}")
+            st.caption(f"Total Lobby Interior: {lobby_rate:,.0f} m x Lobby Interior: {lobby_interior:,.0f} m2 = Rp {lobby_rate * lobby_interior:,.0f}")
         with st.expander("Pintu dan Hardware"):
             c1, c2, c3 = st.columns(3)
             door_wood = c1.number_input("Wooden Door Rate (Rp)", value=get_val("u_d_wood", pt_data["door_wood"]), key=f"u_d_wood_{curr_type_key}")
