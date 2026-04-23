@@ -448,8 +448,9 @@ def show_cost_estimator():
                 st.warning(f"⚠️ Total is **{t_fl_pct}%** (bukan 100%)")
 
         with col_r3:
-            st.subheader("Per-Room Multipliers")
+            st.subheader("Railing")
             railing_qty = st.number_input("Railing Length (m'/room)", value=get_val("r_rail_qty", pt_data["railing_qty"]), step=1.0, key=f"r_rail_qty_{curr_type_key}")
+            st.caption(f"Total: {railing_qty:.0f} m x {rooms:.0f} unit = {railing_qty * rooms:.0f} m'")
 
     # --- TAB 3: UNIT RATES ---
     with tab3:
@@ -458,6 +459,10 @@ def show_cost_estimator():
             struc_earth = c1.number_input("Earthwork Rate (Rp)", value=get_val("u_earth", pt_data["struc_earth"]), key=f"u_earth_{curr_type_key}")
             struc_found = c2.number_input("Foundation Rate (Rp)", value=get_val("u_found", pt_data["struc_found"]), key=f"u_found_{curr_type_key}")
             struc_work = c3.number_input("Structural Work Rate (Rp)", value=get_val("u_struc", pt_data["struc_work"]), key=f"u_struc_{curr_type_key}")
+            #caption
+            st.caption(f"Total Earthwork: {struc_earth:.0f} m x GBA: {gba:.0f} unit = {struc_earth * gba:.0f} m'")
+            st.caption(f"Total Foundation: {struc_found:.0f} m x GBA: {gba:.0f} unit = {struc_found * gba:.0f} m'")
+            st.caption(f"Total Structural Work: {struc_work:.0f} m x GBA: {gba:.0f} unit = {struc_work * gba:.0f} m'")
 
         with st.expander("Arsitektur & Fasad"):
             c1, c2 = st.columns(2)
@@ -522,7 +527,6 @@ def show_cost_estimator():
             utility_rate = c2.number_input("Utility Connection (Rp)", value=get_val("u_util", pt_data["utility"]), key=f"u_util_{curr_type_key}")
             ffe_rate = c1.number_input("FF&E (Rp)", value=get_val("u_ffe", pt_data["ffe"]), key=f"u_ffe_{curr_type_key}")
             kitchen_rate = c2.number_input("Kitchen Equipment (Rp)", value=get_val("u_kit", pt_data["kitchen"]), key=f"u_kit_{curr_type_key}")
-            # FIX: misc_rate is now only defined here (single source of truth)
             misc_rate = c1.number_input("Misc (Linen/Gym Equipment) (Rp)", value=get_val("u_misc", pt_data["misc"]), key=f"u_misc_{curr_type_key}")
 
         with st.expander("External & Facility Rates"):
@@ -546,20 +550,22 @@ def show_cost_estimator():
         with sc_col3:
             with st.expander("Lainnya", expanded=True):
                 consultancy_rate = st.number_input("Biaya Konsultan (Rp) per m2 GFA", help="Biaya konsultan per m2 GFA", value=get_val("sc_cons", pt_data["cons"]), key=f"sc_cons_{curr_type_key}")
-                insurance_pct = st.number_input("Insurance (%)", help="Persentase premi asuransi", value=get_val("sc_ins", 0.0), step=0.01, key=f"sc_ins_{curr_id}")
+                insurance_pct = st.number_input("Insurance (%)", help="Persentase premi asuransi", value=get_val("sc_ins", 0.12), step=0.01, key=f"sc_ins_{curr_id}")
 
 
     # --- TAB 5: CUSTOM ITEMS ---
     with tab5:
-        st.subheader("Smart Custom Costs")
-        st.info("Add custom scope items here. Select a linked metric (e.g., GFA) to automatically calculate: Rate × Multiplier × Metric.")
+
+
+        st.subheader("Item Tambahan")
+        st.markdown("---")
 
         dependency_map = {
             "None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa,
             "Land Area": land_area, "Rooms": rooms, "Facade": facade, "Lobby": lobby_interior
         }
 
-        default_smart_cc = [{"Description": "", "Rate (Rp)": 0.0, "Multiplier (Qty)": 1.0, "Linked Dependency": "None (Flat Rate)"}]
+        default_smart_cc = [{"Item Description": "", "Rate (Rp)": 0.0, "Multiplier (Qty)": 1.0, "Linked Dependency": "None (Flat Rate)"}]
         current_smart_cc = get_val("smart_custom_costs", default_smart_cc)
 
         edited_smart_cc = st.data_editor(
