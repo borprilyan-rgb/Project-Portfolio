@@ -460,9 +460,9 @@ def show_cost_estimator():
             struc_found = c2.number_input("Foundation Rate (Rp)", value=get_val("u_found", pt_data["struc_found"]), key=f"u_found_{curr_type_key}")
             struc_work = c3.number_input("Structural Work Rate (Rp)", value=get_val("u_struc", pt_data["struc_work"]), key=f"u_struc_{curr_type_key}")
             #caption
-            st.caption(f"Total Earthwork: {struc_earth:.0f} m x GBA: {gba:.0f} unit = {struc_earth * gba:.0f} m'")
-            st.caption(f"Total Foundation: {struc_found:.0f} m x GBA: {gba:.0f} unit = {struc_found * gba:.0f} m'")
-            st.caption(f"Total Structural Work: {struc_work:.0f} m x GBA: {gba:.0f} unit = {struc_work * gba:.0f} m'")
+            st.caption(f"Total Earthwork: {struc_earth:.0f} m x GBA: {gba:.0f} unit = Rp {struc_earth * gba:.0f}")
+            st.caption(f"Total Foundation: {struc_found:.0f} m x GBA: {gba:.0f} unit = Rp {struc_found * gba:.0f}")
+            st.caption(f"Total Structural Work: {struc_work:.0f} m x GBA: {gba:.0f} unit = Rp {struc_work * gba:.0f}")
 
         with st.expander("Arsitektur & Fasad"):
             c1, c2 = st.columns(2)
