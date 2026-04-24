@@ -856,35 +856,54 @@ def show_cost_estimator():
                 "Amount": [f"Rp {val:,.2f}" for val in raw_amounts]
             }
             st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
-
+        
         st.subheader("Total Project Cost Breakdown")
-        chart_data = pd.DataFrame({
-            "Category": [
-                "Structure/Foundation", "Architecture & Finishes", "Facade",
-                "Sanitary/Plumbing", "MEP & FF&E", "External/Facilities",
-                "Custom Additions (Hard)",
-                "Prelim & Contingency",
-                "Consultancy Fee (Soft)", "Quantity Surveyor (Soft)",
-                "Project Management (Soft)", "Insurance (Soft)"
+
+        # 1. Define the dictionary first
+        detailed_items = {
+            "Item": [
+                "Preliminary", "Earthwork", "Foundation", "Structural", "Basic Arch",
+                "Precast", "Window Wall", "Double Skin", "Wooden Doors", "Glass Doors",
+                "Steel Doors", "Lobby", "Gondola", "Unit Sanitary", "Public Toilet (M)",
+                "Public Toilet (F)", "Disabled Toilet", "Mushola", "Kitchen Eq.", "Hardware (Wood)",
+                "Hardware (Steel)", "HT/Ceramic", "Vinyl", "Marmer", "Carpet",
+                "Glass Work", "FF&E", "Misc (Linen/Gym)", "MEP Works", "Utility",
+                "Railing", "Skylight", "External/Landscape", "Public Fac.", "Resident Fac.",
+                "Project Fac.", "Custom Items", "Contingency",
+                "Consultancy", "QS Fee", "PM Fee", "Insurance"
             ],
-            "Amount (Rp)": [
-                group_structure, group_arch, group_facade,
-                group_sanitary, group_mep, group_ext,
-                total_custom_cost,
-                group_contingency,
-                t_consultancy, t_qs,
-                t_pm, t_insurance
-            ]
-        })
+            "Amount": [
+                t_preliminary, t_earth, t_found, t_struc, t_arch_base,
+                t_precast, t_window, t_double, t_w_door, t_g_door,
+                t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
+                t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w,
+                t_hw_s, t_ht, t_vinyl, t_marmer, t_carpet,
+                t_glass_work, t_ffe, t_misc, t_mep, t_utility,
+                t_railing, t_skylight, t_external, t_pub_fac, t_res_fac,
+                t_proj_fac, total_custom_cost, t_contingency,
+                t_consultancy, t_qs, t_pm, t_insurance
+            ],
+            # Adding 'Type' helps with color coding the chart
+            "Type": ["Hard Cost"]*38 + ["Soft Cost"]*4 
+        }
 
-        chart = alt.Chart(chart_data).mark_bar().encode(
-            x=alt.X("Amount (Rp):Q", title="Cost (Rp)"),
-            y=alt.Y("Category:N", sort="-x", title=""),
-            color=alt.Color("Category:N", legend=None),
-            tooltip=["Category", alt.Tooltip("Amount (Rp):Q", format=",.2f")]
-        ).properties(height=450)
-        st.altair_chart(chart, use_container_width=True)
+        # 2. Convert to DataFrame and FILTER OUT zeros
+        df_detailed = pd.DataFrame(detailed_items)
+        df_detailed = df_detailed[df_detailed["Amount"] > 0] 
 
+        # 3. Dynamic height calculation
+        chart_height = max(400, len(df_detailed) * 25)
+
+        # 4. Create the Chart
+        detailed_chart = alt.Chart(df_detailed).mark_bar().encode(
+            x=alt.X("Amount:Q", title="Cost (Rp)"),
+            y=alt.Y("Item:N", sort="-x", title=""),
+            # Color by Type (Hard vs Soft) makes it much easier to read!
+            color=alt.Color("Type:N", scale=alt.Scale(domain=['Hard Cost', 'Soft Cost'], range=['#1f77b4', '#ff7f0e'])),
+            tooltip=["Item", "Type", alt.Tooltip("Amount:Q", format=",.2f")]
+        ).properties(height=chart_height)
+
+        st.altair_chart(detailed_chart, use_container_width=True)
         st.markdown("---")
 
     # --- SAVE ALL METRICS TO SESSION STATE ---
