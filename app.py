@@ -323,12 +323,12 @@ def show_cost_estimator():
         st.session_state.projects[curr_id]["data"] = {}
 
     def get_val(key, default=0.0):
-    data_dict = st.session_state.projects[curr_id]["data"]
-    val = data_dict.get(key, default)
-    try:
-        return float(val) # <--- Force the type here
-    except:
-        return float(default)
+        data_dict = st.session_state.projects[curr_id]["data"]
+        val = data_dict.get(key, default)
+        try:
+            return float(val) # <--- Force the type here
+        except:
+            return float(default)
 
     # --- PROJECT SETUP ---
     st.subheader("Data Proyek")
