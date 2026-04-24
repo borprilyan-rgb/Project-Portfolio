@@ -325,10 +325,17 @@ def show_cost_estimator():
     def get_val(key, default=0.0):
         data_dict = st.session_state.projects[curr_id]["data"]
         val = data_dict.get(key, default)
+        
+        # If the value is a list (for Custom Items), return it immediately
+        if isinstance(val, list):
+            return val
+            
+        # For everything else (numbers/strings), try to force to float
         try:
-            return float(val) # <--- Force the type here
-        except:
-            return float(default)
+            return float(val)
+        except (ValueError, TypeError):
+            # If it's not a number (like "Type1"), return it as is
+            return val
 
     # --- PROJECT SETUP ---
     st.subheader("Data Proyek")
