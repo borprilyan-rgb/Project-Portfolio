@@ -323,15 +323,12 @@ def show_cost_estimator():
         st.session_state.projects[curr_id]["data"] = {}
 
     def get_val(key, default=0.0):
-        # Search the session state
-        data_dict = st.session_state.projects[curr_id]["data"]
-        
-        # If the key exists (even if it's 0.0), return it
-        if key in data_dict:
-            return data_dict[key]
-        
-        # If the key is truly not there, use the project database default
-        return default
+    data_dict = st.session_state.projects[curr_id]["data"]
+    val = data_dict.get(key, default)
+    try:
+        return float(val) # <--- Force the type here
+    except:
+        return float(default)
 
     # --- PROJECT SETUP ---
     st.subheader("Data Proyek")
@@ -450,7 +447,7 @@ def show_cost_estimator():
             with st.expander("Arsitektur", expanded=True):
                 st.subheader("Interior")
                 rooms = st.number_input("Ruang (unit)", help="cth. 500 unit untuk 1 proyek Apartement A", value=get_val("m_rooms", 0.0), step=1.0, key=f"m_rooms_{curr_id}")
-                lobby_interior = st.number_input("Lobby Interior (m2)", help="cth. 500 m2 lobby untuk 1 proyek Apartement A", value=get_val("m_lobby", 0.0), step=10.0, key=f"m_lobby_{curr_id}")
+                lobby_interior = st.number_input("Lobby Interior (m2)", help="cth. 500 m2 lobby untuk 1 proyek Apartement A", value=float(get_val("m_lobby", 0.0)), step=10.0, key=f"m_lobby_{curr_id}")
                 carpet_m2 = st.number_input("Karpet (m2)", value=get_val("m_carpet", 0.0), step=10.0, key=f"m_carpet_{curr_id}")
                 glass_m2 = st.number_input("Kaca (m2)", value=get_val("m_glass", 0.0), step=10.0, key=f"m_glass_{curr_id}")
                 st.subheader("Eksterior")
