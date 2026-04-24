@@ -772,7 +772,7 @@ def show_cost_estimator():
         """, unsafe_allow_html=True)
         st.markdown(f"""
             <div style="margin-bottom: 30px; padding: 15px; border-radius: 8px; border: 1px solid #4B4C55;">
-                <div style="font-size: 18px; margin-bottom: 5px;">Grand Total Project Cost (Hard + Soft)</div>
+                <div style="font-size: 18px; margin-bottom: 5px;">Grand Total Project Cost (Hard Cost + Soft Cost)</div>
                 <div style="font-size: 38px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.5;">
                     <div>Rp {grand_total_project:,.2f}</div>
                     <div style="font-size: 16px; font-weight: normal; margin-bottom: 5px;">Terbilang: {n2w(grand_total_project)} Rupiah</div>
