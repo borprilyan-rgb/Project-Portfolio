@@ -461,10 +461,9 @@ def show_cost_estimator():
 # --- TAB 1: PETUNJUK PEMAKAIAN ---
     with tab1:
         st.header("Petunjuk Penggunaan Aplikasi")        
-        st.divider() # Garis pembatas
         
         st.markdown("""
-        * **1. Ukuran       :** Untuk pengisian angka luas tanah, luas bangunan, dan jumlah kamar. (Angka tidak perlu di isi semua, cukup yang relevan dengan proyek Bapak/Ibu. Misal: untuk proyek Retail, tidak perlu isi jumlah kamar).
+        * **1. Ukuran       :** Untuk pengisian angka luas tanah, luas bangunan, dan jumlah kamar. (Angka tidak perlu di isi semua)
         * **2. Persen       :** Untuk angka yang menggunakan rasio (Misal: lantai proyek terdiri atas 90% HT, 10% Marmer)
         * **3. Harga        :** Untuk pengisian harga, harga akan muncul otomatis sesuai jenis proyek, dapat diisi manual sesuai kebutuhan.
         * **4. Soft Costs   :** Untuk pengisian biaya jasa QS, PM, konsultan dan asuransi di sini.
