@@ -4,6 +4,7 @@ import altair as alt
 from num2words import num2words
 from streamlit_local_storage import LocalStorage
 
+# Initialize the storage object immediately
 local_storage = LocalStorage()
 
 def n2w(amount):
@@ -139,22 +140,40 @@ def cb_switch_project():
 
 #region# 3. SESSION STATE
 if "projects" not in st.session_state:
-    # 1. Look for a backup in the browser's "Cookie" (LocalStorage)
+    # Look for a backup in the browser's "Cookie" (LocalStorage)
     stored_data = local_storage.getItem("asg_calculator_backup")
     
     if stored_data:
-        # If found, load the backup into the session
-        st.session_state.projects = stored_data
-        # Set active project to the first one found in the backup
-        st.session_state.current_proj_id = list(stored_data.keys())[0]
-        st.session_state.proj_counter = len(stored_data)
-    else:
-        # 2. If no cookie exists (first time use), create a blank project
+        # CAVEAT 3 FIX: Check if it's our new "Wrapped" payload
+        if "projects_dict" in stored_data:
+            st.session_state.projects = stored_data["projects_dict"]
+            st.session_state.current_proj_id = stored_data.get("current_proj_id", list(st.session_state.projects.keys())[0])
+            st.session_state.proj_counter = stored_data.get("proj_counter", 1)
+        else:
+            # Backward compatibility for the old cookie format
+            st.session_state.projects = stored_data
+            st.session_state.current_proj_id = list(stored_data.keys())[0]
+            
+            # BUG 1 FIX: Safely derive max ID to prevent collision after deletes
+            existing_ids = []
+            for k in stored_data.keys():
+                if k.startswith("proj_"):
+                    parts = k.split("_")
+                    if len(parts) > 1 and parts[1].isdigit():
+                        existing_ids.append(int(parts[1]))
+            st.session_state.proj_counter = max(existing_ids) if existing_ids else 1
+            
+        # BUG 2 FIX: Flag that storage has successfully loaded
+        st.session_state.storage_loaded = True
+
+    elif stored_data == {} or stored_data is None:
+        # If no cookie exists, create a blank project
         st.session_state.projects = {
             "proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}
         }
         st.session_state.current_proj_id = "proj_1"
         st.session_state.proj_counter = 1
+        st.session_state.storage_loaded = True
 #endregion#
 
 # --- 4. PAGE FUNCTIONS ---
@@ -1757,6 +1776,12 @@ else:
     show_cost_estimator()
 
 # --- END OF SCRIPT ---
-# This line runs every time a value is changed or a button is clicked
-if "projects" in st.session_state:
-    local_storage.setItem("asg_calculator_backup", st.session_state.projects)
+# BUG 2 FIX: Guard the save operation with the storage_loaded flag
+if "projects" in st.session_state and st.session_state.get("storage_loaded", False):
+    # CAVEAT 3 FIX: Wrap the payload so we remember the active project and counter
+    backup_payload = {
+        "projects_dict": st.session_state.projects,
+        "current_proj_id": st.session_state.current_proj_id,
+        "proj_counter": st.session_state.proj_counter
+    }
+    local_storage.setItem("asg_calculator_backup", backup_payload)
