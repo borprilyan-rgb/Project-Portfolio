@@ -771,7 +771,7 @@ def show_cost_estimator():
             </div>
         """, unsafe_allow_html=True)
         st.markdown(f"""
-            <div style="margin-bottom: 30px; padding: 15px; background-color: #1E1E1E; border-radius: 8px; border: 1px solid #4B4C55;">
+            <div style="margin-bottom: 30px; padding: 15px; border-radius: 8px; border: 1px solid #4B4C55;">
                 <div style="font-size: 18px; margin-bottom: 5px;">Grand Total Project Cost (Hard + Soft)</div>
                 <div style="font-size: 38px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.5;">
                     <div>Rp {grand_total_project:,.2f}</div>
