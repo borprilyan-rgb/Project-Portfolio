@@ -471,7 +471,8 @@ def show_cost_estimator():
         * **6. Hasil        :** Untuk melihat hasil perhitungan total biaya proyek, serta breakdown biaya per kategori.
         * **7. Pembuktian   :** Untuk melihat perhitungan secara rinci.
         """)
-        
+    
+        st.success("💡 Silahkan dimulai dengan membuka \"1. Ukuran\" terlebih dahulu.")
 
 
     # --- TAB 1: PROJECT METRICS ---
