@@ -4,19 +4,7 @@ import altair as alt
 from num2words import num2words
 from streamlit_local_storage import LocalStorage
 
-# Initialize local storage
 local_storage = LocalStorage()
-
-# 1. On Startup: Try to pull data from the "cookie"
-if "initialized_from_browser" not in st.session_state:
-    stored_projects = local_storage.getItem("asg_calculator_backup")
-    if stored_projects:
-        st.session_state.projects = stored_projects
-    st.session_state.initialized_from_browser = True
-
-# 2. On Change: Save the current state to the "cookie"
-# You can add this inside your project switching or save logic
-local_storage.setItem("asg_calculator_backup", st.session_state.projects)
 
 def n2w(amount):
     try:
