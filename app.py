@@ -463,7 +463,7 @@ def show_cost_estimator():
         st.header("Petunjuk Penggunaan Aplikasi")        
         
         st.markdown("""
-        * **1. Ukuran       :** Untuk pengisian angka luas tanah, luas bangunan, dan jumlah kamar. (Angka tidak perlu di isi semua)
+        * **1. Ukuran       :** Untuk pengisian angka luas tanah, GBA, GFA, SGFA, unit kamar, dsb. (Angka tidak perlu di isi semua)
         * **2. Persen       :** Untuk angka yang menggunakan rasio (Misal: lantai proyek terdiri atas 90% HT, 10% Marmer)
         * **3. Harga        :** Untuk pengisian harga, harga akan muncul otomatis sesuai jenis proyek, dapat diisi manual sesuai kebutuhan.
         * **4. Soft Costs   :** Untuk pengisian biaya jasa QS, PM, konsultan dan asuransi di sini.
