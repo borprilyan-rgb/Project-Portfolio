@@ -857,7 +857,7 @@ def show_cost_estimator():
             }
             st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
 
-        st.subheader("Total Project Cost Breakdown (Hard & Soft)")
+        st.subheader("Total Project Cost Breakdown")
         chart_data = pd.DataFrame({
             "Category": [
                 "Structure/Foundation", "Architecture & Finishes", "Facade",
