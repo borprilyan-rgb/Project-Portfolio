@@ -450,15 +450,33 @@ def show_cost_estimator():
     )
 
     # --- TABS ---
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+        "Petunjuk",
         "1. Ukuran", "2. Persen dan Pengali",
         "3. Harga", "4. Soft Costs",
         "5. Item Tambahan", "6. Hasil",
         "7. Pembuktian"
     ])
 
-    # --- TAB 1: PROJECT METRICS ---
+# --- TAB 1: PETUNJUK PEMAKAIAN ---
     with tab1:
+        st.header("Petunjuk Penggunaan Aplikasi")        
+        st.divider() # Garis pembatas
+        
+        st.markdown("""
+        * **1. Ukuran       :** Untuk pengisian angka luas tanah, luas bangunan, dan jumlah kamar. (Angka tidak perlu di isi semua, cukup yang relevan dengan proyek Bapak/Ibu. Misal: untuk proyek Retail, tidak perlu isi jumlah kamar).
+        * **2. Persen       :** Untuk angka yang menggunakan rasio (Misal: lantai proyek terdiri atas 90% HT, 10% Marmer)
+        * **3. Harga        :** Untuk pengisian harga, harga akan muncul otomatis sesuai jenis proyek, dapat diisi manual sesuai kebutuhan.
+        * **4. Soft Costs   :** Untuk pengisian biaya jasa QS, PM, konsultan dan asuransi di sini.
+        * **5. Tambahan     :** Untuk penambahan item khusus, bisa ketik manual untuk nama item, qty dan harga.
+        * **6. Hasil        :** Untuk melihat hasil perhitungan total biaya proyek, serta breakdown biaya per kategori.
+        * **7. Pembuktian   :** Untuk melihat perhitungan secara rinci.
+        """)
+        
+
+
+    # --- TAB 1: PROJECT METRICS ---
+    with tab2:
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 
         with col_m1:
@@ -511,7 +529,7 @@ def show_cost_estimator():
                 st.session_state.projects[curr_id]["data"]["misc_switch"] = misc_switch
 
     # --- TAB 2: RATIOS & MULTIPLIERS ---
-    with tab2:
+    with tab3:
         col_r1, col_r2, col_r3 = st.columns(3)
         with col_r1:
             st.subheader("Facade Ratio (%)")
@@ -539,7 +557,7 @@ def show_cost_estimator():
             st.caption(f"Total: {railing_qty:.0f} m x {rooms:.0f} unit = {railing_qty * rooms:.0f} m'")
 
     # --- TAB 3: UNIT RATES ---
-    with tab3:
+    with tab4:
         with st.expander("Harga Fondasi & Struktur", expanded=True):
             c1, c2, c3 = st.columns(3)
             struc_earth = c1.number_input("Earthwork Rate (Rp)", value=get_val("u_earth", pt_data["struc_earth"]), key=f"u_earth_{curr_type_key}")
@@ -662,7 +680,7 @@ def show_cost_estimator():
             c2.caption(f"""Hitungan: {proj_fac_u:,.0f} Units x Rp {fac_proj_rate:,.0f}  \n  Total Project Facilities: Rp {proj_fac_u * fac_proj_rate:,.0f}  \n  Terbilang: {n2w(proj_fac_u * fac_proj_rate)}""")
 
     # --- TAB 4: SOFT COSTS ---
-    with tab4:
+    with tab5:
         sc_col1, sc_col2, sc_col3 = st.columns(3)
         with sc_col1:
             with st.expander("QS", expanded=True):
@@ -680,7 +698,7 @@ def show_cost_estimator():
                 st.caption(f"""Hitungan: {gfa:,.0f} m2 x Rp {consultancy_rate:,.0f}  \n  Total Consultancy Fee: Rp {gfa * consultancy_rate:,.0f}  \n  Terbilang: {n2w(gfa * consultancy_rate)}""")
                 insurance_pct = st.number_input("Insurance (%)", help="Persentase premi asuransi", value=get_val("sc_ins", 0.12), step=0.01, key=f"sc_ins_{curr_id}")
     # --- TAB 5: CUSTOM ITEMS ---
-    with tab5:
+    with tab6:
         st.subheader("Item Tambahan")
         st.markdown("---")
 
@@ -786,7 +804,7 @@ def show_cost_estimator():
     group_contingency = t_preliminary + t_contingency
 
     # --- TAB 6: RESULTS ---
-    with tab6:
+    with tab7:
         st.markdown("---")
         c1, c2 = st.columns(2)
         c1.markdown(f"""
@@ -982,8 +1000,8 @@ def show_cost_estimator():
             current_metrics[k] = st.session_state.projects[curr_id]["data"][k]
     st.session_state.projects[curr_id]["data"] = current_metrics
 
-    with tab7:
-        st.subheader("Pembuktian")
+    with tab8:
+        st.subheader("Audit")
         st.caption(f"Total Earthwork: Rp {struc_earth:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_earth * gba:,.0f}")
         st.caption(f"Total Foundation: Rp {struc_found:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_found * gba:,.0f}")
         st.caption(f"Total Structural Work: Rp {struc_work:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_work * gba:,.0f}")
