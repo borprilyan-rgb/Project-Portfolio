@@ -151,11 +151,22 @@ def cb_switch_project():
 
 #region# 3. SESSION STATE
 if "projects" not in st.session_state:
-    st.session_state.projects = {
-        "proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}
-    }
-    st.session_state.current_proj_id = "proj_1"
-    st.session_state.proj_counter = 1
+    # 1. Look for a backup in the browser's "Cookie" (LocalStorage)
+    stored_data = local_storage.getItem("asg_calculator_backup")
+    
+    if stored_data:
+        # If found, load the backup into the session
+        st.session_state.projects = stored_data
+        # Set active project to the first one found in the backup
+        st.session_state.current_proj_id = list(stored_data.keys())[0]
+        st.session_state.proj_counter = len(stored_data)
+    else:
+        # 2. If no cookie exists (first time use), create a blank project
+        st.session_state.projects = {
+            "proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}
+        }
+        st.session_state.current_proj_id = "proj_1"
+        st.session_state.proj_counter = 1
 #endregion#
 
 # --- 4. PAGE FUNCTIONS ---
@@ -1752,3 +1763,8 @@ elif page_choice == "Area Calculator":
     show_area_calculator()
 else:
     show_cost_estimator()
+
+# --- END OF SCRIPT ---
+# This line runs every time a value is changed or a button is clicked
+if "projects" in st.session_state:
+    local_storage.setItem("asg_calculator_backup", st.session_state.projects)
