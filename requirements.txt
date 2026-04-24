@@ -5,3 +5,4 @@ plotly
 altair
 xlsxwriter
 num2words
+streamlit-local-storage
