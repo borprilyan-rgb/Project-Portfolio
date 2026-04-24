@@ -1,7 +1,7 @@
 streamlit
-st-gsheets-connection
 gspread
 pandas
 plotly
 altair
 xlsxwriter
+num2words
