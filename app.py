@@ -3,7 +3,7 @@ import pandas as pd
 import altair as alt
 
 # --- 1. PAGE CONFIGURATION ---
-st.set_page_config(page_title="Project Portfolio", layout="wide")
+st.set_page_config(page_title="Project Portfolio", layout="centered")
 
 PROJECT_DATABASE = {
     "Apartment": {
