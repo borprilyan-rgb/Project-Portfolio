@@ -757,7 +757,7 @@ def show_cost_estimator():
                 <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Total Project Hard Cost</div>
                 <div style="font-size: 28px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.5;">
                     <div>Rp {grand_total_hc:,.2f}</div>
-                    <div style="font-size: 16px; color: gray; font-weight: normal; margin-bottom: 5px;">Pembulatan: {n2w(grand_total_hc)} Rupiah</div>
+                    <div style="font-size: 16px; color: gray; font-weight: normal; margin-bottom: 5px;">Terbilang: {n2w(grand_total_hc)} Rupiah</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -766,7 +766,7 @@ def show_cost_estimator():
                 <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Total Soft Cost</div>
                 <div style="font-size: 28px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.5;">
                     <div>Rp {total_soft_cost:,.2f}</div>
-                    <div style="font-size: 16px; color: gray; font-weight: normal; margin-bottom: 5px;">Pembulatan: {n2w(total_soft_cost)} Rupiah</div>
+                    <div style="font-size: 16px; color: gray; font-weight: normal; margin-bottom: 5px;">Terbilang: {n2w(total_soft_cost)} Rupiah</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -775,7 +775,7 @@ def show_cost_estimator():
                 <div style="font-size: 18px; margin-bottom: 5px;">Grand Total Project Cost (Hard + Soft)</div>
                 <div style="font-size: 38px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.5;">
                     <div>Rp {grand_total_project:,.2f}</div>
-                    <div style="font-size: 16px; font-weight: normal; margin-bottom: 5px;">Pembulatan: {n2w(grand_total_project)} Rupiah</div>
+                    <div style="font-size: 16px; font-weight: normal; margin-bottom: 5px;">Terbilang: {n2w(grand_total_project)} Rupiah</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
