@@ -377,33 +377,110 @@ def show_cost_estimator():
 
     pt_data = PROJECT_DATABASE[new_type]
     curr_type_key = f"{curr_id}_{new_type}"
+
+
+
     st.markdown("---")
 
     # --- TABS ---
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "Petunjuk",
         "1. Ukuran", "2. Persen dan Pengali",
         "3. Harga", "4. Soft Costs",
         "5. Item Tambahan", "6. Hasil",
-        "7. Pembuktian"
+        "7. Pembuktian",
+        "Unggah & Unduh",
     ])
 
 # --- TAB 1: PETUNJUK PEMAKAIAN ---
     with tab1:
         st.header("Keterangan:")        
-        
-        st.image ("https://raw.githubusercontent.com/borprilyan-rgb/Project-Portfolio/refs/heads/main/Asset/Tab.png")
+
         st.markdown("""
-        * **1. Ukuran       :** Untuk pengisian angka luas tanah, GBA, GFA, SGFA, unit kamar, dsb. (***notes:*** pengisian angka berupa qty dan bukan harga)
-        * **2. Persen       :** Untuk angka yang menggunakan rasio (Misal: lantai proyek terdiri atas 90% HT, 10% Marmer)
-        * **3. Harga        :** Untuk pengisian harga, harga akan muncul otomatis sesuai jenis proyek, dapat diisi manual sesuai kebutuhan.
-        * **4. Soft Costs   :** Untuk pengisian biaya jasa QS, PM, konsultan dan asuransi di sini.
-        * **5. Tambahan     :** Untuk penambahan item khusus, bisa ketik manual untuk nama item, qty dan harga.
-        * **6. Hasil        :** Untuk melihat hasil perhitungan total biaya proyek, serta breakdown biaya per kategori.
-        * **7. Pembuktian   :** Untuk melihat perhitungan secara rinci.
+        **1. Ukuran       :** Untuk pengisian angka luas tanah, GBA, GFA, SGFA, unit kamar, dsb. (***notes:*** pengisian angka berupa qty dan bukan harga)
+        
+        **2. Persen       :** Untuk angka yang menggunakan rasio (Misal: rasio pekerjaan lantai proyek = 90% HT, 10% Marmer)
+        
+        **3. Harga        :** Untuk pengisian harga otomatis mengikuti database jenis proyek, dapat diisi manual sesuai kebutuhan.
+        
+        **4. Soft Costs   :** Untuk pengisian biaya jasa QS, PM, konsultan dan asuransi.
+        
+        **5. Tambahan     :** Untuk penambahan item khusus, ketik manual untuk nama item, qty dan harga pada tabel.
+        
+        **6. Hasil        :** Untuk melihat hasil perhitungan total biaya proyek, serta breakdown biaya per kategori.
+        
+        **7. Pembuktian   :** Untuk melihat perhitungan secara rinci.
+                      
         """)
     
-        st.success("💡 Silahkan dimulai dengan membuka \"1. Ukuran\" terlebih dahulu.")
+    with tab9:
+        st.header("Upload & Download")
+        c1, c2 = st.columns(2)
+        with c1:
+            uploaded_file = st.file_uploader("Upload Here:", type=["csv"])
+
+            if uploaded_file is not None:
+                if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != uploaded_file.file_id:
+                    try:
+                        df_import = pd.read_csv(uploaded_file)
+                        
+                        # 1. Clear or initialize data to ensure a fresh load
+                        # This prevents "ghost" data from previous projects
+                        st.session_state.projects[curr_id]["data"] = {} 
+
+                        for index, row in df_import.iterrows():
+                            # Use .get() or handle NaN to prevent crashes if a row is empty
+                            key = str(row.get("Metric_Key", ""))
+                            val = row.get("Value", 0) # Default to 0 if Value column is missing
+
+                            if not key: continue # Skip empty rows
+
+                            if key == "proj_name":
+                                st.session_state.projects[curr_id]["name"] = str(val)
+                            elif key == "proj_type":
+                                st.session_state.projects[curr_id]["type"] = str(val)
+                            else:
+                                # 2. Smart Type Conversion
+                                if str(val) in ["Type1", "Type2"]:
+                                    st.session_state.projects[curr_id]["data"][key] = str(val)
+                                else:
+                                    try:
+                                        # If it's a number, make it a float
+                                        # If it's empty/NaN, the float(val) will fail, jumping to the 'except'
+                                        st.session_state.projects[curr_id]["data"][key] = float(val)
+                                    except (ValueError, TypeError):
+                                        # 3. Future-proofing: If it's not a number or "Type X", 
+                                        # check if it's an empty/undefined field and set to 0
+                                        if pd.isna(val) or val == "":
+                                            st.session_state.projects[curr_id]["data"][key] = 0.0
+                                        else:
+                                            st.session_state.projects[curr_id]["data"][key] = str(val)
+
+                        st.session_state.last_loaded_file = uploaded_file.file_id
+                        st.success("✅ Load Complete!")
+                        st.rerun()
+                    
+                    except Exception as e:
+                        st.error(f"❌ critical Error: {e}")
+
+            csv_data = []
+            csv_data.append({"Metric_Key": "proj_name", "Value": curr_proj["name"]})
+            csv_data.append({"Metric_Key": "proj_type", "Value": curr_proj["type"]})
+            for k, v in st.session_state.projects[curr_id]["data"].items():
+                if k not in ("smart_custom_costs", "header_info", "assumptions"):
+                    csv_data.append({"Metric_Key": k, "Value": v})
+
+            df_export = pd.DataFrame(csv_data)
+            csv_buffer = df_export.to_csv(index=False).encode("utf-8")
+
+            st.download_button(
+                label="Download",
+                data=csv_buffer,
+                file_name=f"Database_{curr_id}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+
 
 
     # --- TAB 1: PROJECT METRICS ---
@@ -962,72 +1039,8 @@ def show_cost_estimator():
     st.session_state.projects[curr_id]["data"] = current_metrics
 
     with tab8:
-        st.subheader("Upload & Download")
+        st.subheader("Audit")
         
-        # --- FILE TOOLS SECTION ---
-        col_files1, col_files2, col_files3, col_files4, col_files5 = st.columns(5)
-        
-        with col_files1:
-            st.subheader("Import Data")
-            uploaded_file = st.file_uploader("Upload CSV Database:", type=["csv"], key=f"upload_{curr_id}")
-
-            if uploaded_file is not None:
-                if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != uploaded_file.file_id:
-                    try:
-                        df_import = pd.read_csv(uploaded_file)
-                        st.session_state.projects[curr_id]["data"] = {} 
-
-                        for index, row in df_import.iterrows():
-                            key = str(row.get("Metric_Key", ""))
-                            val = row.get("Value", 0)
-
-                            if not key: continue
-
-                            if key == "proj_name":
-                                st.session_state.projects[curr_id]["name"] = str(val)
-                            elif key == "proj_type":
-                                st.session_state.projects[curr_id]["type"] = str(val)
-                            else:
-                                if str(val) in ["Type1", "Type2"]:
-                                    st.session_state.projects[curr_id]["data"][key] = str(val)
-                                else:
-                                    try:
-                                        st.session_state.projects[curr_id]["data"][key] = float(val)
-                                    except (ValueError, TypeError):
-                                        if pd.isna(val) or val == "":
-                                            st.session_state.projects[curr_id]["data"][key] = 0.0
-                                        else:
-                                            st.session_state.projects[curr_id]["data"][key] = str(val)
-
-                        st.session_state.last_loaded_file = uploaded_file.file_id
-                        st.success("✅ Load Complete!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Critical Error: {e}")
-
-            st.subheader("Export Data")
-            csv_data = []
-            csv_data.append({"Metric_Key": "proj_name", "Value": curr_proj["name"]})
-            csv_data.append({"Metric_Key": "proj_type", "Value": curr_proj["type"]})
-            for k, v in st.session_state.projects[curr_id]["data"].items():
-                if k not in ("smart_custom_costs", "header_info", "assumptions"):
-                    csv_data.append({"Metric_Key": k, "Value": v})
-
-            df_export = pd.DataFrame(csv_data)
-            csv_buffer = df_export.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label="Download Project CSV",
-                data=csv_buffer,
-                file_name=f"Database_{curr_proj['name']}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-
-        st.markdown("---")
-        
-        # --- AUDIT SECTION ---
-        st.subheader("Calculation Audit Log")
-
         st.caption(f"Total Earthwork: Rp {struc_earth:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_earth * gba:,.0f}")
         st.caption(f"Total Foundation: Rp {struc_found:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_found * gba:,.0f}")
         st.caption(f"Total Structural Work: Rp {struc_work:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_work * gba:,.0f}")
@@ -1784,7 +1797,7 @@ st.sidebar.title("Main Navigation")
 
 page_choice = st.sidebar.radio(
     "Pilih Pekerjaan:",
-    ["Perhitungan Biaya", "Perhitungan Area", "Rekap Biaya"]
+    ["Cost Calculator", "Area Calculator", "Summary"]
 )
 
 st.sidebar.markdown("---")
@@ -1820,7 +1833,7 @@ st.sidebar.markdown("---")
 # --- 6. PAGE ROUTING ---
 if page_choice == "Rekap Biaya":
     show_portfolio_summary()
-elif page_choice == "Perhitungan Area":
+elif page_choice == "Area Calculator":
     show_area_calculator()
 else:
     show_cost_estimator()
