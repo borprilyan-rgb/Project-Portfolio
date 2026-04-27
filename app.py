@@ -380,7 +380,7 @@ def show_cost_estimator():
     st.markdown("---")
 
     # --- SIDEBAR: UPLOAD ---
-    st.sidebar.subheader("Upload & Download")
+    st.sidebar.subheader("Download Kalkulasi")
     uploaded_file = st.sidebar.file_uploader("Upload Here:", type=["csv"])
 
     if uploaded_file is not None:
@@ -421,15 +421,11 @@ def show_cost_estimator():
                                     st.session_state.projects[curr_id]["data"][key] = str(val)
 
                 st.session_state.last_loaded_file = uploaded_file.file_id
-                st.sidebar.success("✅ Version-Compatible Load Complete!")
+                st.sidebar.success("✅ Load Complete!")
                 st.rerun()
             
             except Exception as e:
                 st.sidebar.error(f"❌ critical Error: {e}")
-
-    # FIX: Export section is now correctly at function scope (was buried inside except block before)
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Export Data")
 
     csv_data = []
     csv_data.append({"Metric_Key": "proj_name", "Value": curr_proj["name"]})
@@ -462,10 +458,11 @@ def show_cost_estimator():
     with tab1:
         st.header("Keterangan:")        
         
+        st.image ("https://raw.githubusercontent.com/borprilyan-rgb/Project-Portfolio/refs/heads/main/Asset/Tab.png")
         st.markdown("""
-        * **1. Ukuran       :** Untuk pengisian angka luas tanah, GBA, GFA, SGFA, unit kamar, lobby, toilet, dsb.
+        * **1. Ukuran       :** Untuk pengisian angka luas tanah, GBA, GFA, SGFA, unit kamar, dsb. (***notes:*** pengisian angka berupa qty dan bukan harga)
         * **2. Persen       :** Untuk angka yang menggunakan rasio (Misal: lantai proyek terdiri atas 90% HT, 10% Marmer)
-        * **3. Harga        :** Untuk pengisian harga, harga akan muncul otomatis sesuai jenis proyek, (opsional: harga dapat diganti manual sesuai kebutuhan)
+        * **3. Harga        :** Untuk pengisian harga, harga akan muncul otomatis sesuai jenis proyek, dapat diisi manual sesuai kebutuhan.
         * **4. Soft Costs   :** Untuk pengisian biaya jasa QS, PM, konsultan dan asuransi di sini.
         * **5. Tambahan     :** Untuk penambahan item khusus, bisa ketik manual untuk nama item, qty dan harga.
         * **6. Hasil        :** Untuk melihat hasil perhitungan total biaya proyek, serta breakdown biaya per kategori.
@@ -697,14 +694,14 @@ def show_cost_estimator():
                 consultancy_rate = st.number_input("Biaya Konsultan (Rp) per m2 GFA", help="Biaya konsultan per m2 GFA", value=get_val("sc_cons", pt_data["cons"]), key=f"sc_cons_{curr_type_key}")
                 st.caption(f"""Hitungan: {gfa:,.0f} m2 x Rp {consultancy_rate:,.0f}  \n  Total Consultancy Fee: Rp {gfa * consultancy_rate:,.0f}  \n  Terbilang: {n2w(gfa * consultancy_rate)}""")
                 insurance_pct = st.number_input("Insurance (%)", help="Persentase premi asuransi", value=get_val("sc_ins", 0.12), step=0.01, key=f"sc_ins_{curr_id}")
+    
     # --- TAB 5: CUSTOM ITEMS ---
     with tab6:
         st.subheader("Item Tambahan")
-        st.markdown("---")
 
         dependency_map = {
             "None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa,
-            "Land Area": land_area, "Rooms": rooms, "Facade": facade, "Lobby": lobby_interior
+            "Land Area": land_area, "Rooms": rooms, "Facade": facade, "Lobby": lobby_interior, "Toilet Private" : san_qty_room * rooms
         }
 
         default_smart_cc = [{"Item Description": "", "Rate (Rp)": 0.0, "Multiplier (Qty)": 1.0, "Linked Dependency": "None (Flat Rate)"}]
@@ -725,16 +722,37 @@ def show_cost_estimator():
         )
 
         total_custom_cost = 0.0
+        
+        # New: List to store breakdown strings
+        breakdown_details = []
+
         for index, row in edited_smart_cc.iterrows():
+            desc = row.get("Item Description", f"Item {index + 1}")
             rate = float(row.get("Rate (Rp)", 0.0))
             mult = float(row.get("Multiplier (Qty)", 1.0))
             dep_name = row.get("Linked Dependency", "None (Flat Rate)")
             dep_value = dependency_map.get(dep_name, 1.0)
-            total_custom_cost += (rate * mult * dep_value)
+            
+            # Calculate item total
+            item_total = rate * mult * dep_value
+            total_custom_cost += item_total
 
-        st.markdown(f"**Total Custom Costs: Rp {total_custom_cost:,.2f}**")
-        st.session_state.projects[curr_id]["data"]["smart_custom_costs"] = edited_smart_cc.to_dict("records")
+            # Create a descriptive string for each item
+            if rate > 0:
+                calc_str = f"**{desc}**: Rp {rate:,.2f} × {mult} qty"
+                if dep_name != "None (Flat Rate)":
+                    calc_str += f" × {dep_value:,.2f} ({dep_name})"
+                calc_str += f" = **Rp {item_total:,.2f}**"
+                breakdown_details.append(calc_str)
 
+        # Display the breakdown
+        if breakdown_details:
+            with st.expander("Detail Item Custom", expanded=True):
+                for detail in breakdown_details:
+                    st.caption(detail) # Or use st.write() for larger text
+
+        st.markdown("---")
+        st.markdown(f"### Total Harga Item Custom: Rp {total_custom_cost:,.2f}")
     # --- LIVE AUTO-CALCULATIONS ---
     t_earth = gba * struc_earth
     t_found = gba * struc_found
@@ -1757,13 +1775,12 @@ def show_portfolio_summary():
 st.sidebar.title("Main Navigation")
 
 page_choice = st.sidebar.radio(
-    "Select Workspace:",
-    ["Cost Calculator", "Area Calculator", "Portfolio Summary"]
+    "Pilih Pekerjaan:",
+    ["Perhitungan Biaya", "Perhitungan Area", "Rekap Biaya"]
 )
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Daftar Proyek Aktif")
-st.sidebar.button("Tambah Proyek", on_click=cb_add_project, use_container_width=True)
+st.sidebar.subheader("Daftar Proyek")
 
 proj_ids = list(st.session_state.projects.keys())
 proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
@@ -1778,17 +1795,24 @@ st.sidebar.radio(
     label_visibility="collapsed"
 )
 
-col_del = st.sidebar.columns(1)[0]
-with col_del:
+import streamlit as st
+
+c1, c2 = st.sidebar.columns(2)
+
+with c1:
+    st.button("Tambah", on_click=cb_add_project, type="primary", use_container_width=True)
+
+with c2:
     can_delete = len(st.session_state.projects) > 1
-    st.button("Hapus", disabled=not can_delete, on_click=cb_delete_project, help="Delete Active Project", use_container_width=True)
+    st.button("Hapus", disabled=not can_delete, on_click=cb_delete_project, type="secondary", help="Delete Active Project", use_container_width=True)
+
 
 st.sidebar.markdown("---")
 
 # --- 6. PAGE ROUTING ---
-if page_choice == "Portfolio Summary":
+if page_choice == "Rekap Biaya":
     show_portfolio_summary()
-elif page_choice == "Area Calculator":
+elif page_choice == "Perhitungan Area":
     show_area_calculator()
 else:
     show_cost_estimator()
@@ -1803,3 +1827,5 @@ if "projects" in st.session_state and st.session_state.get("storage_loaded", Fal
         "proj_counter": st.session_state.proj_counter
     }
     local_storage.setItem("asg_calculator_backup", backup_payload)
+
+st.sidebar.caption("v1.1.0 | © 2026 QS & Procurement - ASG")
