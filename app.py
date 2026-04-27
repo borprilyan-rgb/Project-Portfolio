@@ -379,72 +379,6 @@ def show_cost_estimator():
     curr_type_key = f"{curr_id}_{new_type}"
     st.markdown("---")
 
-    # --- SIDEBAR: UPLOAD ---
-    st.sidebar.subheader("Download Kalkulasi")
-    uploaded_file = st.sidebar.file_uploader("Upload Here:", type=["csv"])
-
-    if uploaded_file is not None:
-        if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != uploaded_file.file_id:
-            try:
-                df_import = pd.read_csv(uploaded_file)
-                
-                # 1. Clear or initialize data to ensure a fresh load
-                # This prevents "ghost" data from previous projects
-                st.session_state.projects[curr_id]["data"] = {} 
-
-                for index, row in df_import.iterrows():
-                    # Use .get() or handle NaN to prevent crashes if a row is empty
-                    key = str(row.get("Metric_Key", ""))
-                    val = row.get("Value", 0) # Default to 0 if Value column is missing
-
-                    if not key: continue # Skip empty rows
-
-                    if key == "proj_name":
-                        st.session_state.projects[curr_id]["name"] = str(val)
-                    elif key == "proj_type":
-                        st.session_state.projects[curr_id]["type"] = str(val)
-                    else:
-                        # 2. Smart Type Conversion
-                        if str(val) in ["Type1", "Type2"]:
-                            st.session_state.projects[curr_id]["data"][key] = str(val)
-                        else:
-                            try:
-                                # If it's a number, make it a float
-                                # If it's empty/NaN, the float(val) will fail, jumping to the 'except'
-                                st.session_state.projects[curr_id]["data"][key] = float(val)
-                            except (ValueError, TypeError):
-                                # 3. Future-proofing: If it's not a number or "Type X", 
-                                # check if it's an empty/undefined field and set to 0
-                                if pd.isna(val) or val == "":
-                                    st.session_state.projects[curr_id]["data"][key] = 0.0
-                                else:
-                                    st.session_state.projects[curr_id]["data"][key] = str(val)
-
-                st.session_state.last_loaded_file = uploaded_file.file_id
-                st.sidebar.success("✅ Load Complete!")
-                st.rerun()
-            
-            except Exception as e:
-                st.sidebar.error(f"❌ critical Error: {e}")
-
-    csv_data = []
-    csv_data.append({"Metric_Key": "proj_name", "Value": curr_proj["name"]})
-    csv_data.append({"Metric_Key": "proj_type", "Value": curr_proj["type"]})
-    for k, v in st.session_state.projects[curr_id]["data"].items():
-        if k not in ("smart_custom_costs", "header_info", "assumptions"):
-            csv_data.append({"Metric_Key": k, "Value": v})
-
-    df_export = pd.DataFrame(csv_data)
-    csv_buffer = df_export.to_csv(index=False).encode("utf-8")
-
-    st.sidebar.download_button(
-        label="Download CSV",
-        data=csv_buffer,
-        file_name=f"Database_{curr_id}.csv",
-        mime="text/csv",
-        use_container_width=True
-    )
-
     # --- TABS ---
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "Petunjuk",
@@ -716,6 +650,12 @@ def show_cost_estimator():
                     "Linked Dependency",
                     options=list(dependency_map.keys()),
                     required=True
+                ),
+                "Multiplier (Qty)": st.column_config.NumberColumn(
+                    "Multiplier (Qty)",
+                    min_value=0,
+                    default=1.0,
+                    format="%.2f"
                 )
             },
             use_container_width=True
@@ -745,6 +685,8 @@ def show_cost_estimator():
                 calc_str += f" = **Rp {item_total:,.2f}**"
                 breakdown_details.append(calc_str)
 
+                
+
         # Display the breakdown
         if breakdown_details:
             with st.expander("Detail Item Custom", expanded=True):
@@ -753,6 +695,7 @@ def show_cost_estimator():
 
         st.markdown("---")
         st.markdown(f"### Total Harga Item Custom: Rp {total_custom_cost:,.2f}")
+
     # --- LIVE AUTO-CALCULATIONS ---
     t_earth = gba * struc_earth
     t_found = gba * struc_found
@@ -1019,7 +962,72 @@ def show_cost_estimator():
     st.session_state.projects[curr_id]["data"] = current_metrics
 
     with tab8:
-        st.subheader("Audit")
+        st.subheader("Upload & Download")
+        
+        # --- FILE TOOLS SECTION ---
+        col_files1, col_files2, col_files3, col_files4, col_files5 = st.columns(5)
+        
+        with col_files1:
+            st.subheader("Import Data")
+            uploaded_file = st.file_uploader("Upload CSV Database:", type=["csv"], key=f"upload_{curr_id}")
+
+            if uploaded_file is not None:
+                if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != uploaded_file.file_id:
+                    try:
+                        df_import = pd.read_csv(uploaded_file)
+                        st.session_state.projects[curr_id]["data"] = {} 
+
+                        for index, row in df_import.iterrows():
+                            key = str(row.get("Metric_Key", ""))
+                            val = row.get("Value", 0)
+
+                            if not key: continue
+
+                            if key == "proj_name":
+                                st.session_state.projects[curr_id]["name"] = str(val)
+                            elif key == "proj_type":
+                                st.session_state.projects[curr_id]["type"] = str(val)
+                            else:
+                                if str(val) in ["Type1", "Type2"]:
+                                    st.session_state.projects[curr_id]["data"][key] = str(val)
+                                else:
+                                    try:
+                                        st.session_state.projects[curr_id]["data"][key] = float(val)
+                                    except (ValueError, TypeError):
+                                        if pd.isna(val) or val == "":
+                                            st.session_state.projects[curr_id]["data"][key] = 0.0
+                                        else:
+                                            st.session_state.projects[curr_id]["data"][key] = str(val)
+
+                        st.session_state.last_loaded_file = uploaded_file.file_id
+                        st.success("✅ Load Complete!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Critical Error: {e}")
+
+            st.subheader("Export Data")
+            csv_data = []
+            csv_data.append({"Metric_Key": "proj_name", "Value": curr_proj["name"]})
+            csv_data.append({"Metric_Key": "proj_type", "Value": curr_proj["type"]})
+            for k, v in st.session_state.projects[curr_id]["data"].items():
+                if k not in ("smart_custom_costs", "header_info", "assumptions"):
+                    csv_data.append({"Metric_Key": k, "Value": v})
+
+            df_export = pd.DataFrame(csv_data)
+            csv_buffer = df_export.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="Download Project CSV",
+                data=csv_buffer,
+                file_name=f"Database_{curr_proj['name']}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+
+        st.markdown("---")
+        
+        # --- AUDIT SECTION ---
+        st.subheader("Calculation Audit Log")
+
         st.caption(f"Total Earthwork: Rp {struc_earth:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_earth * gba:,.0f}")
         st.caption(f"Total Foundation: Rp {struc_found:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_found * gba:,.0f}")
         st.caption(f"Total Structural Work: Rp {struc_work:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_work * gba:,.0f}")
