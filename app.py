@@ -404,6 +404,16 @@ def show_cost_estimator():
 
     st.markdown("---")
 
+    if "hide_tab" not in st.session_state:
+        st.session_state.hide_tab= False
+
+    if not st.session_state.hide_tab:
+        col_w1, col_w2 = st.columns([0.1, 0.2])
+        col_w1.error("Pilih salah satu tab dibawah ini!")
+        if col_w2.button("Mengerti"):
+            st.session_state.hide_tab = True
+            st.rerun()
+            
     # --- TABS ---
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "Petunjuk",
@@ -449,14 +459,25 @@ def show_cost_estimator():
 
 
     with tab2:
-        with st.expander("Header", expanded=True):
-            c1, c2, c3, c4, c5 = st.columns(5)
-            gba = c2.number_input("GBA (m2)", value=get_val("m_gba", 0.0), step=100.0, key=f"m_gba_{curr_id}")
-            gfa = c3.number_input("GFA (m2)", value=get_val("m_gfa", 0.0), step=100.0, key=f"m_gfa_{curr_id}")
-            sgfa = c4.number_input("SGFA (m2)", value=get_val("m_sgfa", 0.0), step=100.0, key=f"m_sgfa_{curr_id}")
-            rooms = c5.number_input("Ruang (unit)", help="untuk Apartment/Hotel/Proyek Residensial", value=get_val("m_rooms", 0.0), step=1.0, key=f"m_rooms_{curr_id}")
-            land_area = c1.number_input("Luas Tanah (m2)", value=get_val("m_land", 0.0), step=100.0, key=f"m_land_{curr_id}")
+        st.markdown("Header Table")
+        c1, c2, c3, c4, c5 = st.columns(5)
+        gba = c2.number_input("GBA (m2)", value=get_val("m_gba", 0.0), step=100.0, key=f"m_gba_{curr_id}")
+        gfa = c3.number_input("GFA (m2)", value=get_val("m_gfa", 0.0), step=100.0, key=f"m_gfa_{curr_id}")
+        sgfa = c4.number_input("SGFA (m2)", value=get_val("m_sgfa", 0.0), step=100.0, key=f"m_sgfa_{curr_id}")
+        rooms = c5.number_input("Ruang (unit)", help="untuk Apartment/Hotel/Proyek Residensial", value=get_val("m_rooms", 0.0), step=1.0, key=f"m_rooms_{curr_id}")
+        land_area = c1.number_input("Luas Tanah (m2)", value=get_val("m_land", 0.0), step=100.0, key=f"m_land_{curr_id}")
+        st.markdown("---")
+        
+        if "hide_tab_hc" not in st.session_state:
+            st.session_state.hide_tab_hc= False
 
+        if not st.session_state.hide_tab_hc:
+            col_w1, col_w2 = st.columns([0.1, 0.2])
+            col_w1.error("Pilih salah satu tab dibawah ini!")
+            if col_w2.button("Mengerti"):
+                st.session_state.hide_tab_hc = True
+                st.rerun()
+                
         hc_sub_tabs = st.tabs(["1. Preliminary", "2. Earthworks", "3. Foundation Works", "4. Structural", "5. Architectural", "6. FF&E", "7. MEP", "8. External", "9. Facility & Misc", "10. Contingencies"])
 
 
@@ -487,7 +508,16 @@ def show_cost_estimator():
                         Terbilang: {n2w(struc_work * gba)}""")
 
         with hc_sub_tabs[4]:
-            
+            if "hide_tab_arch" not in st.session_state:
+                st.session_state.hide_tab_arch= False
+
+            if not st.session_state.hide_tab_arch:
+                col_w1, col_w2 = st.columns([0.1, 0.2])
+                col_w1.error("Pilih salah satu tab dibawah ini!")
+                if col_w2.button("Mengerti"):
+                    st.session_state.hide_tab_arch = True
+                    st.rerun()
+                                
             arch_sub_tabs = st.tabs(["1. Basic Finish", "2. Lobby", "3. Facade", "4. Pintu", "5. Sanitary", "6. Lantai", "7. Lain-lain"])
             
             with arch_sub_tabs[0]:
