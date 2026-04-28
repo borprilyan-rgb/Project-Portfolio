@@ -429,8 +429,11 @@ def show_cost_estimator():
                 * *1.5.1 Basic Finish* | *1.5.2 Lobby* | *1.5.3 Facade*
                 * *1.5.4 Pintu* | *1.5.5 Sanitary* | *1.5.6 Lantai*
                 * *1.5.7 Lain-lain*
-            * **1.6 FF&E** | **1.7 MEP** | **1.8 External**
-            * **1.9 Facility & Misc** | **1.10 Contingencies**
+            * **1.6 FF&E**
+            * **1.7 MEP**
+            * **1.8 External**
+            * **1.9 Facility & Misc**
+            * **1.10 Contingencies**
             """)
 
         with st.expander("Soft Cost", expanded=True):
