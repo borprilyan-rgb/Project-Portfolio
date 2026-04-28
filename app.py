@@ -75,6 +75,28 @@ PROJECT_DATABASE = {
         "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0,
         "cons": 199000.0
     },
+        "Hotel Bintang 3": {
+        "arch_base": 1079000.0, "door_wood": 4750000.0, "door_steel": 8000000.0,
+        "hw_wood": 8250000.0, "hw_steel": 2850000.0, "lobby": 2000000.0,
+        "gondola": 2000000000.0, "carpet": 1200000.0, "glass": 800000.0,
+        "san_room_rate": 62050000.0, "san_pub_f": 107825000.0, "san_pub_m": 86050000.0,
+        "ffe": 59650000.0, "misc": 52500000.0, "kitchen": 0.0,
+        "fl_ht_rate": {"Type1": 150000.0, "Type2": 350000.0},
+        "fl_vinyl_rate": {"Type1": 500000.0, "Type2": 750000.0},
+        "fl_marmer_rate": {"Type1": 750000.0, "Type2": 1500000.0},
+        "facade_precast_pct": 60.0, "facade_window_pct": 30.0, "facade_double_pct": 10.0,
+        "fl_ht_pct": 90.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 10.0,
+        "san_room_qty": 3.0, "railing_qty": 5.0,
+        "mep": 2810941.24, "utility": 92098.0,
+
+        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
+
+        "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
+        "door_glass": 1000000.0, "railing_rate": 2200000.0, "skylight_rate": 4500000.0,
+        "san_dis": 30275000.0, "san_mushola": 36500000.0, "ext_land": 1563000.0,
+        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0,
+        "cons": 199000.0
+    },
     "Retail": {
         "arch_base": 1084000.0, "door_wood": 6000000.0, "door_steel": 8000000.0,
         "hw_wood": 6500000.0, "hw_steel": 2850000.0, "lobby": 2500000.0,
@@ -361,7 +383,7 @@ def show_cost_estimator():
     c1, c2, c3, c4, c5 = st.columns(5)
 
     new_name = c1.text_input("Nama Proyek", value=curr_proj["name"])
-    types_list = ["Hotel", "Retail", "Apartment", "Parking"]
+    types_list = ["Hotel", "Retail", "Apartment", "Parking", "Hotel Bintang 3"]
     type_index = types_list.index(curr_proj["type"]) if curr_proj["type"] in types_list else 0
     new_type = c2.selectbox("Jenis Proyek", types_list, index=type_index)
 
@@ -383,37 +405,386 @@ def show_cost_estimator():
     st.markdown("---")
 
     # --- TABS ---
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "Petunjuk",
-        "1. Ukuran", "2. Persen dan Pengali",
-        "3. Harga", "4. Soft Costs",
-        "5. Item Tambahan", "6. Hasil",
-        "7. Pembuktian",
-        "Unggah & Unduh",
+        "1. Hard Cost",
+        "2. Soft Cost",
+        "3. Item Tambahan", 
+        "4. Hasil",
+        "5. Pembuktian",
+        "6. Penyimpanan",
     ])
 
 # --- TAB 1: PETUNJUK PEMAKAIAN ---
     with tab1:
-        st.header("Keterangan:")        
+        st.header("Daftar Isi")
+        
+        with st.expander("Hard Cost", expanded=True):
+            st.markdown("""
+            * **1.1 Preliminary**
+            * **1.2 Earthworks**
+            * **1.3 Foundation Works**
+            * **1.4 Structural**
+            * **1.5 Architectural**
+                * *1.5.1 Basic Finish* | *1.5.2 Lobby* | *1.5.3 Facade*
+                * *1.5.4 Pintu* | *1.5.5 Sanitary* | *1.5.6 Lantai*
+                * *1.5.7 Lain-lain*
+            * **1.6 FF&E** | **1.7 MEP** | **1.8 External**
+            * **1.9 Facility & Misc** | **1.10 Contingencies**
+            """)
 
-        st.markdown("""
-        **1. Ukuran       :** Untuk pengisian angka luas tanah, GBA, GFA, SGFA, unit kamar, dsb. (***notes:*** pengisian angka berupa qty dan bukan harga)
+        with st.expander("Soft Cost", expanded=True):
+            st.write("* **2.1 Consultancy**")
+            st.write("* **2.2 Insurances**")
+            st.write("* **2.3 Utilities**")
+
+        with st.expander("Lainnya"):
+            st.write("* **4 Item Tambahan**")
+            st.write("* **5. Hasil**")
+            st.write("* **6. Pembuktian**")
+            st.write("* **7. Unggah & Unduh**")
+
+
+    with tab2:
+        with st.expander("Header", expanded=True):
+            c1, c2, c3, c4, c5 = st.columns(5)
+            gba = c2.number_input("GBA (m2)", value=get_val("m_gba", 0.0), step=100.0, key=f"m_gba_{curr_id}")
+            gfa = c3.number_input("GFA (m2)", value=get_val("m_gfa", 0.0), step=100.0, key=f"m_gfa_{curr_id}")
+            sgfa = c4.number_input("SGFA (m2)", value=get_val("m_sgfa", 0.0), step=100.0, key=f"m_sgfa_{curr_id}")
+            rooms = c5.number_input("Ruang (unit)", help="untuk Apartment/Hotel/Proyek Residensial", value=get_val("m_rooms", 0.0), step=1.0, key=f"m_rooms_{curr_id}")
+            land_area = c1.number_input("Luas Tanah (m2)", value=get_val("m_land", 0.0), step=100.0, key=f"m_land_{curr_id}")
+
+        hc_sub_tabs = st.tabs(["1. Preliminary", "2. Earthworks", "3. Foundation Works", "4. Structural", "5. Architectural", "6. FF&E", "7. MEP", "8. External", "9. Facility & Misc", "10. Contingencies"])
+
+
+        with hc_sub_tabs[1]:
+            st.subheader("Earthworks")
+            struc_earth = st.number_input("Earthworks (Rp)", value=get_val("u_earth", pt_data["struc_earth"]), key=f"u_earth_{curr_type_key}")
+            st.caption(f"""
+                        GBA      : {gba:,.0f} m2  
+                        Hitungan : Rp {struc_earth:,.0f} x {gba:,.0f} m2  
+                        Total    : Rp {struc_earth * gba:,.0f}  
+                        Terbilang: {n2w(struc_earth * gba)}""")
+        with hc_sub_tabs[2]:
+            st.subheader("Foundation")
+            struc_found = st.number_input("Foundation Rate (Rp)", value=get_val("u_found", pt_data["struc_found"]), key=f"u_found_{curr_type_key}")
+            st.caption(f"""
+                        GBA      : {gba:,.0f} m2  
+                        Hitungan: Rp {struc_found:,.0f} x GBA: {gba:,.0f} m2  
+                        Total: Rp {struc_found * gba:,.0f}  
+                        Terbilang: {n2w(struc_found * gba)}""")
+
+        with hc_sub_tabs[3]:
+            st.subheader("Structural")
+            struc_work = st.number_input("Structural Work Rate (Rp)", value=get_val("u_struc", pt_data["struc_work"]), key=f"u_struc_{curr_type_key}")
+            st.caption(f"""
+                        GBA      : {gba:,.0f} m2  
+                        Hitungan: Rp {struc_work:,.0f} x GBA: {gba:,.0f} m2  
+                        Total: Rp {struc_work * gba:,.0f}  
+                        Terbilang: {n2w(struc_work * gba)}""")
+
+        with hc_sub_tabs[4]:
+            
+            arch_sub_tabs = st.tabs(["1. Basic Finish", "2. Lobby", "3. Facade", "4. Pintu", "5. Sanitary", "6. Lantai", "7. Lain-lain"])
+            
+            with arch_sub_tabs[0]:
+                st.subheader("Pekerjaan Arsitektur - Architecture Base")
+                arch_base = st.number_input("Architecture Base (Rp)", value=get_val("u_arch", pt_data["arch_base"]), key=f"u_arch_{curr_type_key}")
+                st.caption(f"""Hitungan: Rp {arch_base:,.0f} x GFA: {gfa:,.0f} m2  \n  Total Architecture Base: Rp {arch_base * gfa:,.0f}  \n  Terbilang: {n2w(arch_base * gfa)}""")
+            with arch_sub_tabs[1]:
+                st.subheader("Pekerjaan Arsitektur - Lobby Interior")
+                lobby_interior = st.number_input("Lobby Interior (m2)", help="cth. 500 m2 lobby untuk 1 proyek Apartement A", value=float(get_val("m_lobby", 0.0)), step=10.0, key=f"m_lobby_{curr_id}")
+                lobby_rate = st.number_input("Lobby Interior Rate (Rp)", value=get_val("u_lobby", pt_data["lobby"]), key=f"u_lobby_{curr_type_key}")
+                st.caption(f"""Hitungan: Rp {lobby_rate:,.0f} x Lobby Interior: {lobby_interior:,.0f} m2  \n  Total Lobby Interior: Rp {lobby_rate * lobby_interior:,.0f}  \n  Terbilang: {n2w(lobby_rate * lobby_interior)}""")
+            with arch_sub_tabs[2]:
+                st.subheader("Pekerjaan Arsitektur - Facade")
+                facade = st.number_input("Facade (m2)", value=get_val("m_facade", 0.0), step=100.0, key=f"m_facade_{curr_id}")
+                c3, c4, c5 = st.columns(3)
+
+                fac_precast_rate = c3.number_input("Precast Rate (Rp)", value=get_val("u_f_pre", pt_data["facade_precast_rate"]), key=f"u_f_pre_{curr_type_key}")
+                fac_window_rate = c4.number_input("Window Wall Rate (Rp)", value=get_val("u_f_win", pt_data["facade_window_rate"]), key=f"u_f_win_{curr_type_key}")
+                fac_double_rate = c5.number_input("Double Skin Rate (Rp)", value=get_val("u_f_doub", pt_data["facade_double_rate"]), key=f"u_f_doub_{curr_type_key}")
+                
+                facade_precast_pct = c3.number_input("Precast (%)", value=get_val("r_fac_pre", pt_data["facade_precast_pct"]), step=5.0, key=f"r_fac_pre_{curr_type_key}")
+                facade_window_pct = c4.number_input("Window Wall (%)", value=get_val("r_fac_win", pt_data["facade_window_pct"]), step=5.0, key=f"r_fac_win_{curr_type_key}")
+                facade_double_pct = c5.number_input("Double Skin (%)", value=get_val("r_fac_doub", pt_data["facade_double_pct"]), step=5.0, key=f"r_fac_doub_{curr_type_key}")
+                t_fac_pct = facade_precast_pct + facade_window_pct + facade_double_pct
+                c3.caption(f"""Hitungan: Rp {fac_precast_rate:,.0f} x Facade: {facade:,.0f} m2 x {facade_precast_pct}%  \n  Total Precast: Rp {fac_precast_rate * facade * (facade_precast_pct/100):,.0f}  \n  Terbilang: {n2w(fac_precast_rate * facade * (facade_precast_pct/100))}""")
+                c4.caption(f"""Hitungan: Rp {fac_window_rate:,.0f} x Facade: {facade:,.0f} m2 x {facade_window_pct}%  \n  Total Window Wall: Rp {fac_window_rate * facade * (facade_window_pct/100):,.0f}  \n  Terbilang: {n2w(fac_window_rate * facade * (facade_window_pct/100))}""")
+                c5.caption(f"""Hitungan: Rp {fac_double_rate:,.0f} x Facade: {facade:,.0f} m2 x {facade_double_pct}%  \n  Total Double Skin: Rp {fac_double_rate * facade * (facade_double_pct/100):,.0f}  \n  Terbilang: {n2w(fac_double_rate * facade * (facade_double_pct/100))}""")
+            
+            t_fac_pct = facade_precast_pct + facade_window_pct + facade_double_pct
+            if t_fac_pct != 100:
+                st.warning(f"⚠️ Total is **{t_fac_pct}%** (bukan 100%)")
+            
+            with arch_sub_tabs[3]:
+                st.subheader("Pekerjaan Arsitektur - Pintu")
+                c1, c2, c3 = st.columns(3)
+                glass_door = c3.number_input("Glass Door (unit)", value=get_val("m_door_g", 0.0), step=1.0, key=f"m_door_g_{curr_id}")
+                wooden_door = c1.number_input("Wooden Door (unit)", value=get_val("m_door_w", 0.0), step=10.0, key=f"m_door_w_{curr_id}")
+                steel_door = c2.number_input("Steel Door (unit)", value=get_val("m_door_s", 0.0), step=10.0, key=f"m_door_s_{curr_id}")
+
+                door_wood = c1.number_input("Wooden Door Rate (Rp)", value=get_val("u_d_wood", pt_data["door_wood"]), key=f"u_d_wood_{curr_type_key}")
+                door_glass = c3.number_input("Glass Door Rate (Rp)", value=get_val("u_d_glass", pt_data["door_glass"]), key=f"u_d_glass_{curr_type_key}")
+                door_steel = c2.number_input("Steel Door Rate (Rp)", value=get_val("u_d_steel", pt_data["door_steel"]), key=f"u_d_steel_{curr_type_key}")
+                c1.caption(f"""Hitungan: Rp {door_wood:,.0f} x  {wooden_door:,.0f} unit  \n  Total Pintu Kayu: Rp {door_wood * wooden_door:,.0f}  \n  Terbilang: {n2w(door_wood * wooden_door)}""")
+                c3.caption(f"""Hitungan: Rp {door_glass:,.0f} x  {glass_door:,.0f} unit  \n  Total Pintu Kaca: Rp {door_glass * glass_door:,.0f}  \n  Terbilang: {n2w(door_glass * glass_door)}""")
+                c2.caption(f"""Hitungan: Rp {door_steel:,.0f} x  {steel_door:,.0f} unit  \n  Total Pintu Baja: Rp {door_steel * steel_door:,.0f}  \n  Terbilang: {n2w(door_steel * steel_door)}""")
+                hw_wood = c1.number_input("Hardware Wooden Door (Rp)", value=get_val("u_hw_wood", pt_data["hw_wood"]), key=f"u_hw_wood_{curr_type_key}")
+                hw_steel = c2.number_input("Hardware Steel Door (Rp)", value=get_val("u_hw_steel", pt_data["hw_steel"]), key=f"u_hw_steel_{curr_type_key}")
+                c1.caption(f"""Hitungan: Rp {hw_wood:,.0f} x  {wooden_door:,.0f} unit  \n  Total Hardware Pintu Kayu: Rp {hw_wood * wooden_door:,.0f}  \n  Terbilang: {n2w(hw_wood * wooden_door)}""")
+                c2.caption(f"""Hitungan: Rp {hw_steel:,.0f} x  {steel_door:,.0f} unit  \n  Total Hardware Pintu Baja: Rp {hw_steel * steel_door:,.0f}  \n  Terbilang: {n2w(hw_steel * steel_door)}""")
+
+            with arch_sub_tabs[4]:
+                st.subheader("Pekerjaan Arsitektur - Sanitary")                
+                c1, c2 = st.columns(2)
+                with c1:
+                    san_qty_room = st.number_input("Toilet Private (unit/ruang)", help="Cth. 3 Toilet/1 Kamar (Apt)", value=get_val("r_san_qty", pt_data["san_room_qty"]), key=f"r_san_qty_{curr_type_key}")
+                    san_room_rate = st.number_input("Typical Unit Sanitary Rate (Rp)", value=get_val("u_s_room", pt_data["san_room_rate"]), key=f"u_s_room_{curr_type_key}")
+                    st.caption(f"""Hitungan: Rp {san_room_rate:,.0f} x {rooms:,.0f} Rooms x {san_qty_room} Units / Room  \n  Total Private Bathroom: Rp {rooms * san_qty_room * san_room_rate:,.0f}  \n  Terbilang: {n2w(rooms * san_qty_room * san_room_rate)}""")
+
+                    disabled_toil = st.number_input("Toilet Difabel (units)", value=get_val("m_toil_d", 0.0), step=1.0, key=f"m_toil_d_{curr_id}")
+                    san_dis = st.number_input("Disabled Toilet Rate (Rp)", value=get_val("u_s_dis", pt_data["san_dis"]), key=f"u_s_dis_{curr_type_key}")
+                    st.caption(f"""Hitungan: Rp {san_dis:,.0f} x {disabled_toil:,.0f} Units  \n  Total Toilet Difabel: Rp {disabled_toil * san_dis:,.0f}  \n  Terbilang: {n2w(disabled_toil * san_dis)}""")
+
+                    mushola_unit = st.number_input("Mushola (units)", value=get_val("m_mushola", 0.0), step=1.0, key=f"m_mushola_{curr_id}")
+                    san_mushola = st.number_input("Mushola Rate (Rp)", value=get_val("u_s_mushola", pt_data["san_mushola"]), key=f"u_s_mushola_{curr_type_key}")
+                    st.caption(f"""Hitungan: Rp {san_mushola:,.0f} x {mushola_unit:,.0f} Units  \n  Total Mushola: Rp {mushola_unit * san_mushola:,.0f}  \n  Terbilang: {n2w(mushola_unit * san_mushola)}""")
+
+                with c2:
+                    toilet_male = st.number_input("Toilet Umum - Pria (units)", value=get_val("m_toil_m", 0.0), step=1.0, key=f"m_toil_m_{curr_id}")
+                    san_pub_m = st.number_input("Public Toilet Male Rate (Rp)", value=get_val("u_s_pub_m", pt_data["san_pub_m"]), key=f"u_s_pub_m_{curr_type_key}")
+                    st.caption(f"""Hitungan: Rp {san_pub_m:,.0f} x {toilet_male:,.0f} Units  \n  Total Public Toilet Male: Rp {toilet_male * san_pub_m:,.0f}  \n  Terbilang: {n2w(toilet_male * san_pub_m)}""")
+
+                    toilet_female = st.number_input("Toilet Umum - Wanita (units)", value=get_val("m_toil_f", 0.0), step=1.0, key=f"m_toil_f_{curr_id}")
+                    san_pub_f = st.number_input("Public Toilet Female Rate (Rp)", value=get_val("u_s_pub_f", pt_data["san_pub_f"]), key=f"u_s_pub_f_{curr_type_key}")
+                    st.caption(f"""Hitungan: Rp {san_pub_f:,.0f} x {toilet_female:,.0f} Units  \n  Total Public Toilet Female: Rp {toilet_female * san_pub_f:,.0f}  \n  Terbilang: {n2w(toilet_female * san_pub_f)}""")
+
+
+            with arch_sub_tabs[5]:
+                st.subheader("Pekerjaan Arsitektur - Lantai")
+                c1, c2, c3 = st.columns(3)
+                f_mult = 1.1*1.2
+
+                with c1:
+                    # Dynamically set index based on saved data
+                    ht_idx = 0 if get_val("ht_spec_type", "Type1") == "Type1" else 1
+                    
+                    st.radio("Spek HT", ["Type1", "Type2"],
+                        index=ht_idx, # <--- Added
+                        key=f"temp_spec_ht_{curr_type_key}",
+                        horizontal=True,
+                        on_change=update_price, args=("ht", "fl_ht_rate"))
+                    
+                    fl_ht_pct = st.number_input("HT/Ceramic Tile (%)", value=get_val("r_fl_ht", pt_data["fl_ht_pct"]), step=5.0, max_value=100.0, key=f"r_fl_ht_{curr_type_key}")
+                    fl_ht_rate = st.number_input("HT Rate (Rp)", value=get_val("u_fl_ht", pt_data["fl_ht_rate"]["Type1"]), key=f"u_fl_ht_{curr_type_key}")
+                    st.caption(f"""Hitungan: {fl_ht_pct}% of GFA x Rp {fl_ht_rate:,.0f} x {gfa:,.0f} m2 x 1.1 x 1.2  \n  Total HT: Rp {gfa * (fl_ht_pct / 100) * fl_ht_rate * 1.32:,.0f}  \n  Terbilang: {n2w(gfa * (fl_ht_pct / 100) * fl_ht_rate * 1.32)}""")
+
+                with c2:
+                    vin_idx = 0 if get_val("vin_spec_type", "Type1") == "Type1" else 1
+                    
+                    st.radio("Spek Vinyl", ["Type1", "Type2"],
+                        index=vin_idx, # <--- Added
+                        key=f"temp_spec_vin_{curr_type_key}",
+                        horizontal=True,
+                        on_change=update_price, args=("vin", "fl_vinyl_rate"))
+                        
+                    fl_vinyl_pct = st.number_input("Vinyl (%)", value=get_val("r_fl_vin", pt_data["fl_vinyl_pct"]), step=5.0, max_value=100.0, key=f"r_fl_vin_{curr_type_key}")
+                    fl_vinyl_rate = st.number_input("Vinyl Rate (Rp)", value=get_val("u_fl_vin", pt_data["fl_vinyl_rate"]["Type1"]), key=f"u_fl_vin_{curr_type_key}")
+                    st.caption(f"""Hitungan: {fl_vinyl_pct}% of GFA x Rp {fl_vinyl_rate:,.0f} x {gfa:,.0f} m2 x 1.1 x 1.2  \n  Total Vinyl: Rp {gfa * (fl_vinyl_pct / 100) * fl_vinyl_rate * 1.32:,.0f}  \n  Terbilang: {n2w(gfa * (fl_vinyl_pct / 100) * fl_vinyl_rate * 1.32)}""")
+                
+                with c3:
+                    mar_idx = 0 if get_val("mar_spec_type", "Type1") == "Type1" else 1
+                    
+                    st.radio("Spek Marmer", ["Type1", "Type2"],
+                        index=mar_idx, # <--- Added
+                        key=f"temp_spec_mar_{curr_type_key}",
+                        horizontal=True,
+                        on_change=update_price, args=("mar", "fl_marmer_rate"))
+                        
+                    fl_marmer_pct = st.number_input("Marmer (%)", value=get_val("r_fl_mar", pt_data["fl_marmer_pct"]), step=5.0, max_value=100.0, key=f"r_fl_mar_{curr_type_key}")
+                    fl_marmer_rate = st.number_input("Marmer Rate (Rp)", value=get_val("u_fl_mar", pt_data["fl_marmer_rate"]["Type1"]), key=f"u_fl_mar_{curr_type_key}")
+                    st.caption(f"""Hitungan: {fl_marmer_pct}% of GFA x Rp {fl_marmer_rate:,.0f} x {gfa:,.0f} m2 x 1.1 x 1.2  \n  Total Marmer: Rp {gfa * (fl_marmer_pct / 100) * fl_marmer_rate * 1.32:,.0f}  \n  Terbilang: {n2w(gfa * (fl_marmer_pct / 100) * fl_marmer_rate * 1.32)}""")
+                    
+                    t_fl_pct = fl_ht_pct + fl_vinyl_pct + fl_marmer_pct
+
+                if t_fl_pct != 100:
+                    st.warning(f"⚠️ Total is **{t_fl_pct}%** (bukan 100%)")
+
+                st.markdown("---")
+                
+                with arch_sub_tabs[6]:
+                    st.subheader("Pekerjaan Arsitektur - Lain-lain")
+                    c1, c2, c3 = st.columns(3)
+                    carpet_m2 = c1.number_input("Karpet (m2)", value=get_val("m_carpet", 0.0), step=10.0, key=f"m_carpet_{curr_id}")            
+                    carpet_rate = c1.number_input("Carpet Rate (Rp)", value=get_val("u_carpet", pt_data["carpet"]), key=f"u_carpet_{curr_type_key}")
+                    c1.caption(f"""Hitungan: {carpet_m2:,.0f} m2 x Rp {carpet_rate:,.0f}  \n  Total Carpet Work: Rp {carpet_m2 * carpet_rate:,.0f}  \n  Terbilang: {n2w(carpet_m2 * carpet_rate)}""")
+                    
+                    glass_m2 = c2.number_input("Kaca (m2)", value=get_val("m_glass", 0.0), step=10.0, key=f"m_glass_{curr_id}")
+                    glass_rate = c2.number_input("Glass Work Rate (Rp)", value=get_val("u_glass", pt_data["glass"]), key=f"u_glass_{curr_type_key}")
+                    c2.caption(f"""Hitungan: {glass_m2:,.0f} m2 x Rp {glass_rate:,.0f}  \n  Total Glass Work: Rp {glass_m2 * glass_rate:,.0f}  \n  Terbilang: {n2w(glass_m2 * glass_rate)}""")            
+                    
+                    skylight_area = c3.number_input("Skylight (m2)", value=get_val("m_skylight", 0.0), step=10.0, key=f"m_skylight_{curr_id}")    
+                    skylight_rate = c3.number_input("Skylight Rate (Rp)", value=get_val("u_sky", pt_data["skylight_rate"]), key=f"u_sky_{curr_type_key}")
+                    c3.caption(f"""Hitungan: {skylight_area:,.0f} m2 Total x Rp {skylight_rate:,.0f}  \n  Total Skylight Work: Rp {skylight_area * skylight_rate:,.0f}  \n  Terbilang: {n2w(skylight_area * skylight_rate)}""")
+                    
+                    gondola_unit = c1.number_input("Gondola (unit)", value=get_val("m_gondola", 0.0), step=1.0, key=f"m_gondola_{curr_id}")
+                    gondola_rate = c1.number_input("Gondola Rate (Rp)", value=get_val("u_gondola", pt_data["gondola"]), key=f"u_gondola_{curr_type_key}")
+                    c1.caption(f"""Hitungan: {gondola_unit:,.0f} Units x Rp {gondola_rate:,.0f}  \n  Total Gondola: Rp {gondola_unit * gondola_rate:,.0f}  \n  Terbilang: {n2w(gondola_unit * gondola_rate)}""")
+                    
+                    railing_qty = c2.number_input("Railing Length (m'/room)", value=get_val("r_rail_qty", pt_data["railing_qty"]), step=1.0, key=f"r_rail_qty_{curr_type_key}")
+                    railing_rate = c2.number_input("Railing Rate (Rp)", value=get_val("u_rail", pt_data["railing_rate"]), key=f"u_rail_{curr_type_key}")
+                    c2.caption(f"""Hitungan: {railing_qty:,.0f} m' x Rooms {rooms:,.0f} unit x Rp {railing_rate:,.0f}  \n  Total Railing Work: Rp {rooms * railing_qty * railing_rate:,.0f}  \n  Terbilang: {n2w(rooms * railing_qty * railing_rate)}""")
+            
+        with hc_sub_tabs[5]:
+            st.subheader("FF&E")
+            c1, c2, c3 = st.columns(3)
+            
+            with c1.expander("FF&E", expanded=True):
+                ffe_rate = st.number_input("FF&E (Rp)", value=get_val("u_ffe", pt_data["ffe"]), key=f"u_ffe_{curr_type_key}")
+                st.caption(f"""Hitungan: {rooms:,.0f} Rooms x Rp {ffe_rate:,.0f}  \n  Total FF&E: Rp {rooms * ffe_rate:,.0f}  \n  Terbilang: {n2w(rooms * ffe_rate)}""")
+
+            with c2.expander("Dapur", expanded=True):
+                kitchen_rate = st.number_input("Kitchen Equipment (Rp)", value=get_val("u_kit", pt_data["kitchen"]), key=f"u_kit_{curr_type_key}")
+                st.caption(f"""Hitungan: Rp {kitchen_rate:,.0f}  \n  Total Kitchen Equipment: Rp {kitchen_rate:,.0f}  \n  Terbilang: {n2w(kitchen_rate)}""")
+
+            with c3.expander("Gym/Linen", expanded=True):    
+                m_status = st.radio("Ada Gym/Linen?", ["Tidak", "Ada"],
+                                    index=1 if get_val("misc_switch", 0) == 1 else 0,
+                                    key=f"misc_sw_{curr_id}", horizontal=True)
+                misc_switch = 1 if m_status == "Ada" else 0
+                st.session_state.projects[curr_id]["data"]["misc_switch"] = misc_switch
+
+                misc_rate = st.number_input("Misc (Linen/Gym Equipment) (Rp)", value=get_val("u_misc", pt_data["misc"]), key=f"u_misc_{curr_type_key}")
+                st.caption(f"""Hitungan: Rp {misc_rate if misc_switch else 0:,.0f}  \n  Total Misc. Costs: Rp {misc_rate * misc_switch:,.0f}  \n  Terbilang: {n2w(misc_rate * misc_switch)}""")
         
-        **2. Persen       :** Untuk angka yang menggunakan rasio (Misal: rasio pekerjaan lantai proyek = 90% HT, 10% Marmer)
+        with hc_sub_tabs[6]:
+            st.subheader("MEP")
+            c1, c2, c3 = st.columns(3)
+            
+            mep_rate = c1.number_input("MEP Works (Rp)", value=get_val("u_mep", pt_data["mep"]), key=f"u_mep_{curr_type_key}")
+            c1.caption(f"""Hitungan: {gba:,.0f} m2 x Rp {mep_rate:,.0f}  \n  Total MEP Works: Rp {gba * mep_rate:,.0f}  \n  Terbilang: {n2w(gba * mep_rate)}""")
         
-        **3. Harga        :** Untuk pengisian harga otomatis mengikuti database jenis proyek, dapat diisi manual sesuai kebutuhan.
+        with hc_sub_tabs[7]:
+            st.subheader("External")
+            c1, c2, c3 = st.columns(3)
+
+            land_m2 = c1.number_input("Area Lanskap (m2)", value=get_val("m_land_m2", 0.0), step=100.0, key=f"m_land_m2_{curr_id}")
+            ext_land_rate = c1.number_input("External Works (Landscape) (Rp)", value=get_val("u_ext", pt_data["ext_land"]), key=f"u_ext_{curr_type_key}")
+            c1.caption(f"""Hitungan: {land_m2:,.0f} m2 x Rp {ext_land_rate:,.0f}  \n  Total External Works: Rp {land_m2 * ext_land_rate:,.0f}  \n  Terbilang: {n2w(land_m2 * ext_land_rate)}""")
         
-        **4. Soft Costs   :** Untuk pengisian biaya jasa QS, PM, konsultan dan asuransi.
+        with hc_sub_tabs[8]:
+            st.subheader("Facilities & Misc")
+            c1, c2, c3 = st.columns(3)
+            MAX_UNITS=100.0
+
+            res_fac_m2 = c2.number_input("Fasilitas Penghuni (m2)", value=get_val("m_fac_res", 0.0), step=10.0, key=f"m_fac_res_{curr_id}")
+            pub_fac_m2 = c1.number_input("Fasilitas Publik (m2)", value=get_val("m_fac_pub", 0.0), step=10.0, key=f"m_fac_pub_{curr_id}")
+            proj_fac_u = c3.number_input("Fasilitas Proyek (unit)", value=get_val("m_fac_proj", 0.0), step=1.0, max_value=MAX_UNITS, key=f"m_fac_proj_{curr_id}")
+
+            fac_pub_rate = c1.number_input("Fasilitas Publik (Rp)", value=get_val("u_fac_p", pt_data["fac_pub"]), key=f"u_fac_p_{curr_type_key}")
+            fac_res_rate = c2.number_input("Fasilitas Penghuni (Rp)", value=get_val("u_fac_r", pt_data["fac_res"]), key=f"u_fac_r_{curr_type_key}")
+            fac_proj_rate = c3.number_input("Fasilitas Proyek (Rp)", value=get_val("u_fac_pr", pt_data["fac_proj"]), key=f"u_fac_pr_{curr_type_key}")
+            
+            c1.caption(f"""Hitungan: {pub_fac_m2:,.0f} m2 x Rp {fac_pub_rate:,.0f}  \n  Total Public Facilities: Rp {pub_fac_m2 * fac_pub_rate:,.0f}  \n  Terbilang: {n2w(pub_fac_m2 * fac_pub_rate)}""")
+            c2.caption(f"""Hitungan: {res_fac_m2:,.0f} m2 x Rp {fac_res_rate:,.0f}  \n  Total Resident Facilities: Rp {res_fac_m2 * fac_res_rate:,.0f}  \n  Terbilang: {n2w(res_fac_m2 * fac_res_rate)}""")
+            c3.caption(f"""Hitungan: {proj_fac_u:,.0f} Units x Rp {fac_proj_rate:,.0f}  \n  Total Project Facilities: Rp {proj_fac_u * fac_proj_rate:,.0f}  \n  Terbilang: {n2w(proj_fac_u * fac_proj_rate)}""")
+
+        t_earth = gba * struc_earth
+        t_found = gba * struc_found
+        t_struc = gba * struc_work
+        t_arch_base = gfa * arch_base
+        t_precast = facade * (facade_precast_pct / 100) * fac_precast_rate
+        t_window  = facade * (facade_window_pct / 100) * fac_window_rate
+        t_double  = facade * (facade_double_pct / 100) * fac_double_rate
+        t_w_door = wooden_door * door_wood
+        t_g_door = glass_door * door_glass
+        t_s_door = steel_door * door_steel
+        t_lobby  = lobby_interior * lobby_rate
+        t_gondola = gondola_unit * gondola_rate
+        t_unit_san = rooms * san_qty_room * san_room_rate
+        t_t_male   = toilet_male * san_pub_m
+        t_t_female = toilet_female * san_pub_f
+        t_t_dis    = disabled_toil * san_dis
+        t_mushola  = mushola_unit * san_mushola
+        t_kitchen = rooms * kitchen_rate
+        t_hw_w    = wooden_door * hw_wood
+        t_hw_s    = steel_door * hw_steel
+        f_mult = 1.32
+        t_ht      = gfa * (fl_ht_pct / 100) * fl_ht_rate * f_mult
+        t_vinyl   = gfa * (fl_vinyl_pct / 100) * fl_vinyl_rate * f_mult
+        t_marmer  = gfa * (fl_marmer_pct / 100) * fl_marmer_rate * f_mult
+        t_carpet     = carpet_m2 * carpet_rate
+        t_glass_work = glass_m2 * glass_rate
+        t_ffe        = rooms * ffe_rate
+        t_misc       = misc_rate * misc_switch
+        t_mep        = gba * mep_rate
+        t_railing    = (rooms * railing_qty) * railing_rate
+        t_skylight   = skylight_area * skylight_rate
+        t_external = land_m2 * ext_land_rate
+        t_pub_fac  = pub_fac_m2 * fac_pub_rate
+        t_res_fac  = res_fac_m2 * fac_res_rate
+        t_proj_fac = proj_fac_u * fac_proj_rate
+
+        hc_subtotal = sum([
+            t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double,
+            t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
+            t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, t_ht, t_vinyl,
+            t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, 
+            t_railing, t_skylight, t_external, t_pub_fac, t_res_fac, t_proj_fac,
+            # total_custom_cost
+        ])
+
+        t_preliminary = (hc_subtotal) * 0.05
+        t_contingency = (hc_subtotal) * 0.03
+        hc_total = hc_subtotal + t_preliminary + t_contingency
+
+        with hc_sub_tabs[0]:
+            st.subheader("Preliminary")
+            f"5% x Rp {(hc_subtotal):,.0f} = Rp {(0.05 * hc_subtotal):,.0f}",
+
+
+        with hc_sub_tabs[9]:
+            st.subheader("Contingency")
+            f"3% x Rp {(hc_subtotal):,.0f} = {(0.03 * hc_subtotal):,.0f}",
+
+
+    with tab3:
+        sc_sub_tabs = st.tabs(["1. Consultancy Services", "2. Insurances", "3. Utilities Connection"])
+        with sc_sub_tabs [0]:
+            sc_col1, sc_col2, sc_col3 = st.columns(3)
+            with sc_col1:
+                with st.expander("QS", expanded=True):
+                    qs_months = st.number_input("Durasi QS (Bulan)", value=get_val("sc_qs_m", 0.0), step=1.0, key=f"sc_qs_m_{curr_id}")
+                    qs_rate = st.number_input("Harga QS (per Bulan) (Rp)", value=get_val("sc_qs_r", 0.0), step=1000000.0, key=f"sc_qs_r_{curr_id}")
+                    st.caption(f"""Hitungan: {qs_months} Months x Rp {qs_rate:,.0f}/Mo  \n  Total QS Services: Rp {qs_months * qs_rate:,.0f}  \n  Terbilang: {n2w(qs_months * qs_rate)}""")
+            with sc_col2:
+                with st.expander("PM", expanded=True):
+                    pm_months = st.number_input("Durasi PM (Bulan)", value=get_val("sc_pm_m", 0.0), step=1.0, key=f"sc_pm_m_{curr_id}")
+                    pm_rate = st.number_input("Harga PM (per Bulan) (Rp)", value=get_val("sc_pm_r", 0.0), step=1000000.0, key=f"sc_pm_r_{curr_id}")
+                    st.caption(f"""Hitungan: {pm_months} Months x Rp {pm_rate:,.0f}/Mo  \n  Total PM Services: Rp {pm_months * pm_rate:,.0f}  \n  Terbilang: {n2w(pm_months * pm_rate)}""")                
+            with sc_col3:
+                with st.expander("Other Consultancy", expanded=True):
+                    consultancy_rate = st.number_input("Biaya Konsultan (Rp) per m2 GFA", help="Biaya konsultan per m2 GFA", value=get_val("sc_cons", pt_data["cons"]), key=f"sc_cons_{curr_type_key}")
+                    st.caption(f"""Hitungan: {gfa:,.0f} m2 x Rp {consultancy_rate:,.0f}  \n  Total Consultancy Fee: Rp {gfa * consultancy_rate:,.0f}  \n  Terbilang: {n2w(gfa * consultancy_rate)}""")
+        with sc_sub_tabs [1]:
+            insurance_pct = st.number_input("Insurance (%)", help="Persentase premi asuransi", value=get_val("sc_ins", 0.12), step=0.01, key=f"sc_ins_{curr_id}")
+            st.caption(f"""Hitungan: {gfa:,.0f} m2 x Rp {hc_subtotal:,.0f}  \n  Total: Rp {gfa * hc_subtotal:,.0f}  \n  Terbilang: {n2w(gfa * hc_subtotal)}""")
+        with sc_sub_tabs [2]:
+            utility_rate = st.number_input("Utility Connection (Rp)", value=get_val("u_util", pt_data["utility"]), key=f"u_util_{curr_type_key}")
+            st.caption(f"""Hitungan: {gba:,.0f} m2 x Rp {utility_rate:,.0f}  \n  Total Utility Connection: Rp {gba * utility_rate:,.0f}  \n  Terbilang: {n2w(gba * utility_rate)}""")
+
+        t_consultancy = gfa * consultancy_rate
+        t_qs = qs_months * qs_rate
+        t_pm = pm_months * pm_rate
+        t_insurance = (hc_subtotal) * (insurance_pct / 100.0)
+        t_utility    = gba * utility_rate
         
-        **5. Tambahan     :** Untuk penambahan item khusus, ketik manual untuk nama item, qty dan harga pada tabel.
+        sc_total = t_consultancy + t_qs + t_pm + t_insurance+t_utility
         
-        **6. Hasil        :** Untuk melihat hasil perhitungan total biaya proyek, serta breakdown biaya per kategori.
-        
-        **7. Pembuktian   :** Untuk melihat perhitungan secara rinci.
-                      
-        """)
-    
-    with tab9:
+        grand_total_project = hc_total + sc_total
+
+    with tab7:
         st.header("Upload & Download")
         c1, c2 = st.columns(2)
         with c1:
@@ -424,45 +795,55 @@ def show_cost_estimator():
                     try:
                         df_import = pd.read_csv(uploaded_file)
                         
-                        # 1. Clear or initialize data to ensure a fresh load
-                        # This prevents "ghost" data from previous projects
-                        st.session_state.projects[curr_id]["data"] = {} 
+                        # 1. Prepare temporary storage
+                        new_name = curr_proj["name"]
+                        new_type = curr_proj["type"]
+                        new_data = {}
 
+                        # 2. Extract the data
                         for index, row in df_import.iterrows():
-                            # Use .get() or handle NaN to prevent crashes if a row is empty
                             key = str(row.get("Metric_Key", ""))
-                            val = row.get("Value", 0) # Default to 0 if Value column is missing
+                            val = row.get("Value", 0)
 
-                            if not key: continue # Skip empty rows
+                            if not key or pd.isna(key): continue
 
                             if key == "proj_name":
-                                st.session_state.projects[curr_id]["name"] = str(val)
+                                new_name = str(val)
                             elif key == "proj_type":
-                                st.session_state.projects[curr_id]["type"] = str(val)
+                                new_type = str(val)
+                            elif str(val) in ["Type1", "Type2"]:
+                                new_data[key] = str(val)
                             else:
-                                # 2. Smart Type Conversion
-                                if str(val) in ["Type1", "Type2"]:
-                                    st.session_state.projects[curr_id]["data"][key] = str(val)
-                                else:
-                                    try:
-                                        # If it's a number, make it a float
-                                        # If it's empty/NaN, the float(val) will fail, jumping to the 'except'
-                                        st.session_state.projects[curr_id]["data"][key] = float(val)
-                                    except (ValueError, TypeError):
-                                        # 3. Future-proofing: If it's not a number or "Type X", 
-                                        # check if it's an empty/undefined field and set to 0
-                                        if pd.isna(val) or val == "":
-                                            st.session_state.projects[curr_id]["data"][key] = 0.0
-                                        else:
-                                            st.session_state.projects[curr_id]["data"][key] = str(val)
+                                try:
+                                    new_data[key] = float(val)
+                                except:
+                                    new_data[key] = str(val) if not pd.isna(val) else 0.0
+
+                        # 3. Save to backend
+                        st.session_state.projects[curr_id]["name"] = new_name
+                        st.session_state.projects[curr_id]["type"] = new_type
+                        st.session_state.projects[curr_id]["data"] = new_data
+
+                        # 4. THE PURGE: Delete widget memory so it forces a fresh read
+                        suffix_id = f"_{curr_id}"
+                        suffix_type = f"_{curr_id}_{new_type}"
+                        
+                        keys_to_delete = []
+                        for k in st.session_state.keys():
+                            if k.endswith(suffix_id) or k.endswith(suffix_type):
+                                keys_to_delete.append(k)
+                                
+                        for k in keys_to_delete:
+                            del st.session_state[k]
 
                         st.session_state.last_loaded_file = uploaded_file.file_id
-                        st.success("✅ Load Complete!")
+                        st.success("✅ Load Complete! UI Synchronized.")
                         st.rerun()
                     
                     except Exception as e:
-                        st.error(f"❌ critical Error: {e}")
+                        st.error(f"❌ Critical Error: {e}")
 
+            # Export Block
             csv_data = []
             csv_data.append({"Metric_Key": "proj_name", "Value": curr_proj["name"]})
             csv_data.append({"Metric_Key": "proj_type", "Value": curr_proj["type"]})
@@ -480,234 +861,9 @@ def show_cost_estimator():
                 mime="text/csv",
                 use_container_width=True
             )
-
-
-
-    # --- TAB 1: PROJECT METRICS ---
-    with tab2:
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-
-        with col_m1:
-            with st.expander("Ukuran Proyek", expanded=True):
-                st.subheader("Ukuran")
-                land_area = st.number_input("Luas Tanah (m2)", value=get_val("m_land", 0.0), step=100.0, key=f"m_land_{curr_id}")
-                gba = st.number_input("GBA (m2)", value=get_val("m_gba", 0.0), step=100.0, key=f"m_gba_{curr_id}")
-                gfa = st.number_input("GFA (m2)", value=get_val("m_gfa", 0.0), step=100.0, key=f"m_gfa_{curr_id}")
-                sgfa = st.number_input("SGFA (m2)", value=get_val("m_sgfa", 0.0), step=100.0, key=f"m_sgfa_{curr_id}")
-
-        with col_m2:
-            with st.expander("Arsitektur", expanded=True):
-                st.subheader("Interior")
-                rooms = st.number_input("Ruang (unit)", help="cth. 500 unit untuk 1 proyek Apartement A", value=get_val("m_rooms", 0.0), step=1.0, key=f"m_rooms_{curr_id}")
-                lobby_interior = st.number_input("Lobby Interior (m2)", help="cth. 500 m2 lobby untuk 1 proyek Apartement A", value=float(get_val("m_lobby", 0.0)), step=10.0, key=f"m_lobby_{curr_id}")
-                carpet_m2 = st.number_input("Karpet (m2)", value=get_val("m_carpet", 0.0), step=10.0, key=f"m_carpet_{curr_id}")
-                glass_m2 = st.number_input("Kaca (m2)", value=get_val("m_glass", 0.0), step=10.0, key=f"m_glass_{curr_id}")
-                st.subheader("Eksterior")
-                facade = st.number_input("Facade (m2)", value=get_val("m_facade", 0.0), step=100.0, key=f"m_facade_{curr_id}")
-                gondola_unit = st.number_input("Gondola (unit)", value=get_val("m_gondola", 0.0), step=1.0, key=f"m_gondola_{curr_id}")
-                skylight_area = st.number_input("Skylight (m2)", value=get_val("m_skylight", 0.0), step=10.0, key=f"m_skylight_{curr_id}")    
-                st.subheader("Pintu")
-                glass_door = st.number_input("Glass Door (unit)", value=get_val("m_door_g", 0.0), step=1.0, key=f"m_door_g_{curr_id}")
-                wooden_door = st.number_input("Wooden Door (unit)", value=get_val("m_door_w", 0.0), step=10.0, key=f"m_door_w_{curr_id}")
-                steel_door = st.number_input("Steel Door (unit)", value=get_val("m_door_s", 0.0), step=10.0, key=f"m_door_s_{curr_id}")
-
-        with col_m3:
-            with st.expander("Sanitari", expanded=True):
-                st.subheader("Toilet Unit")
-                san_qty_room = st.number_input("Toilet Private (unit/ruang)", help="Cth. 3 Toilet/1 Kamar (Apt)", value=get_val("r_san_qty", pt_data["san_room_qty"]), key=f"r_san_qty_{curr_type_key}")
-                st.subheader("Toilet Umum")
-                toilet_male = st.number_input("Toilet Umum - Pria (units)", value=get_val("m_toil_m", 0.0), step=1.0, key=f"m_toil_m_{curr_id}")
-                toilet_female = st.number_input("Toilet Umum - Wanita (units)", value=get_val("m_toil_f", 0.0), step=1.0, key=f"m_toil_f_{curr_id}")
-                disabled_toil = st.number_input("Toilet Difabel (units)", value=get_val("m_toil_d", 0.0), step=1.0, key=f"m_toil_d_{curr_id}")
-                st.subheader("Mushola")
-                mushola_unit = st.number_input("Mushola (units)", value=get_val("m_mushola", 0.0), step=1.0, key=f"m_mushola_{curr_id}")
-
-        with col_m4:
-            with st.expander("Fasilitas", expanded=True):
-                st.subheader("Fasilitas")
-                res_fac_m2 = st.number_input("Fasilitas Penghuni (m2)", value=get_val("m_fac_res", 0.0), step=10.0, key=f"m_fac_res_{curr_id}")
-                pub_fac_m2 = st.number_input("Fasilitas Publik (m2)", value=get_val("m_fac_pub", 0.0), step=10.0, key=f"m_fac_pub_{curr_id}")
-                proj_fac_u = st.number_input("Fasilitas Proyek (unit)", value=get_val("m_fac_proj", 0.0), step=1.0, key=f"m_fac_proj_{curr_id}")
-                land_m2 = st.number_input("Area Lanskap (m2)", value=get_val("m_land_m2", 0.0), step=100.0, key=f"m_land_m2_{curr_id}")
-                st.subheader("Miscellaneous")
-                m_status = st.radio("Ada Gym/Linen?", ["Tidak", "Ada"],
-                                    index=1 if get_val("misc_switch", 0) == 1 else 0,
-                                    key=f"misc_sw_{curr_id}", horizontal=True)
-                misc_switch = 1 if m_status == "Ada" else 0
-                st.session_state.projects[curr_id]["data"]["misc_switch"] = misc_switch
-
-    # --- TAB 2: RATIOS & MULTIPLIERS ---
-    with tab3:
-        col_r1, col_r2, col_r3 = st.columns(3)
-        with col_r1:
-            st.subheader("Facade Ratio (%)")
-            facade_precast_pct = st.number_input("Precast (%)", value=get_val("r_fac_pre", pt_data["facade_precast_pct"]), step=5.0, key=f"r_fac_pre_{curr_type_key}")
-            facade_window_pct = st.number_input("Window Wall (%)", value=get_val("r_fac_win", pt_data["facade_window_pct"]), step=5.0, key=f"r_fac_win_{curr_type_key}")
-            facade_double_pct = st.number_input("Double Skin (%)", value=get_val("r_fac_doub", pt_data["facade_double_pct"]), step=5.0, key=f"r_fac_doub_{curr_type_key}")
-            t_fac_pct = facade_precast_pct + facade_window_pct + facade_double_pct
-
-            if t_fac_pct != 100:
-                st.warning(f"⚠️ Total is **{t_fac_pct}%** (bukan 100%)")
-
-        with col_r2:
-            st.subheader("Flooring Ratio (%)")
-            fl_ht_pct = st.number_input("HT/Ceramic Tile (%)", value=get_val("r_fl_ht", pt_data["fl_ht_pct"]), step=5.0, key=f"r_fl_ht_{curr_type_key}")
-            fl_vinyl_pct = st.number_input("Vinyl (%)", value=get_val("r_fl_vin", pt_data["fl_vinyl_pct"]), step=5.0, key=f"r_fl_vin_{curr_type_key}")
-            fl_marmer_pct = st.number_input("Marmer (%)", value=get_val("r_fl_mar", pt_data["fl_marmer_pct"]), step=5.0, key=f"r_fl_mar_{curr_type_key}")
-            t_fl_pct = fl_ht_pct + fl_vinyl_pct + fl_marmer_pct
-
-            if t_fl_pct != 100:
-                st.warning(f"⚠️ Total is **{t_fl_pct}%** (bukan 100%)")
-
-        with col_r3:
-            st.subheader("Railing")
-            railing_qty = st.number_input("Railing Length (m'/room)", value=get_val("r_rail_qty", pt_data["railing_qty"]), step=1.0, key=f"r_rail_qty_{curr_type_key}")
-            st.caption(f"Total: {railing_qty:.0f} m x {rooms:.0f} unit = {railing_qty * rooms:.0f} m'")
-
-    # --- TAB 3: UNIT RATES ---
-    with tab4:
-        with st.expander("Harga Fondasi & Struktur", expanded=True):
-            c1, c2, c3 = st.columns(3)
-            struc_earth = c1.number_input("Earthwork Rate (Rp)", value=get_val("u_earth", pt_data["struc_earth"]), key=f"u_earth_{curr_type_key}")
-            struc_found = c2.number_input("Foundation Rate (Rp)", value=get_val("u_found", pt_data["struc_found"]), key=f"u_found_{curr_type_key}")
-            struc_work = c3.number_input("Structural Work Rate (Rp)", value=get_val("u_struc", pt_data["struc_work"]), key=f"u_struc_{curr_type_key}")
-            #caption
-            c1.caption(f"""Hitungan: Rp {struc_earth:,.0f} x GBA: {gba:,.0f} m2  \n  Total Earthwork: Rp {struc_earth * gba:,.0f}  \n  Terbilang: {n2w(struc_earth * gba)}""")
-            c2.caption(f"""Hitungan: Rp {struc_found:,.0f} x GBA: {gba:,.0f} m2  \n  Total Foundation: Rp {struc_found * gba:,.0f}  \n  Terbilang: {n2w(struc_found * gba)}""")
-            c3.caption(f"""Hitungan: Rp {struc_work:,.0f} x GBA: {gba:,.0f} m2  \n  Total Structural Work: Rp {struc_work * gba:,.0f}  \n  Terbilang: {n2w(struc_work * gba)}""")
-
-        with st.expander("Arsitektur & Fasad"):
-            c1, c2 = st.columns(2)
-            arch_base = c1.number_input("Architecture Base (Rp)", value=get_val("u_arch", pt_data["arch_base"]), key=f"u_arch_{curr_type_key}")
-            lobby_rate = c2.number_input("Lobby Interior Rate (Rp)", value=get_val("u_lobby", pt_data["lobby"]), key=f"u_lobby_{curr_type_key}")
-            c3, c4, c5 = st.columns(3)
-            fac_precast_rate = c3.number_input("Precast Rate (Rp)", value=get_val("u_f_pre", pt_data["facade_precast_rate"]), key=f"u_f_pre_{curr_type_key}")
-            fac_window_rate = c4.number_input("Window Wall Rate (Rp)", value=get_val("u_f_win", pt_data["facade_window_rate"]), key=f"u_f_win_{curr_type_key}")
-            fac_double_rate = c5.number_input("Double Skin Rate (Rp)", value=get_val("u_f_doub", pt_data["facade_double_rate"]), key=f"u_f_doub_{curr_type_key}")
-            c1.caption(f"""Hitungan: Rp {arch_base:,.0f} x GFA: {gfa:,.0f} m2  \n  Total Architecture Base: Rp {arch_base * gfa:,.0f}  \n  Terbilang: {n2w(arch_base * gfa)}""")
-            c2.caption(f"""Hitungan: Rp {lobby_rate:,.0f} x Lobby Interior: {lobby_interior:,.0f} m2  \n  Total Lobby Interior: Rp {lobby_rate * lobby_interior:,.0f}  \n  Terbilang: {n2w(lobby_rate * lobby_interior)}""")
-            c3.caption(f"""Hitungan: Rp {fac_precast_rate:,.0f} x Facade: {facade:,.0f} m2 x {facade_precast_pct}%  \n  Total Precast: Rp {fac_precast_rate * facade * (facade_precast_pct/100):,.0f}  \n  Terbilang: {n2w(fac_precast_rate * facade * (facade_precast_pct/100))}""")
-            c4.caption(f"""Hitungan: Rp {fac_window_rate:,.0f} x Facade: {facade:,.0f} m2 x {facade_window_pct}%  \n  Total Window Wall: Rp {fac_window_rate * facade * (facade_window_pct/100):,.0f}  \n  Terbilang: {n2w(fac_window_rate * facade * (facade_window_pct/100))}""")
-            c5.caption(f"""Hitungan: Rp {fac_double_rate:,.0f} x Facade: {facade:,.0f} m2 x {facade_double_pct}%  \n  Total Double Skin: Rp {fac_double_rate * facade * (facade_double_pct/100):,.0f}  \n  Terbilang: {n2w(fac_double_rate * facade * (facade_double_pct/100))}""")
-        with st.expander("Pintu dan Hardware"):
-            c1, c2, c3 = st.columns(3)
-            door_wood = c1.number_input("Wooden Door Rate (Rp)", value=get_val("u_d_wood", pt_data["door_wood"]), key=f"u_d_wood_{curr_type_key}")
-            door_glass = c3.number_input("Glass Door Rate (Rp)", value=get_val("u_d_glass", pt_data["door_glass"]), key=f"u_d_glass_{curr_type_key}")
-            door_steel = c2.number_input("Steel Door Rate (Rp)", value=get_val("u_d_steel", pt_data["door_steel"]), key=f"u_d_steel_{curr_type_key}")
-            c1.caption(f"""Hitungan: Rp {door_wood:,.0f} x  {wooden_door:,.0f} unit  \n  Total Pintu Kayu: Rp {door_wood * wooden_door:,.0f}  \n  Terbilang: {n2w(door_wood * wooden_door)}""")
-            c3.caption(f"""Hitungan: Rp {door_glass:,.0f} x  {glass_door:,.0f} unit  \n  Total Pintu Kaca: Rp {door_glass * glass_door:,.0f}  \n  Terbilang: {n2w(door_glass * glass_door)}""")
-            c2.caption(f"""Hitungan: Rp {door_steel:,.0f} x  {steel_door:,.0f} unit  \n  Total Pintu Baja: Rp {door_steel * steel_door:,.0f}  \n  Terbilang: {n2w(door_steel * steel_door)}""")
-            hw_wood = c1.number_input("Hardware Wooden Door (Rp)", value=get_val("u_hw_wood", pt_data["hw_wood"]), key=f"u_hw_wood_{curr_type_key}")
-            hw_steel = c2.number_input("Hardware Steel Door (Rp)", value=get_val("u_hw_steel", pt_data["hw_steel"]), key=f"u_hw_steel_{curr_type_key}")
-            c1.caption(f"""Hitungan: Rp {hw_wood:,.0f} x  {wooden_door:,.0f} unit  \n  Total Hardware Pintu Kayu: Rp {hw_wood * wooden_door:,.0f}  \n  Terbilang: {n2w(hw_wood * wooden_door)}""")
-            c2.caption(f"""Hitungan: Rp {hw_steel:,.0f} x  {steel_door:,.0f} unit  \n  Total Hardware Pintu Baja: Rp {hw_steel * steel_door:,.0f}  \n  Terbilang: {n2w(hw_steel * steel_door)}""")
-
-        with st.expander("Sanitari"):
-            c1, c2 = st.columns(2)
-            san_room_rate = c1.number_input("Typical Unit Sanitary Rate (Rp)", value=get_val("u_s_room", pt_data["san_room_rate"]), key=f"u_s_room_{curr_type_key}")
-            c1.caption(f"""Hitungan: Rp {san_room_rate:,.0f} x {rooms:,.0f} Rooms x {san_qty_room} Units / Room  \n  Total Private Bathroom: Rp {rooms * san_qty_room * san_room_rate:,.0f}  \n  Terbilang: {n2w(rooms * san_qty_room * san_room_rate)}""")
-            san_pub_m = c2.number_input("Public Toilet Male Rate (Rp)", value=get_val("u_s_pub_m", pt_data["san_pub_m"]), key=f"u_s_pub_m_{curr_type_key}")
-            c2.caption(f"""Hitungan: Rp {san_pub_m:,.0f} x {toilet_male:,.0f} Units  \n  Total Public Toilet Male: Rp {toilet_male * san_pub_m:,.0f}  \n  Terbilang: {n2w(toilet_male * san_pub_m)}""")
-            san_pub_f = c2.number_input("Public Toilet Female Rate (Rp)", value=get_val("u_s_pub_f", pt_data["san_pub_f"]), key=f"u_s_pub_f_{curr_type_key}")
-            c2.caption(f"""Hitungan: Rp {san_pub_f:,.0f} x {toilet_female:,.0f} Units  \n  Total Public Toilet Female: Rp {toilet_female * san_pub_f:,.0f}  \n  Terbilang: {n2w(toilet_female * san_pub_f)}""")
-            san_dis = c1.number_input("Disabled Toilet Rate (Rp)", value=get_val("u_s_dis", pt_data["san_dis"]), key=f"u_s_dis_{curr_type_key}")
-            c1.caption(f"""Hitungan: Rp {san_dis:,.0f} x {disabled_toil:,.0f} Units  \n  Total Toilet Difabel: Rp {disabled_toil * san_dis:,.0f}  \n  Terbilang: {n2w(disabled_toil * san_dis)}""")
-            san_mushola = c1.number_input("Mushola Rate (Rp)", value=get_val("u_s_mushola", pt_data["san_mushola"]), key=f"u_s_mushola_{curr_type_key}")
-            c1.caption(f"""Hitungan: Rp {san_mushola:,.0f} x {mushola_unit:,.0f} Units  \n  Total Mushola: Rp {mushola_unit * san_mushola:,.0f}  \n  Terbilang: {n2w(mushola_unit * san_mushola)}""")
-        
-        with st.expander("Lantai, Finishing, dan Interior"):
-            st.subheader("Harga ")
-            c1, c2, c3 = st.columns(3)
-            f_mult = 1.1*1.2
-            with c1:
-                st.radio("Spek HT", ["Type1", "Type2"],
-                    key=f"temp_spec_ht_{curr_type_key}",
-                    horizontal=True,
-                    on_change=update_price, args=("ht", "fl_ht_rate"))
-                fl_ht_rate = st.number_input("HT Rate (Rp)",
-                                            value=get_val("u_fl_ht", pt_data["fl_ht_rate"]["Type1"]),
-                                            key=f"u_fl_ht_{curr_type_key}")
-                c1.caption(f"""Hitungan: {fl_ht_pct}% of GFA x Rp {fl_ht_rate:,.0f} x {gfa:,.0f} m2 x 1.1 x 1.2  \n  Total HT: Rp {gfa * (fl_ht_pct / 100) * fl_ht_rate * 1.32:,.0f}  \n  Terbilang: {n2w(gfa * (fl_ht_pct / 100) * fl_ht_rate * 1.32)}""")
-
-            with c2:
-                st.radio("Spek Vinyl", ["Type1", "Type2"],
-                    key=f"temp_spec_vin_{curr_type_key}",
-                    horizontal=True,
-                    on_change=update_price, args=("vin", "fl_vinyl_rate"))
-                fl_vinyl_rate = st.number_input("Vinyl Rate (Rp)",
-                                                value=get_val("u_fl_vin", pt_data["fl_vinyl_rate"]["Type1"]),
-                                                key=f"u_fl_vin_{curr_type_key}")
-                c2.caption(f"""Hitungan: {fl_vinyl_pct}% of GFA x Rp {fl_vinyl_rate:,.0f} x {gfa:,.0f} m2 x 1.1 x 1.2  \n  Total Vinyl: Rp {gfa * (fl_vinyl_pct / 100) * fl_vinyl_rate * 1.32:,.0f}  \n  Terbilang: {n2w(gfa * (fl_vinyl_pct / 100) * fl_vinyl_rate * 1.32)}""")
-            
-            with c3:
-                st.radio("Spek Marmer", ["Type1", "Type2"],
-                    key=f"temp_spec_mar_{curr_type_key}",
-                    horizontal=True,
-                    on_change=update_price, args=("mar", "fl_marmer_rate"))
-                fl_marmer_rate = st.number_input("Marmer Rate (Rp)",
-                                                value=get_val("u_fl_mar", pt_data["fl_marmer_rate"]["Type1"]),
-                                                key=f"u_fl_mar_{curr_type_key}")
-                c3.caption(f"""Hitungan: {fl_marmer_pct}% of GFA x Rp {fl_marmer_rate:,.0f} x {gfa:,.0f} m2 x 1.1 x 1.2  \n  Total Marmer: Rp {gfa * (fl_marmer_pct / 100) * fl_marmer_rate * 1.32:,.0f}  \n  Terbilang: {n2w(gfa * (fl_marmer_pct / 100) * fl_marmer_rate * 1.32)}""")
-                
-            carpet_rate = c1.number_input("Carpet Rate (Rp)", value=get_val("u_carpet", pt_data["carpet"]), key=f"u_carpet_{curr_type_key}")
-            c1.caption(f"""Hitungan: {carpet_m2:,.0f} m2 x Rp {carpet_rate:,.0f}  \n  Total Carpet Work: Rp {carpet_m2 * carpet_rate:,.0f}  \n  Terbilang: {n2w(carpet_m2 * carpet_rate)}""")
-            glass_rate = c2.number_input("Glass Work Rate (Rp)", value=get_val("u_glass", pt_data["glass"]), key=f"u_glass_{curr_type_key}")
-            c2.caption(f"""Hitungan: {glass_m2:,.0f} m2 x Rp {glass_rate:,.0f}  \n  Total Glass Work: Rp {glass_m2 * glass_rate:,.0f}  \n  Terbilang: {n2w(glass_m2 * glass_rate)}""")            
-            skylight_rate = c3.number_input("Skylight Rate (Rp)", value=get_val("u_sky", pt_data["skylight_rate"]), key=f"u_sky_{curr_type_key}")
-            c3.caption(f"""Hitungan: {skylight_area:,.0f} m2 Total x Rp {skylight_rate:,.0f}  \n  Total Skylight Work: Rp {skylight_area * skylight_rate:,.0f}  \n  Terbilang: {n2w(skylight_area * skylight_rate)}""")
-            gondola_rate = c1.number_input("Gondola Rate (Rp)", value=get_val("u_gondola", pt_data["gondola"]), key=f"u_gondola_{curr_type_key}")
-            c1.caption(f"""Hitungan: {gondola_unit:,.0f} Units x Rp {gondola_rate:,.0f}  \n  Total Gondola: Rp {gondola_unit * gondola_rate:,.0f}  \n  Terbilang: {n2w(gondola_unit * gondola_rate)}""")
-            railing_rate = c2.number_input("Railing Rate (Rp)", value=get_val("u_rail", pt_data["railing_rate"]), key=f"u_rail_{curr_type_key}")
-            c2.caption(f"""Hitungan: {rooms * railing_qty:,.0f} m' Total x Rp {railing_rate:,.0f}  \n  Total Railing Work: Rp {rooms * railing_qty * railing_rate:,.0f}  \n  Terbilang: {n2w(rooms * railing_qty * railing_rate)}""")
-
-        with st.expander("MEP, Dapur dan FF&E"):
-            c1, c2 = st.columns(2)
-            mep_rate = c1.number_input("MEP Works (Rp)", value=get_val("u_mep", pt_data["mep"]), key=f"u_mep_{curr_type_key}")
-            c1.caption(f"""Hitungan: {gba:,.0f} m2 x Rp {mep_rate:,.0f}  \n  Total MEP Works: Rp {gba * mep_rate:,.0f}  \n  Terbilang: {n2w(gba * mep_rate)}""")
-            utility_rate = c2.number_input("Utility Connection (Rp)", value=get_val("u_util", pt_data["utility"]), key=f"u_util_{curr_type_key}")
-            c2.caption(f"""Hitungan: {gba:,.0f} m2 x Rp {utility_rate:,.0f}  \n  Total Utility Connection: Rp {gba * utility_rate:,.0f}  \n  Terbilang: {n2w(gba * utility_rate)}""")
-
-            ffe_rate = c1.number_input("FF&E (Rp)", value=get_val("u_ffe", pt_data["ffe"]), key=f"u_ffe_{curr_type_key}")
-            c1.caption(f"""Hitungan: {rooms:,.0f} Rooms x Rp {ffe_rate:,.0f}  \n  Total FF&E: Rp {rooms * ffe_rate:,.0f}  \n  Terbilang: {n2w(rooms * ffe_rate)}""")
-
-            kitchen_rate = c2.number_input("Kitchen Equipment (Rp)", value=get_val("u_kit", pt_data["kitchen"]), key=f"u_kit_{curr_type_key}")
-            c2.caption(f"""Hitungan: {rooms:,.0f} Rooms x Rp {kitchen_rate:,.0f}  \n  Total Kitchen Equipment: Rp {rooms * kitchen_rate:,.0f}  \n  Terbilang: {n2w(rooms * kitchen_rate)}""")
-
-            misc_rate = c1.number_input("Misc (Linen/Gym Equipment) (Rp)", value=get_val("u_misc", pt_data["misc"]), key=f"u_misc_{curr_type_key}")
-            c1.caption(f"""Hitungan: Rp {misc_rate if misc_switch else 0:,.0f}  \n  Total Misc. Costs: Rp {misc_rate * misc_switch:,.0f}  \n  Terbilang: {n2w(misc_rate * misc_switch)}""")
-        
-        with st.expander("External & Facility Rates"):
-            c1, c2 = st.columns(2)
-            ext_land_rate = c1.number_input("External Works (Landscape) (Rp)", value=get_val("u_ext", pt_data["ext_land"]), key=f"u_ext_{curr_type_key}")
-            fac_pub_rate = c2.number_input("Public Facilities (Rp)", value=get_val("u_fac_p", pt_data["fac_pub"]), key=f"u_fac_p_{curr_type_key}")
-            c1.caption(f"""Hitungan: {land_m2:,.0f} m2 x Rp {ext_land_rate:,.0f}  \n  Total External Works: Rp {land_m2 * ext_land_rate:,.0f}  \n  Terbilang: {n2w(land_m2 * ext_land_rate)}""")
-            c2.caption(f"""Hitungan: {pub_fac_m2:,.0f} m2 x Rp {fac_pub_rate:,.0f}  \n  Total Public Facilities: Rp {pub_fac_m2 * fac_pub_rate:,.0f}  \n  Terbilang: {n2w(pub_fac_m2 * fac_pub_rate)}""")
-            fac_res_rate = c1.number_input("Resident Facilities (Rp)", value=get_val("u_fac_r", pt_data["fac_res"]), key=f"u_fac_r_{curr_type_key}")
-            fac_proj_rate = c2.number_input("Project Facilities (Rp)", value=get_val("u_fac_pr", pt_data["fac_proj"]), key=f"u_fac_pr_{curr_type_key}")
-            c1.caption(f"""Hitungan: {res_fac_m2:,.0f} m2 x Rp {fac_res_rate:,.0f}  \n  Total Resident Facilities: Rp {res_fac_m2 * fac_res_rate:,.0f}  \n  Terbilang: {n2w(res_fac_m2 * fac_res_rate)}""")
-            c2.caption(f"""Hitungan: {proj_fac_u:,.0f} Units x Rp {fac_proj_rate:,.0f}  \n  Total Project Facilities: Rp {proj_fac_u * fac_proj_rate:,.0f}  \n  Terbilang: {n2w(proj_fac_u * fac_proj_rate)}""")
-
-    # --- TAB 4: SOFT COSTS ---
-    with tab5:
-        sc_col1, sc_col2, sc_col3 = st.columns(3)
-        with sc_col1:
-            with st.expander("QS", expanded=True):
-                qs_months = st.number_input("Durasi QS (Bulan)", value=get_val("sc_qs_m", 0.0), step=1.0, key=f"sc_qs_m_{curr_id}")
-                qs_rate = st.number_input("Harga QS (per Bulan) (Rp)", value=get_val("sc_qs_r", 0.0), step=1000000.0, key=f"sc_qs_r_{curr_id}")
-                st.caption(f"""Hitungan: {qs_months} Months x Rp {qs_rate:,.0f}/Mo  \n  Total QS Services: Rp {qs_months * qs_rate:,.0f}  \n  Terbilang: {n2w(qs_months * qs_rate)}""")
-        with sc_col2:
-            with st.expander("PM", expanded=True):
-                pm_months = st.number_input("Durasi PM (Bulan)", value=get_val("sc_pm_m", 0.0), step=1.0, key=f"sc_pm_m_{curr_id}")
-                pm_rate = st.number_input("Harga PM (per Bulan) (Rp)", value=get_val("sc_pm_r", 0.0), step=1000000.0, key=f"sc_pm_r_{curr_id}")
-                st.caption(f"""Hitungan: {pm_months} Months x Rp {pm_rate:,.0f}/Mo  \n  Total PM Services: Rp {pm_months * pm_rate:,.0f}  \n  Terbilang: {n2w(pm_months * pm_rate)}""")                
-        with sc_col3:
-            with st.expander("Lainnya", expanded=True):
-                consultancy_rate = st.number_input("Biaya Konsultan (Rp) per m2 GFA", help="Biaya konsultan per m2 GFA", value=get_val("sc_cons", pt_data["cons"]), key=f"sc_cons_{curr_type_key}")
-                st.caption(f"""Hitungan: {gfa:,.0f} m2 x Rp {consultancy_rate:,.0f}  \n  Total Consultancy Fee: Rp {gfa * consultancy_rate:,.0f}  \n  Terbilang: {n2w(gfa * consultancy_rate)}""")
-                insurance_pct = st.number_input("Insurance (%)", help="Persentase premi asuransi", value=get_val("sc_ins", 0.12), step=0.01, key=f"sc_ins_{curr_id}")
-    
+  
     # --- TAB 5: CUSTOM ITEMS ---
-    with tab6:
+    with tab4:
         st.subheader("Item Tambahan")
 
         dependency_map = {
@@ -773,64 +929,6 @@ def show_cost_estimator():
         st.markdown("---")
         st.markdown(f"### Total Harga Item Custom: Rp {total_custom_cost:,.2f}")
 
-    # --- LIVE AUTO-CALCULATIONS ---
-    t_earth = gba * struc_earth
-    t_found = gba * struc_found
-    t_struc = gba * struc_work
-    t_arch_base = gfa * arch_base
-    t_precast = facade * (facade_precast_pct / 100) * fac_precast_rate
-    t_window  = facade * (facade_window_pct / 100) * fac_window_rate
-    t_double  = facade * (facade_double_pct / 100) * fac_double_rate
-    t_w_door = wooden_door * door_wood
-    t_g_door = glass_door * door_glass
-    t_s_door = steel_door * door_steel
-    t_lobby  = lobby_interior * lobby_rate
-    t_gondola = gondola_unit * gondola_rate
-    t_unit_san = rooms * san_qty_room * san_room_rate
-    t_t_male   = toilet_male * san_pub_m
-    t_t_female = toilet_female * san_pub_f
-    t_t_dis    = disabled_toil * san_dis
-    t_mushola  = mushola_unit * san_mushola
-    t_kitchen = rooms * kitchen_rate
-    t_hw_w    = wooden_door * hw_wood
-    t_hw_s    = steel_door * hw_steel
-    f_mult = 1.32
-    t_ht      = gfa * (fl_ht_pct / 100) * fl_ht_rate * f_mult
-    t_vinyl   = gfa * (fl_vinyl_pct / 100) * fl_vinyl_rate * f_mult
-    t_marmer  = gfa * (fl_marmer_pct / 100) * fl_marmer_rate * f_mult
-    t_carpet     = carpet_m2 * carpet_rate
-    t_glass_work = glass_m2 * glass_rate
-    t_ffe        = rooms * ffe_rate
-    t_misc       = misc_rate * misc_switch
-    t_mep        = gba * mep_rate
-    t_utility    = gba * utility_rate
-    t_railing    = (rooms * railing_qty) * railing_rate
-    t_skylight   = skylight_area * skylight_rate
-    t_external = land_m2 * ext_land_rate
-    t_pub_fac  = pub_fac_m2 * fac_pub_rate
-    t_res_fac  = res_fac_m2 * fac_res_rate
-    t_proj_fac = proj_fac_u * fac_proj_rate
-
-    construction_subtotal = sum([
-        t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double,
-        t_w_door, t_g_door, t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
-        t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, t_ht, t_vinyl,
-        t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_utility,
-        t_railing, t_skylight, t_external, t_pub_fac, t_res_fac, t_proj_fac,
-        total_custom_cost
-    ])
-
-    t_preliminary = (construction_subtotal) * 0.05
-    t_contingency = (construction_subtotal) * 0.03
-    grand_total_hc = construction_subtotal + t_preliminary + t_contingency
-
-    t_consultancy = gfa * consultancy_rate
-    t_qs = qs_months * qs_rate
-    t_pm = pm_months * pm_rate
-    t_insurance = (construction_subtotal) * (insurance_pct / 100.0)
-
-    total_soft_cost = t_consultancy + t_qs + t_pm + t_insurance
-    grand_total_project = grand_total_hc + total_soft_cost
 
     group_structure = t_earth + t_found + t_struc
     group_arch = (t_arch_base + t_w_door + t_g_door + t_s_door + t_lobby + t_ht + t_vinyl +
@@ -841,41 +939,41 @@ def show_cost_estimator():
     group_ext = t_external + t_pub_fac + t_res_fac + t_proj_fac
     group_contingency = t_preliminary + t_contingency
 
-    # --- TAB 6: RESULTS ---
-    with tab7:
-        st.markdown("---")
-        c1, c2 = st.columns(2)
-        c1.markdown(f"""
-            <div style="margin-bottom: 20px;">
-                <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Total Project Hard Cost</div>
-                <div style="font-size: 28px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.5;">
-                    <div>Rp {grand_total_hc:,.2f}</div>
-                    <div style="font-size: 16px; color: gray; font-weight: normal; margin-bottom: 5px;">Terbilang: {n2w(grand_total_hc)} Rupiah</div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-        c2.markdown(f"""
-            <div style="margin-bottom: 20px;">
-                <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Total Soft Cost</div>
-                <div style="font-size: 28px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.5;">
-                    <div>Rp {total_soft_cost:,.2f}</div>
-                    <div style="font-size: 16px; color: gray; font-weight: normal; margin-bottom: 5px;">Terbilang: {n2w(total_soft_cost)} Rupiah</div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-        st.markdown(f"""
-            <div style="margin-bottom: 30px; padding: 15px; border-radius: 8px; border: 1px solid #4B4C55;">
-                <div style="font-size: 18px; margin-bottom: 5px;">Grand Total Project Cost (Hard Cost + Soft Cost)</div>
-                <div style="font-size: 38px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.5;">
-                    <div>Rp {grand_total_project:,.2f}</div>
-                    <div style="font-size: 16px; font-weight: normal; margin-bottom: 5px;">Terbilang: {n2w(grand_total_project)} Rupiah</div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
 
-        st.markdown("---")
+    with tab5:
+        sum_sub_tabs = st.tabs(["1. Hasil", "2. Tabel", "3. Chart"])
 
-        with st.expander("View Detailed Project Cost Table", expanded=True):
+        with sum_sub_tabs[0]:
+            c1, c2 = st.columns(2)
+            c1.markdown(f"""
+                <div style="margin-bottom: 20px;">
+                    <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Total Project Hard Cost</div>
+                    <div style="font-size: 28px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.5;">
+                        <div>Rp {hc_total:,.2f}</div>
+                        <div style="font-size: 16px; color: gray; font-weight: normal; margin-bottom: 5px;">Terbilang: {n2w(hc_total)} Rupiah</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            c2.markdown(f"""
+                <div style="margin-bottom: 20px;">
+                    <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Total Soft Cost</div>
+                    <div style="font-size: 28px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.5;">
+                        <div>Rp {sc_total:,.2f}</div>
+                        <div style="font-size: 16px; color: gray; font-weight: normal; margin-bottom: 5px;">Terbilang: {n2w(sc_total)} Rupiah</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            st.markdown(f"""
+                <div style="margin-bottom: 30px; padding: 15px; border-radius: 8px; border: 1px solid #4B4C55;">
+                    <div style="font-size: 18px; margin-bottom: 5px;">Grand Total Project Cost (Hard Cost + Soft Cost)</div>
+                    <div style="font-size: 38px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.5;">
+                        <div>Rp {grand_total_project:,.2f}</div>
+                        <div style="font-size: 16px; font-weight: normal; margin-bottom: 5px;">Terbilang: {n2w(grand_total_project)} Rupiah</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        with sum_sub_tabs[1]:
             raw_amounts = [
                 t_preliminary, t_earth, t_found, t_struc, t_arch_base,
                 t_precast, t_window, t_double, t_w_door, t_g_door,
@@ -903,7 +1001,7 @@ def show_cost_estimator():
                     "38. Contingencies", "39. Consultancy Fee", "40. Quantity Surveyor", "41. Project Management", "42. Insurance Coverage"
                 ],
                 "Basis": [
-                    f"5% x Rp {(construction_subtotal):,.0f}",
+                    f"5% x Rp {(hc_subtotal):,.0f}",
                     f"{gba:,.0f} m2 x Rp {struc_earth:,.0f}",
                     f"{gba:,.0f} m2 x Rp {struc_found:,.0f}",
                     f"{gba:,.0f} m2 x Rp {struc_work:,.0f}",
@@ -940,105 +1038,107 @@ def show_cost_estimator():
                     f"{res_fac_m2:,.0f} m2 x Rp {fac_res_rate:,.0f}",
                     f"{proj_fac_u:,.0f} Units x Rp {fac_proj_rate:,.0f}",
                     " | ".join(get_val("extra_items_summary_list", ["-"])),
-                    f"3% x Rp {(construction_subtotal):,.0f}",
+                    f"3% x Rp {(hc_subtotal):,.0f}",
                     f"{gfa:,.0f} m2 x Rp {consultancy_rate:,.0f}",
                     f"{qs_months} Months x Rp {qs_rate:,.0f}/Mo",
                     f"{pm_months} Months x Rp {pm_rate:,.0f}/Mo",
-                    f"{insurance_pct}% x Rp {(construction_subtotal):,.0f}"
+                    f"{insurance_pct}% x Rp {(hc_subtotal):,.0f}"
                 ],
                 "Amount": [f"Rp {val:,.2f}" for val in raw_amounts]
             }
             st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
-        
-        st.subheader("Total Project Cost Breakdown")
 
-        # 1. Define the dictionary first
-        detailed_items = {
-            "Item": [
-                "Preliminary", "Earthwork", "Foundation", "Structural", "Basic Arch",
-                "Precast", "Window Wall", "Double Skin", "Wooden Doors", "Glass Doors",
-                "Steel Doors", "Lobby", "Gondola", "Unit Sanitary", "Public Toilet (M)",
-                "Public Toilet (F)", "Disabled Toilet", "Mushola", "Kitchen Eq.", "Hardware (Wood)",
-                "Hardware (Steel)", "HT/Ceramic", "Vinyl", "Marmer", "Carpet",
-                "Glass Work", "FF&E", "Misc (Linen/Gym)", "MEP Works", "Utility",
-                "Railing", "Skylight", "External/Landscape", "Public Fac.", "Resident Fac.",
-                "Project Fac.", "Custom Items", "Contingency",
-                "Consultancy", "QS Fee", "PM Fee", "Insurance"
-            ],
-            "Amount": [
-                t_preliminary, t_earth, t_found, t_struc, t_arch_base,
-                t_precast, t_window, t_double, t_w_door, t_g_door,
-                t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
-                t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w,
-                t_hw_s, t_ht, t_vinyl, t_marmer, t_carpet,
-                t_glass_work, t_ffe, t_misc, t_mep, t_utility,
-                t_railing, t_skylight, t_external, t_pub_fac, t_res_fac,
-                t_proj_fac, total_custom_cost, t_contingency,
-                t_consultancy, t_qs, t_pm, t_insurance
-            ],
-            # Adding 'Type' helps with color coding the chart
-            "Type": ["Hard Cost"]*38 + ["Soft Cost"]*4 
+        with sum_sub_tabs[2]:            
+            st.subheader("Total Project Cost Breakdown")
+
+            # 1. Define the dictionary first
+            detailed_items = {
+                "Item": [
+                    "Preliminary", "Earthwork", "Foundation", "Structural", "Basic Arch",
+                    "Precast", "Window Wall", "Double Skin", "Wooden Doors", "Glass Doors",
+                    "Steel Doors", "Lobby", "Gondola", "Unit Sanitary", "Public Toilet (M)",
+                    "Public Toilet (F)", "Disabled Toilet", "Mushola", "Kitchen Eq.", "Hardware (Wood)",
+                    "Hardware (Steel)", "HT/Ceramic", "Vinyl", "Marmer", "Carpet",
+                    "Glass Work", "FF&E", "Misc (Linen/Gym)", "MEP Works", "Utility",
+                    "Railing", "Skylight", "External/Landscape", "Public Fac.", "Resident Fac.",
+                    "Project Fac.", "Custom Items", "Contingency",
+                    "Consultancy", "QS Fee", "PM Fee", "Insurance"
+                ],
+                "Amount": [
+                    t_preliminary, t_earth, t_found, t_struc, t_arch_base,
+                    t_precast, t_window, t_double, t_w_door, t_g_door,
+                    t_s_door, t_lobby, t_gondola, t_unit_san, t_t_male,
+                    t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w,
+                    t_hw_s, t_ht, t_vinyl, t_marmer, t_carpet,
+                    t_glass_work, t_ffe, t_misc, t_mep, t_utility,
+                    t_railing, t_skylight, t_external, t_pub_fac, t_res_fac,
+                    t_proj_fac, total_custom_cost, t_contingency,
+                    t_consultancy, t_qs, t_pm, t_insurance
+                ],
+                # Adding 'Type' helps with color coding the chart
+                "Type": ["Hard Cost"]*38 + ["Soft Cost"]*4 
+            }
+
+
+            # 2. Convert to DataFrame and FILTER OUT zeros
+            df_detailed = pd.DataFrame(detailed_items)
+            df_detailed = df_detailed[df_detailed["Amount"] > 0] 
+
+            # 3. Dynamic height calculation
+            chart_height = max(400, len(df_detailed) * 25)
+
+            # 4. Create the Chart
+            detailed_chart = alt.Chart(df_detailed).mark_bar().encode(
+                x=alt.X("Amount:Q", title="Cost (Rp)"),
+                y=alt.Y("Item:N", sort="-x", title=""),
+                # Color by Type (Hard vs Soft) makes it much easier to read!
+                color=alt.Color("Type:N", scale=alt.Scale(domain=['Hard Cost', 'Soft Cost'], range=['#1f77b4', '#ff7f0e'])),
+                tooltip=["Item", "Type", alt.Tooltip("Amount:Q", format=",.2f")]
+            ).properties(height=chart_height)
+
+            st.altair_chart(detailed_chart, use_container_width=True)
+            st.markdown("---")
+
+        # --- SAVE ALL METRICS TO SESSION STATE ---
+        current_metrics = {
+            "proj_name": new_name, "proj_type": new_type,
+            "misc_switch": misc_switch,
+            "ht_spec_type": get_val("ht_spec_type", "Type1"),
+            "vin_spec_type": get_val("vin_spec_type", "Type1"),
+            "mar_spec_type": get_val("mar_spec_type", "Type1"),
+            "m_land": land_area, "m_gba": gba, "m_gfa": gfa, "m_sgfa": sgfa,
+            "m_facade": facade, "m_rooms": rooms, "m_lobby": lobby_interior,
+            "m_gondola": gondola_unit, "m_carpet": carpet_m2, "m_glass": glass_m2,
+            "m_skylight": skylight_area, "m_door_g": glass_door, "m_door_w": wooden_door,
+            "m_door_s": steel_door, "m_toil_m": toilet_male, "m_toil_f": toilet_female,
+            "m_toil_d": disabled_toil, "m_mushola": mushola_unit, "m_fac_res": res_fac_m2,
+            "m_fac_pub": pub_fac_m2, "m_fac_proj": proj_fac_u, "m_land_m2": land_m2,
+            "r_fac_pre": facade_precast_pct, "r_fac_win": facade_window_pct, "r_fac_doub": facade_double_pct,
+            "r_fl_ht": fl_ht_pct, "r_fl_vin": fl_vinyl_pct, "r_fl_mar": fl_marmer_pct,
+            "r_san_qty": san_qty_room, "r_rail_qty": railing_qty,
+            "u_earth": struc_earth, "u_found": struc_found, "u_struc": struc_work, "u_arch": arch_base,
+            "u_lobby": lobby_rate, "u_f_pre": fac_precast_rate, "u_f_win": fac_window_rate, "u_f_doub": fac_double_rate,
+            "u_d_wood": door_wood, "u_d_glass": door_glass, "u_d_steel": door_steel,
+            "u_hw_wood": hw_wood, "u_hw_steel": hw_steel,
+            "u_s_room": san_room_rate, "u_s_pub_m": san_pub_m, "u_s_pub_f": san_pub_f,
+            "u_s_dis": san_dis, "u_s_mushola": san_mushola,
+            "u_fl_ht": fl_ht_rate, "u_fl_vin": fl_vinyl_rate, "u_fl_mar": fl_marmer_rate,
+            "u_carpet": carpet_rate, "u_glass": glass_rate, "u_sky": skylight_rate,
+            "u_gondola": gondola_rate, "u_rail": railing_rate,
+            "u_mep": mep_rate, "u_util": utility_rate,
+            "u_ffe": ffe_rate, "u_kit": kitchen_rate, "u_misc": misc_rate,
+            "u_ext": ext_land_rate, "u_fac_p": fac_pub_rate,
+            "u_fac_r": fac_res_rate, "u_fac_pr": fac_proj_rate,
+            "sc_cons": consultancy_rate, "sc_qs_m": qs_months, "sc_qs_r": qs_rate,
+            "sc_pm_m": pm_months, "sc_pm_r": pm_rate, "sc_ins": insurance_pct
         }
+        # Preserve keys managed elsewhere (custom costs, header, assumptions)
+        for k in ("smart_custom_costs", "header_info", "assumptions"):
+            if k in st.session_state.projects[curr_id]["data"]:
+                current_metrics[k] = st.session_state.projects[curr_id]["data"][k]
+        st.session_state.projects[curr_id]["data"] = current_metrics
 
-        # 2. Convert to DataFrame and FILTER OUT zeros
-        df_detailed = pd.DataFrame(detailed_items)
-        df_detailed = df_detailed[df_detailed["Amount"] > 0] 
-
-        # 3. Dynamic height calculation
-        chart_height = max(400, len(df_detailed) * 25)
-
-        # 4. Create the Chart
-        detailed_chart = alt.Chart(df_detailed).mark_bar().encode(
-            x=alt.X("Amount:Q", title="Cost (Rp)"),
-            y=alt.Y("Item:N", sort="-x", title=""),
-            # Color by Type (Hard vs Soft) makes it much easier to read!
-            color=alt.Color("Type:N", scale=alt.Scale(domain=['Hard Cost', 'Soft Cost'], range=['#1f77b4', '#ff7f0e'])),
-            tooltip=["Item", "Type", alt.Tooltip("Amount:Q", format=",.2f")]
-        ).properties(height=chart_height)
-
-        st.altair_chart(detailed_chart, use_container_width=True)
-        st.markdown("---")
-
-    # --- SAVE ALL METRICS TO SESSION STATE ---
-    current_metrics = {
-        "proj_name": new_name, "proj_type": new_type,
-        "misc_switch": misc_switch,
-        "ht_spec_type": get_val("ht_spec_type", "Type1"),
-        "vin_spec_type": get_val("vin_spec_type", "Type1"),
-        "mar_spec_type": get_val("mar_spec_type", "Type1"),
-        "m_land": land_area, "m_gba": gba, "m_gfa": gfa, "m_sgfa": sgfa,
-        "m_facade": facade, "m_rooms": rooms, "m_lobby": lobby_interior,
-        "m_gondola": gondola_unit, "m_carpet": carpet_m2, "m_glass": glass_m2,
-        "m_skylight": skylight_area, "m_door_g": glass_door, "m_door_w": wooden_door,
-        "m_door_s": steel_door, "m_toil_m": toilet_male, "m_toil_f": toilet_female,
-        "m_toil_d": disabled_toil, "m_mushola": mushola_unit, "m_fac_res": res_fac_m2,
-        "m_fac_pub": pub_fac_m2, "m_fac_proj": proj_fac_u, "m_land_m2": land_m2,
-        "r_fac_pre": facade_precast_pct, "r_fac_win": facade_window_pct, "r_fac_doub": facade_double_pct,
-        "r_fl_ht": fl_ht_pct, "r_fl_vin": fl_vinyl_pct, "r_fl_mar": fl_marmer_pct,
-        "r_san_qty": san_qty_room, "r_rail_qty": railing_qty,
-        "u_earth": struc_earth, "u_found": struc_found, "u_struc": struc_work, "u_arch": arch_base,
-        "u_lobby": lobby_rate, "u_f_pre": fac_precast_rate, "u_f_win": fac_window_rate, "u_f_doub": fac_double_rate,
-        "u_d_wood": door_wood, "u_d_glass": door_glass, "u_d_steel": door_steel,
-        "u_hw_wood": hw_wood, "u_hw_steel": hw_steel,
-        "u_s_room": san_room_rate, "u_s_pub_m": san_pub_m, "u_s_pub_f": san_pub_f,
-        "u_s_dis": san_dis, "u_s_mushola": san_mushola,
-        "u_fl_ht": fl_ht_rate, "u_fl_vin": fl_vinyl_rate, "u_fl_mar": fl_marmer_rate,
-        "u_carpet": carpet_rate, "u_glass": glass_rate, "u_sky": skylight_rate,
-        "u_gondola": gondola_rate, "u_rail": railing_rate,
-        "u_mep": mep_rate, "u_util": utility_rate,
-        "u_ffe": ffe_rate, "u_kit": kitchen_rate, "u_misc": misc_rate,
-        "u_ext": ext_land_rate, "u_fac_p": fac_pub_rate,
-        "u_fac_r": fac_res_rate, "u_fac_pr": fac_proj_rate,
-        "sc_cons": consultancy_rate, "sc_qs_m": qs_months, "sc_qs_r": qs_rate,
-        "sc_pm_m": pm_months, "sc_pm_r": pm_rate, "sc_ins": insurance_pct
-    }
-    # Preserve keys managed elsewhere (custom costs, header, assumptions)
-    for k in ("smart_custom_costs", "header_info", "assumptions"):
-        if k in st.session_state.projects[curr_id]["data"]:
-            current_metrics[k] = st.session_state.projects[curr_id]["data"][k]
-    st.session_state.projects[curr_id]["data"] = current_metrics
-
-    with tab8:
+    with tab6:
         st.subheader("Audit")
         
         st.caption(f"Total Earthwork: Rp {struc_earth:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_earth * gba:,.0f}")
@@ -1187,7 +1287,6 @@ def show_portfolio_summary():
                     (v("m_land_m2") * v("u_ext")) + (v("m_fac_pub") * v("u_fac_p")) +
                     (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr"))
                 )
-                
                 custom_costs = d.get("smart_custom_costs", [])
                 dep_map = {
                     "None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa,
@@ -1776,7 +1875,7 @@ def show_portfolio_summary():
 # --- 5. SIDEBAR NAVIGATION ---
 st.sidebar.title("Main Navigation")
 
-page_choice = st.sidebar.radio(
+page_choice = st.sidebar.selectbox(
     "Pilih Pekerjaan:",
     ["Cost Calculator", "Area Calculator", "Summary"]
 )
@@ -1788,7 +1887,7 @@ proj_ids = list(st.session_state.projects.keys())
 proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
 current_index = proj_ids.index(st.session_state.current_proj_id) if st.session_state.current_proj_id in proj_ids else 0
 
-st.sidebar.radio(
+st.sidebar.selectbox(
     "Active Project:",
     options=proj_labels,
     index=current_index,
@@ -1812,7 +1911,7 @@ with c2:
 st.sidebar.markdown("---")
 
 # --- 6. PAGE ROUTING ---
-if page_choice == "Rekap Biaya":
+if page_choice == "Summary":
     show_portfolio_summary()
 elif page_choice == "Area Calculator":
     show_area_calculator()
