@@ -410,7 +410,7 @@ def show_cost_estimator():
     if not st.session_state.hide_tab:
         col_w1, col_w2 = st.columns([0.1, 0.2])
         col_w1.error("Pilih salah satu tab dibawah ini!")
-        if col_w2.button("Mengerti"):
+        if col_w2.button("Mengerti!"):
             st.session_state.hide_tab = True
             st.rerun()
             
@@ -474,7 +474,7 @@ def show_cost_estimator():
         if not st.session_state.hide_tab_hc:
             col_hc1, col_hc2 = st.columns([0.1, 0.2])
             col_hc1.error("Pilih salah satu tab dibawah ini!")
-            if col_hc2.button("Mengerti"):
+            if col_hc2.button("Mengerti."):
                 st.session_state.hide_tab_hc = True
                 st.rerun()
                 
