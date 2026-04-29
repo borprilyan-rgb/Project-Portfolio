@@ -419,37 +419,47 @@ def show_cost_estimator():
     with tab1:
         st.header("Daftar Isi")
         
-        with st.expander("Hard Cost", expanded=True):
-            st.markdown("""
-            * **1.1 Preliminary**
-            * **1.2 Earthworks**
-            * **1.3 Foundation Works**
-            * **1.4 Structural**
-            * **1.5 Architectural**
-                * *1.5.1 Basic Finish* | *1.5.2 Lobby* | *1.5.3 Facade*
-                * *1.5.4 Pintu* | *1.5.5 Sanitary* | *1.5.6 Lantai*
-                * *1.5.7 Lain-lain*
-            * **1.6 FF&E**
-            * **1.7 MEP**
-            * **1.8 External**
-            * **1.9 Facility & Misc**
-            * **1.10 Contingencies**
-            """)
+        c1, c2, c3=st.columns(3)
+        
+        c1.subheader("Hard Cost")
+        c1.markdown("""
+        * **1.1 Preliminary**
+        * **1.2 Earthworks**
+        * **1.3 Foundation Works**
+        * **1.4 Structural**
+        * **1.5 Architectural**
+            * *1.5.1 Basic Finish* 
+            * *1.5.2 Lobby* 
+            * *1.5.3 Facade*
+            * *1.5.4 Pintu* 
+            * *1.5.5 Sanitary* 
+            * *1.5.6 Lantai*
+            * *1.5.7 Lain-lain*
+        * **1.6 FF&E**
+        * **1.7 MEP**
+        * **1.8 External**
+        * **1.9 Facility & Misc**
+        * **1.10 Contingencies**
+        """)
 
-        with st.expander("Soft Cost", expanded=True):
-            st.write("* **2.1 Consultancy**")
-            st.write("* **2.2 Insurances**")
-            st.write("* **2.3 Utilities**")
-
-        with st.expander("Lainnya"):
-            st.write("* **4 Item Tambahan**")
-            st.write("* **5. Hasil**")
-            st.write("* **6. Pembuktian**")
-            st.write("* **7. Unggah & Unduh**")
+        c2.subheader("Soft Cost")
+        c2.markdown("""
+        * **2.1 Consultancy**
+        * **2.2 Insurances**
+        * **2.3 Utilities**
+        """)
+        
+        c3.subheader("Other Tab")
+        c3.markdown("""
+        * **3. Item Tambahan**
+        * **4. Hasil**
+        * **5. Pembuktian**
+        * **6. Unggah & Unduh**
+        """)
 
 
     with tab2:
-        st.markdown("Header Table")
+        st.subheader("Hard Cost")
         c1, c2, c3, c4, c5 = st.columns(5)
         gba = c2.number_input("GBA (m2)", value=get_val("m_gba", 0.0), step=100.0, key=f"m_gba_{curr_id}")
         gfa = c3.number_input("GFA (m2)", value=get_val("m_gfa", 0.0), step=100.0, key=f"m_gfa_{curr_id}")
@@ -457,13 +467,125 @@ def show_cost_estimator():
         rooms = c5.number_input("Ruang (unit)", help="untuk Apartment/Hotel/Proyek Residensial", value=get_val("m_rooms", 0.0), step=1.0, key=f"m_rooms_{curr_id}")
         land_area = c1.number_input("Luas Tanah (m2)", value=get_val("m_land", 0.0), step=100.0, key=f"m_land_{curr_id}")
         if gba == 0:
-            c2.markdown('<div class="pulse-box">⚠️ Input nilai GBA</div>', unsafe_allow_html=True)
+            c2.warning("⚠️ Input nilai GBA")
         if gfa == 0:
-            c3.markdown('<div class="pulse-box">⚠️ Input nilai GFA</div>', unsafe_allow_html=True)
+            c3.warning("⚠️ Input nilai GFA")
         st.markdown("---")
 
-        hc_sub_tabs = st.tabs(["1. Preliminary", "2. Earthworks", "3. Foundation Works", "4. Structural", "5. Architectural", "6. FF&E", "7. MEP", "8. External", "9. Facility & Misc", "10. Contingencies"])
+        # --- 2. THE ENGINE: PRE-CALCULATION (Mencegah UnboundLocalError) ---
+        # Definisi variabel t_ satu per satu berdasarkan input/database
+        t_earth      = gba * get_val("u_earth", pt_data["struc_earth"])
+        t_found      = gba * get_val("u_found", pt_data["struc_found"])
+        t_struc      = gba * get_val("u_struc", pt_data["struc_work"])
+        t_arch_base  = gfa * get_val("u_arch", pt_data["arch_base"])
+        t_lobby      = get_val("m_lobby", 0.0) * get_val("u_lobby", pt_data["lobby"])
+        
+        # Facade components
+        _f_m2        = get_val("m_facade", 0.0)
+        t_precast    = _f_m2 * (get_val("r_fac_pre", pt_data["facade_precast_pct"])/100) * get_val("u_f_pre", pt_data["facade_precast_rate"])
+        t_window     = _f_m2 * (get_val("r_fac_win", pt_data["facade_window_pct"])/100) * get_val("u_f_win", pt_data["facade_window_rate"])
+        t_double     = _f_m2 * (get_val("r_fac_doub", pt_data["facade_double_pct"])/100) * get_val("u_f_doub", pt_data["facade_double_rate"])
+        
+        # Doors & Sanitary
+        t_w_door     = get_val("m_door_w", 0.0) * get_val("u_d_wood", pt_data["door_wood"])
+        t_g_door     = get_val("m_door_g", 0.0) * get_val("u_d_glass", pt_data["door_glass"])
+        t_s_door     = get_val("m_door_s", 0.0) * get_val("u_d_steel", pt_data["door_steel"])
+        t_hw_w       = get_val("m_door_w", 0.0) * get_val("u_hw_wood", pt_data["hw_wood"])
+        t_hw_s       = get_val("m_door_s", 0.0) * get_val("u_hw_steel", pt_data["hw_steel"])
+        
+        t_unit_san   = rooms * get_val("r_san_qty", pt_data["san_room_qty"]) * get_val("u_s_room", pt_data["san_room_rate"])
+        t_t_male     = get_val("m_toil_m", 0.0) * get_val("u_s_pub_m", pt_data["san_pub_m"])
+        t_t_female   = get_val("m_toil_f", 0.0) * get_val("u_s_pub_f", pt_data["san_pub_f"])
+        t_t_dis      = get_val("m_toil_d", 0.0) * get_val("u_s_dis", pt_data["san_dis"])
+        t_mushola    = get_val("m_mushola", 0.0) * get_val("u_s_mushola", pt_data["san_mushola"])
 
+        # Finishing (Multiplier 1.32)
+        t_ht         = gfa * (get_val("r_fl_ht", pt_data["fl_ht_pct"])/100) * get_val("u_fl_ht", pt_data["fl_ht_rate"]["Type1"]) * 1.32
+        t_vinyl      = gfa * (get_val("r_fl_vin", pt_data["fl_vinyl_pct"])/100) * get_val("u_fl_vin", pt_data["fl_vinyl_rate"]["Type1"]) * 1.32
+        t_marmer     = gfa * (get_val("r_fl_mar", pt_data["fl_marmer_pct"])/100) * get_val("u_fl_mar", pt_data["fl_marmer_rate"]["Type1"]) * 1.32
+
+        # Misc Arch
+        t_carpet     = get_val("m_carpet", 0.0) * get_val("u_carpet", pt_data["carpet"])
+        t_glass_work = get_val("m_glass", 0.0) * get_val("u_glass", pt_data["glass"])
+        t_railing    = (rooms * get_val("r_rail_qty", pt_data["railing_qty"])) * get_val("u_rail", pt_data["railing_rate"])
+        t_skylight   = get_val("m_skylight", 0.0) * get_val("u_sky", pt_data["skylight_rate"])
+        t_gondola    = get_val("m_gondola", 0.0) * get_val("u_gondola", pt_data["gondola"])
+
+        # FF&E, MEP, External, Facilities
+        t_ffe        = rooms * get_val("u_ffe", pt_data["ffe"])
+        t_kitchen    = rooms * get_val("u_kit", pt_data["kitchen"])
+        t_misc       = get_val("u_misc", pt_data["misc"]) * st.session_state.projects[curr_id]["data"].get("misc_switch", 0)
+        t_mep        = gba * get_val("u_mep", pt_data["mep"])
+        t_external   = get_val("m_land_m2", 0.0) * get_val("u_ext", pt_data["ext_land"])
+        t_pub_fac    = get_val("m_fac_pub", 0.0) * get_val("u_fac_p", pt_data["fac_pub"])
+        t_res_fac    = get_val("m_fac_res", 0.0) * get_val("u_fac_r", pt_data["fac_res"])
+        t_proj_fac   = get_val("m_fac_proj", 0.0) * get_val("u_fac_pr", pt_data["fac_proj"])
+
+        # --- GRAND TOTALS ---
+        total_arch_display = sum([
+            t_arch_base, t_precast, t_window, t_double, t_w_door, t_g_door, t_s_door, 
+            t_lobby, t_unit_san, t_t_male, t_t_female, t_t_dis, t_mushola, 
+            t_hw_w, t_hw_s, t_ht, t_vinyl, t_marmer, t_carpet, t_glass_work, 
+            t_railing, t_skylight, t_gondola
+        ])
+
+        hc_subtotal = sum([
+            t_earth, t_found, t_struc, total_arch_display, 
+            t_ffe, t_kitchen, t_misc, t_mep, t_external, 
+            t_pub_fac, t_res_fac, t_proj_fac
+        ])
+
+        t_preliminary = hc_subtotal * 0.05
+        t_contingency = hc_subtotal * 0.03
+        hc_total = hc_subtotal + t_preliminary + t_contingency
+
+        # --- 3. QUICK RECAP DASHBOARD (TAMPIL DI ATAS TABS) ---
+        # Dashboard Row 2 & 3 - Condensed using Markdown & Captions
+        # This takes up much less vertical space
+        col_group_1 = st.columns(10)
+        items_1_10 = [
+            ("1. Prelim", t_preliminary),
+            ("2. Earthwork", t_earth),
+            ("3. Found", t_found),
+            ("4. Struc", t_struc),
+            ("5. Arch", total_arch_display),
+            ("6. FF&E", t_ffe + t_kitchen),
+            ("7. MEP", t_mep),
+            ("8. External", t_external),
+            ("9. Facil", t_pub_fac + t_res_fac + t_proj_fac),
+            ("10. Cont.", t_contingency)
+        ]
+
+# --- ULTRA COMPACT HTML TABLE WITH MERGED TOTAL ROW ---
+        header_fill = "#2c3e50"  # Slate Gray
+        
+        html_table = f"""
+        <div style="overflow-x: auto; margin-bottom: 20px;">
+            <table style="width:100%; border-collapse: collapse; font-family: sans-serif; font-size: 11px; border: 1px solid #ddd;">
+                <tr style="background-color: {header_fill}; color: white;">
+                    {"".join([f'<th style="padding: 5px; text-align: center; border: 1px solid #444;">{item[0]}</th>' for item in items_1_10])}
+                </tr>
+                <tr style="background-color: white;">
+                    {"".join([f'<td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{item[1]/1e6:,.1f}jt</td>' for item in items_1_10])}
+                </tr>
+                <tr style="background-color: #f8f9fa; font-weight: bold; border-top: 2px solid #2c3e50;">
+                    <td colspan="9" style="padding: 8px; text-align: right; border: 1px solid #ddd;">TOTAL HARD COST :</td>
+                    <td style="padding: 8px; text-align: center; border: 1px solid #ddd; background-color: #fff3cd;">{hc_total/1e6:,.2f}jt</td>
+                </tr>
+            </table>
+        </div>
+        """
+        
+        st.write(html_table, unsafe_allow_html=True)
+        st.success(f"Total Hard Cost: Rp {hc_total/1e6:,.0f}jt")
+
+        # --- 4. THE SUB TABS ---
+        hc_sub_tabs = st.tabs(["1. Preliminary", "2. Earthworks", 
+                               "3. Foundation Works", "4. Structural", 
+                               "5. Architectural", "6. FF&E", "7. MEP", 
+                               "8. External", "9. Facility & Misc", 
+                               "10. Contingencies"
+                               ])
 
         with hc_sub_tabs[1]:
             st.subheader("Earthworks")
@@ -493,8 +615,43 @@ def show_cost_estimator():
 
         with hc_sub_tabs[4]:
             
-            arch_sub_tabs = st.tabs(["1. Basic Finish", "2. Lobby", "3. Facade", "4. Pintu", "5. Sanitary", "6. Lantai", "7. Lain-lain"])
+            t_arch_base  = gfa * get_val("u_arch", pt_data["arch_base"])
+            t_lobby      = get_val("m_lobby", 0.0) * get_val("u_lobby", pt_data["lobby"])
             
+            _f_m2        = get_val("m_facade", 0.0)
+            t_precast    = _f_m2 * (get_val("r_fac_pre", pt_data["facade_precast_pct"])/100) * get_val("u_f_pre", pt_data["facade_precast_rate"])
+            t_window     = _f_m2 * (get_val("r_fac_win", pt_data["facade_window_pct"])/100) * get_val("u_f_win", pt_data["facade_window_rate"])
+            t_double     = _f_m2 * (get_val("r_fac_doub", pt_data["facade_double_pct"])/100) * get_val("u_f_doub", pt_data["facade_double_rate"])
+            
+            t_doors_tot  = (get_val("m_door_w", 0.0) * (get_val("u_d_wood", pt_data["door_wood"]) + get_val("u_hw_wood", pt_data["hw_wood"]))) + \
+                           (get_val("m_door_s", 0.0) * (get_val("u_d_steel", pt_data["door_steel"]) + get_val("u_hw_steel", pt_data["hw_steel"]))) + \
+                           (get_val("m_door_g", 0.0) * get_val("u_d_glass", pt_data["door_glass"]))
+
+            t_san_tot    = (rooms * get_val("r_san_qty", pt_data["san_room_qty"]) * get_val("u_s_room", pt_data["san_room_rate"])) + \
+                           (get_val("m_toil_m", 0.0) * get_val("u_s_pub_m", pt_data["san_pub_m"])) + \
+                           (get_val("m_toil_f", 0.0) * get_val("u_s_pub_f", pt_data["san_pub_f"])) + \
+                           (get_val("m_toil_d", 0.0) * get_val("u_s_dis", pt_data["san_dis"])) + \
+                           (get_val("m_mushola", 0.0) * get_val("u_s_mushola", pt_data["san_mushola"]))
+
+            t_floors_tot = gfa * 1.32 * (
+                                (get_val("r_fl_ht", pt_data["fl_ht_pct"])/100 * get_val("u_fl_ht", pt_data["fl_ht_rate"]["Type1"])) +
+                                (get_val("r_fl_vin", pt_data["fl_vinyl_pct"])/100 * get_val("u_fl_vin", pt_data["fl_vinyl_rate"]["Type1"])) +
+                                (get_val("r_fl_mar", pt_data["fl_marmer_pct"])/100 * get_val("u_fl_mar", pt_data["fl_marmer_rate"]["Type1"]))
+                           )
+
+            t_misc_tot   = (get_val("m_carpet", 0.0) * get_val("u_carpet", pt_data["carpet"])) + \
+                           (get_val("m_glass", 0.0) * get_val("u_glass", pt_data["glass"])) + \
+                           (get_val("m_skylight", 0.0) * get_val("u_sky", pt_data["skylight_rate"])) + \
+                           (get_val("m_gondola", 0.0) * get_val("u_gondola", pt_data["gondola"])) + \
+                           (rooms * get_val("r_rail_qty", pt_data["railing_qty"]) * get_val("u_rail", pt_data["railing_rate"]))
+
+            # Final Architectural Sum
+            total_arch_display = sum([t_arch_base, t_lobby, t_precast, t_window, t_double, t_doors_tot, t_san_tot, t_floors_tot, t_misc_tot])
+
+            st.success(f"**Total Architectural Work: Rp {total_arch_display:,.0f}** ( {n2w(total_arch_display)} )")
+     
+            arch_sub_tabs = st.tabs(["1. Basic Finish", "2. Lobby", "3. Facade", "4. Pintu", "5. Sanitary", "6. Lantai", "7. Lain-lain"])
+
             with arch_sub_tabs[0]:
                 st.subheader("Pekerjaan Arsitektur - Architecture Base")
                 arch_base = st.number_input("Architecture Base (Rp)", value=get_val("u_arch", pt_data["arch_base"]), key=f"u_arch_{curr_type_key}")
@@ -621,29 +778,29 @@ def show_cost_estimator():
 
                 st.markdown("---")
                 
-                with arch_sub_tabs[6]:
-                    st.subheader("Pekerjaan Arsitektur - Lain-lain")
-                    c1, c2, c3 = st.columns(3)
-                    carpet_m2 = c1.number_input("Karpet (m2)", value=get_val("m_carpet", 0.0), step=10.0, key=f"m_carpet_{curr_id}")            
-                    carpet_rate = c1.number_input("Carpet Rate (Rp)", value=get_val("u_carpet", pt_data["carpet"]), key=f"u_carpet_{curr_type_key}")
-                    c1.caption(f"""Hitungan: {carpet_m2:,.0f} m2 x Rp {carpet_rate:,.0f}  \n  Total Carpet Work: Rp {carpet_m2 * carpet_rate:,.0f}  \n  Terbilang: {n2w(carpet_m2 * carpet_rate)}""")
-                    
-                    glass_m2 = c2.number_input("Kaca (m2)", value=get_val("m_glass", 0.0), step=10.0, key=f"m_glass_{curr_id}")
-                    glass_rate = c2.number_input("Glass Work Rate (Rp)", value=get_val("u_glass", pt_data["glass"]), key=f"u_glass_{curr_type_key}")
-                    c2.caption(f"""Hitungan: {glass_m2:,.0f} m2 x Rp {glass_rate:,.0f}  \n  Total Glass Work: Rp {glass_m2 * glass_rate:,.0f}  \n  Terbilang: {n2w(glass_m2 * glass_rate)}""")            
-                    
-                    skylight_area = c3.number_input("Skylight (m2)", value=get_val("m_skylight", 0.0), step=10.0, key=f"m_skylight_{curr_id}")    
-                    skylight_rate = c3.number_input("Skylight Rate (Rp)", value=get_val("u_sky", pt_data["skylight_rate"]), key=f"u_sky_{curr_type_key}")
-                    c3.caption(f"""Hitungan: {skylight_area:,.0f} m2 Total x Rp {skylight_rate:,.0f}  \n  Total Skylight Work: Rp {skylight_area * skylight_rate:,.0f}  \n  Terbilang: {n2w(skylight_area * skylight_rate)}""")
-                    
-                    gondola_unit = c1.number_input("Gondola (unit)", value=get_val("m_gondola", 0.0), step=1.0, key=f"m_gondola_{curr_id}")
-                    gondola_rate = c1.number_input("Gondola Rate (Rp)", value=get_val("u_gondola", pt_data["gondola"]), key=f"u_gondola_{curr_type_key}")
-                    c1.caption(f"""Hitungan: {gondola_unit:,.0f} Units x Rp {gondola_rate:,.0f}  \n  Total Gondola: Rp {gondola_unit * gondola_rate:,.0f}  \n  Terbilang: {n2w(gondola_unit * gondola_rate)}""")
-                    
-                    railing_qty = c2.number_input("Railing Length (m'/room)", value=get_val("r_rail_qty", pt_data["railing_qty"]), step=1.0, key=f"r_rail_qty_{curr_type_key}")
-                    railing_rate = c2.number_input("Railing Rate (Rp)", value=get_val("u_rail", pt_data["railing_rate"]), key=f"u_rail_{curr_type_key}")
-                    c2.caption(f"""Hitungan: {railing_qty:,.0f} m' x Rooms {rooms:,.0f} unit x Rp {railing_rate:,.0f}  \n  Total Railing Work: Rp {rooms * railing_qty * railing_rate:,.0f}  \n  Terbilang: {n2w(rooms * railing_qty * railing_rate)}""")
-            
+            with arch_sub_tabs[6]:
+                st.subheader("Pekerjaan Arsitektur - Lain-lain")
+                c1, c2, c3 = st.columns(3)
+                carpet_m2 = c1.number_input("Karpet (m2)", value=get_val("m_carpet", 0.0), step=10.0, key=f"m_carpet_{curr_id}")            
+                carpet_rate = c1.number_input("Carpet Rate (Rp)", value=get_val("u_carpet", pt_data["carpet"]), key=f"u_carpet_{curr_type_key}")
+                c1.caption(f"""Hitungan: {carpet_m2:,.0f} m2 x Rp {carpet_rate:,.0f}  \n  Total Carpet Work: Rp {carpet_m2 * carpet_rate:,.0f}  \n  Terbilang: {n2w(carpet_m2 * carpet_rate)}""")
+                
+                glass_m2 = c2.number_input("Kaca (m2)", value=get_val("m_glass", 0.0), step=10.0, key=f"m_glass_{curr_id}")
+                glass_rate = c2.number_input("Glass Work Rate (Rp)", value=get_val("u_glass", pt_data["glass"]), key=f"u_glass_{curr_type_key}")
+                c2.caption(f"""Hitungan: {glass_m2:,.0f} m2 x Rp {glass_rate:,.0f}  \n  Total Glass Work: Rp {glass_m2 * glass_rate:,.0f}  \n  Terbilang: {n2w(glass_m2 * glass_rate)}""")            
+                
+                skylight_area = c3.number_input("Skylight (m2)", value=get_val("m_skylight", 0.0), step=10.0, key=f"m_skylight_{curr_id}")    
+                skylight_rate = c3.number_input("Skylight Rate (Rp)", value=get_val("u_sky", pt_data["skylight_rate"]), key=f"u_sky_{curr_type_key}")
+                c3.caption(f"""Hitungan: {skylight_area:,.0f} m2 Total x Rp {skylight_rate:,.0f}  \n  Total Skylight Work: Rp {skylight_area * skylight_rate:,.0f}  \n  Terbilang: {n2w(skylight_area * skylight_rate)}""")
+                
+                gondola_unit = c1.number_input("Gondola (unit)", value=get_val("m_gondola", 0.0), step=1.0, key=f"m_gondola_{curr_id}")
+                gondola_rate = c1.number_input("Gondola Rate (Rp)", value=get_val("u_gondola", pt_data["gondola"]), key=f"u_gondola_{curr_type_key}")
+                c1.caption(f"""Hitungan: {gondola_unit:,.0f} Units x Rp {gondola_rate:,.0f}  \n  Total Gondola: Rp {gondola_unit * gondola_rate:,.0f}  \n  Terbilang: {n2w(gondola_unit * gondola_rate)}""")
+                
+                railing_qty = c2.number_input("Railing Length (m'/room)", value=get_val("r_rail_qty", pt_data["railing_qty"]), step=1.0, key=f"r_rail_qty_{curr_type_key}")
+                railing_rate = c2.number_input("Railing Rate (Rp)", value=get_val("u_rail", pt_data["railing_rate"]), key=f"u_rail_{curr_type_key}")
+                c2.caption(f"""Hitungan: {railing_qty:,.0f} m' x Rooms {rooms:,.0f} unit x Rp {railing_rate:,.0f}  \n  Total Railing Work: Rp {rooms * railing_qty * railing_rate:,.0f}  \n  Terbilang: {n2w(rooms * railing_qty * railing_rate)}""")
+                
         with hc_sub_tabs[5]:
             st.subheader("FF&E")
             c1, c2, c3 = st.columns(3)
@@ -758,6 +915,7 @@ def show_cost_estimator():
 
 
     with tab3:
+        st.subheader("Soft Cost")
         sc_sub_tabs = st.tabs(["1. Consultancy Services", "2. Insurances", "3. Utilities Connection"])
         with sc_sub_tabs [0]:
             sc_col1, sc_col2, sc_col3 = st.columns(3)
@@ -926,8 +1084,6 @@ def show_cost_estimator():
                 calc_str += f" = **Rp {item_total:,.2f}**"
                 breakdown_details.append(calc_str)
 
-                
-
         # Display the breakdown
         if breakdown_details:
             with st.expander("Detail Item Custom", expanded=True):
@@ -949,13 +1105,15 @@ def show_cost_estimator():
 
 
     with tab5:
-        sum_sub_tabs = st.tabs(["1. Hasil", "2. Tabel", "3. Chart"])
+        st.subheader("Hasil")
+        sum_sub_tabs = st.tabs(["1. Total", "2. Tabel", "3. Chart", "4. FAD", "5. Rekap"])
 
         with sum_sub_tabs[0]:
+            st.subheader("Total")
             c1, c2 = st.columns(2)
             c1.markdown(f"""
                 <div style="margin-bottom: 20px;">
-                    <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Total Project Hard Cost</div>
+                    <div style="font-size: 16px; color: gray; margin-bottom: 5px;">Total Hard Cost</div>
                     <div style="font-size: 28px; font-weight: bold; word-wrap: break-word; white-space: normal; line-height: 1.5;">
                         <div>Rp {hc_total:,.2f}</div>
                         <div style="font-size: 16px; color: gray; font-weight: normal; margin-bottom: 5px;">Terbilang: {n2w(hc_total)} Rupiah</div>
@@ -982,6 +1140,7 @@ def show_cost_estimator():
             """, unsafe_allow_html=True)
 
         with sum_sub_tabs[1]:
+            st.subheader("Tabel")
             raw_amounts = [
                 t_preliminary, t_earth, t_found, t_struc, t_arch_base,
                 t_precast, t_window, t_double, t_w_door, t_g_door,
@@ -1057,7 +1216,7 @@ def show_cost_estimator():
             st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
 
         with sum_sub_tabs[2]:            
-            st.subheader("Total Project Cost Breakdown")
+            st.subheader("Chart")
 
             # 1. Define the dictionary first
             detailed_items = {
@@ -1146,56 +1305,13 @@ def show_cost_estimator():
                 current_metrics[k] = st.session_state.projects[curr_id]["data"][k]
         st.session_state.projects[curr_id]["data"] = current_metrics
 
-    with tab6:
-        st.subheader("Audit")
-        
-        st.caption(f"Total Earthwork: Rp {struc_earth:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_earth * gba:,.0f}")
-        st.caption(f"Total Foundation: Rp {struc_found:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_found * gba:,.0f}")
-        st.caption(f"Total Structural Work: Rp {struc_work:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_work * gba:,.0f}")
-        st.caption(f"Total Basic Architecture: Rp {arch_base:,.0f} x GFA: {gfa:,.0f} m2 = Rp {arch_base * gfa:,.0f}")
-        st.caption(f"Total Facade Precast: Rp {fac_precast_rate:,.0f} x {facade_precast_pct}% of Facade: {facade:,.0f} m2 = Rp {(facade * (facade_precast_pct / 100) * fac_precast_rate):,.0f}")
-        st.caption(f"Total Facade Window: Rp {fac_window_rate:,.0f} x {facade_window_pct}% of Facade: {facade:,.0f} m2 = Rp {(facade * (facade_window_pct / 100) * fac_window_rate):,.0f}")
-        st.caption(f"Total Facade Double Skin: Rp {fac_double_rate:,.0f} x {facade_double_pct}% of Facade: {facade:,.0f} m2 = Rp {(facade * (facade_double_pct / 100) * fac_double_rate):,.0f}")
-        st.caption(f"Total Wooden Doors: Rp {door_wood:,.0f} x {wooden_door:,.0f} Units = Rp {(wooden_door * door_wood):,.0f}")
-        st.caption(f"Total Glass Doors: Rp {door_glass:,.0f} x {glass_door:,.0f} Units = Rp {(glass_door * door_glass):,.0f}")
-        st.caption(f"Total Steel Doors: Rp {door_steel:,.0f} x {steel_door:,.0f} Units = Rp {(steel_door * door_steel):,.0f}")
-        st.caption(f"Total Lobby Interior: Rp {lobby_rate:,.0f} x {lobby_interior:,.0f} m2 = Rp {(lobby_interior * lobby_rate):,.0f}")
-        st.caption(f"Total Gondola: Rp {gondola_rate:,.0f} x {gondola_unit:,.0f} Units = Rp {(gondola_unit * gondola_rate):,.0f}")
-        st.caption(f"Total Typical Unit Sanitary: Rp {san_room_rate:,.0f} x {rooms:,.0f} Rooms x {san_qty_room} Set = Rp {(rooms * san_qty_room * san_room_rate):,.0f}")
-        st.caption(f"Total Public Toilet Male: Rp {san_pub_m:,.0f} x {toilet_male:,.0f} Units = Rp {(toilet_male * san_pub_m):,.0f}")
-        st.caption(f"Total Public Toilet Female: Rp {san_pub_f:,.0f} x {toilet_female:,.0f} Units = Rp {(toilet_female * san_pub_f):,.0f}")
-        st.caption(f"Total Disabled Toilet: Rp {san_dis:,.0f} x {disabled_toil:,.0f} Units = Rp {(disabled_toil * san_dis):,.0f}")
-        st.caption(f"Total Mushola: Rp {san_mushola:,.0f} x {mushola_unit:,.0f} Units = Rp {(mushola_unit * san_mushola):,.0f}")
-        st.caption(f"Total Kitchen Equipment: Rp {kitchen_rate:,.0f} x {rooms:,.0f} Rooms = Rp {(rooms * kitchen_rate):,.0f}")
-        st.caption(f"Total Hardware Pintu Kayu: Rp {hw_wood:,.0f} x {wooden_door:,.0f} Doors = Rp {(wooden_door * hw_wood):,.0f}")
-        st.caption(f"Total Hardware Pintu Besi: Rp {hw_steel:,.0f} x {steel_door:,.0f} Doors = Rp {(steel_door * hw_steel):,.0f}")
-        st.caption(f"Total HT/Ceramic Tile: Rp {fl_ht_rate:,.0f} x {fl_ht_pct}% of GFA: {gfa:,.0f} m2 x {f_mult} = Rp {(gfa * (fl_ht_pct / 100) * fl_ht_rate * f_mult):,.0f}")
-        st.caption(f"Total Vinyl Flooring: Rp {fl_vinyl_rate:,.0f} x {fl_vinyl_pct}% of GFA: {gfa:,.0f} m2 x {f_mult} = Rp {(gfa * (fl_vinyl_pct / 100) * fl_vinyl_rate * f_mult):,.0f}")
-        st.caption(f"Total Marmer Flooring: Rp {fl_marmer_rate:,.0f} x {fl_marmer_pct}% of GFA: {gfa:,.0f} m2 x {f_mult} = Rp {(gfa * (fl_marmer_pct / 100) * fl_marmer_rate * f_mult):,.0f}")
-        st.caption(f"Total Carpet Work: Rp {carpet_rate:,.0f} x {carpet_m2:,.0f} m2 = Rp {(carpet_m2 * carpet_rate):,.0f}")
-        st.caption(f"Total Glass Work: Rp {glass_rate:,.0f} x {glass_m2:,.0f} m2 = Rp {(glass_m2 * glass_rate):,.0f}")
-        st.caption(f"Total FF&E: Rp {ffe_rate:,.0f} x {rooms:,.0f} Rooms = Rp {(rooms * ffe_rate):,.0f}")
-        st.caption(f"Total Misc. Costs: Rp {misc_rate:,.0f} x Rp {misc_rate if misc_switch else 0:,.0f} = Rp {(misc_rate * misc_switch):,.0f}")
-        st.caption(f"Total MEP Works: Rp {mep_rate:,.0f} x {gba:,.0f} m2 = Rp {(gba * mep_rate):,.0f}")
-        st.caption(f"Total Utility Connection: Rp {utility_rate:,.0f} x {gba:,.0f} m2 = Rp {(gba * utility_rate):,.0f}")
-        st.caption(f"Total Railing Work: Rp {railing_rate:,.0f} x {rooms * railing_qty:,.0f} m' Total = Rp {(rooms * railing_qty * railing_rate):,.0f}")
-        st.caption(f"Total Skylight Work: Rp {skylight_rate:,.0f} x {skylight_area:,.0f} m2 Total = Rp {(skylight_area * skylight_rate):,.0f}")
-        st.caption(f"Total External Works: Rp {ext_land_rate:,.0f} x {land_m2:,.0f} m2 = Rp {(land_m2 * ext_land_rate):,.0f}")
-        st.caption(f"Total Public Facilities: Rp {fac_pub_rate:,.0f} x {pub_fac_m2:,.0f} m2 = Rp {(pub_fac_m2 * fac_pub_rate):,.0f}")
-        st.caption(f"Total Resident Facilities: Rp {fac_res_rate:,.0f} x {res_fac_m2:,.0f} m2 = Rp {(res_fac_m2 * fac_res_rate):,.0f}")
-        st.caption(f"Total Project Facilities: Rp {fac_proj_rate:,.0f} x {proj_fac_u:,.0f} Units = Rp {(proj_fac_u * fac_proj_rate):,.0f}")
-
-
-def show_portfolio_summary():
-    import io
-    import xlsxwriter
-    import re
-    from datetime import date
-
-    tab_summary, tab_detailed = st.tabs(["FAD", "Rekap"])
+        import io
+        import xlsxwriter
+        import re
+        from datetime import date
     
-    with tab_summary:
-            st.subheader("Tabel FAD")
+        with sum_sub_tabs[3]:
+            st.subheader("FAD")
             active_id = st.session_state.current_proj_id
             today_str = date.today().strftime("%d-%m-%Y")
 
@@ -1528,8 +1644,8 @@ def show_portfolio_summary():
             """
             st.markdown(html_string.replace("\n", ""), unsafe_allow_html=True)
 
-    with tab_detailed:
-            st.subheader("Tabel Rekapitulasi")
+        with sum_sub_tabs[4]:
+            st.subheader("Rekap")
 
             # 1. SETUP: Prepare to collect data for ALL projects
             all_projects_data = []
@@ -1880,12 +1996,53 @@ def show_portfolio_summary():
                 use_container_width=True
             )
 
+
+    with tab6:
+        st.subheader("Audit")
+        
+        st.caption(f"Total Earthwork: Rp {struc_earth:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_earth * gba:,.0f}")
+        st.caption(f"Total Foundation: Rp {struc_found:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_found * gba:,.0f}")
+        st.caption(f"Total Structural Work: Rp {struc_work:,.0f} x GBA: {gba:,.0f} m2 = Rp {struc_work * gba:,.0f}")
+        st.caption(f"Total Basic Architecture: Rp {arch_base:,.0f} x GFA: {gfa:,.0f} m2 = Rp {arch_base * gfa:,.0f}")
+        st.caption(f"Total Facade Precast: Rp {fac_precast_rate:,.0f} x {facade_precast_pct}% of Facade: {facade:,.0f} m2 = Rp {(facade * (facade_precast_pct / 100) * fac_precast_rate):,.0f}")
+        st.caption(f"Total Facade Window: Rp {fac_window_rate:,.0f} x {facade_window_pct}% of Facade: {facade:,.0f} m2 = Rp {(facade * (facade_window_pct / 100) * fac_window_rate):,.0f}")
+        st.caption(f"Total Facade Double Skin: Rp {fac_double_rate:,.0f} x {facade_double_pct}% of Facade: {facade:,.0f} m2 = Rp {(facade * (facade_double_pct / 100) * fac_double_rate):,.0f}")
+        st.caption(f"Total Wooden Doors: Rp {door_wood:,.0f} x {wooden_door:,.0f} Units = Rp {(wooden_door * door_wood):,.0f}")
+        st.caption(f"Total Glass Doors: Rp {door_glass:,.0f} x {glass_door:,.0f} Units = Rp {(glass_door * door_glass):,.0f}")
+        st.caption(f"Total Steel Doors: Rp {door_steel:,.0f} x {steel_door:,.0f} Units = Rp {(steel_door * door_steel):,.0f}")
+        st.caption(f"Total Lobby Interior: Rp {lobby_rate:,.0f} x {lobby_interior:,.0f} m2 = Rp {(lobby_interior * lobby_rate):,.0f}")
+        st.caption(f"Total Gondola: Rp {gondola_rate:,.0f} x {gondola_unit:,.0f} Units = Rp {(gondola_unit * gondola_rate):,.0f}")
+        st.caption(f"Total Typical Unit Sanitary: Rp {san_room_rate:,.0f} x {rooms:,.0f} Rooms x {san_qty_room} Set = Rp {(rooms * san_qty_room * san_room_rate):,.0f}")
+        st.caption(f"Total Public Toilet Male: Rp {san_pub_m:,.0f} x {toilet_male:,.0f} Units = Rp {(toilet_male * san_pub_m):,.0f}")
+        st.caption(f"Total Public Toilet Female: Rp {san_pub_f:,.0f} x {toilet_female:,.0f} Units = Rp {(toilet_female * san_pub_f):,.0f}")
+        st.caption(f"Total Disabled Toilet: Rp {san_dis:,.0f} x {disabled_toil:,.0f} Units = Rp {(disabled_toil * san_dis):,.0f}")
+        st.caption(f"Total Mushola: Rp {san_mushola:,.0f} x {mushola_unit:,.0f} Units = Rp {(mushola_unit * san_mushola):,.0f}")
+        st.caption(f"Total Kitchen Equipment: Rp {kitchen_rate:,.0f} x {rooms:,.0f} Rooms = Rp {(rooms * kitchen_rate):,.0f}")
+        st.caption(f"Total Hardware Pintu Kayu: Rp {hw_wood:,.0f} x {wooden_door:,.0f} Doors = Rp {(wooden_door * hw_wood):,.0f}")
+        st.caption(f"Total Hardware Pintu Besi: Rp {hw_steel:,.0f} x {steel_door:,.0f} Doors = Rp {(steel_door * hw_steel):,.0f}")
+        st.caption(f"Total HT/Ceramic Tile: Rp {fl_ht_rate:,.0f} x {fl_ht_pct}% of GFA: {gfa:,.0f} m2 x {f_mult} = Rp {(gfa * (fl_ht_pct / 100) * fl_ht_rate * f_mult):,.0f}")
+        st.caption(f"Total Vinyl Flooring: Rp {fl_vinyl_rate:,.0f} x {fl_vinyl_pct}% of GFA: {gfa:,.0f} m2 x {f_mult} = Rp {(gfa * (fl_vinyl_pct / 100) * fl_vinyl_rate * f_mult):,.0f}")
+        st.caption(f"Total Marmer Flooring: Rp {fl_marmer_rate:,.0f} x {fl_marmer_pct}% of GFA: {gfa:,.0f} m2 x {f_mult} = Rp {(gfa * (fl_marmer_pct / 100) * fl_marmer_rate * f_mult):,.0f}")
+        st.caption(f"Total Carpet Work: Rp {carpet_rate:,.0f} x {carpet_m2:,.0f} m2 = Rp {(carpet_m2 * carpet_rate):,.0f}")
+        st.caption(f"Total Glass Work: Rp {glass_rate:,.0f} x {glass_m2:,.0f} m2 = Rp {(glass_m2 * glass_rate):,.0f}")
+        st.caption(f"Total FF&E: Rp {ffe_rate:,.0f} x {rooms:,.0f} Rooms = Rp {(rooms * ffe_rate):,.0f}")
+        st.caption(f"Total Misc. Costs: Rp {misc_rate:,.0f} x Rp {misc_rate if misc_switch else 0:,.0f} = Rp {(misc_rate * misc_switch):,.0f}")
+        st.caption(f"Total MEP Works: Rp {mep_rate:,.0f} x {gba:,.0f} m2 = Rp {(gba * mep_rate):,.0f}")
+        st.caption(f"Total Utility Connection: Rp {utility_rate:,.0f} x {gba:,.0f} m2 = Rp {(gba * utility_rate):,.0f}")
+        st.caption(f"Total Railing Work: Rp {railing_rate:,.0f} x {rooms * railing_qty:,.0f} m' Total = Rp {(rooms * railing_qty * railing_rate):,.0f}")
+        st.caption(f"Total Skylight Work: Rp {skylight_rate:,.0f} x {skylight_area:,.0f} m2 Total = Rp {(skylight_area * skylight_rate):,.0f}")
+        st.caption(f"Total External Works: Rp {ext_land_rate:,.0f} x {land_m2:,.0f} m2 = Rp {(land_m2 * ext_land_rate):,.0f}")
+        st.caption(f"Total Public Facilities: Rp {fac_pub_rate:,.0f} x {pub_fac_m2:,.0f} m2 = Rp {(pub_fac_m2 * fac_pub_rate):,.0f}")
+        st.caption(f"Total Resident Facilities: Rp {fac_res_rate:,.0f} x {res_fac_m2:,.0f} m2 = Rp {(res_fac_m2 * fac_res_rate):,.0f}")
+        st.caption(f"Total Project Facilities: Rp {fac_proj_rate:,.0f} x {proj_fac_u:,.0f} Units = Rp {(proj_fac_u * fac_proj_rate):,.0f}")
+
+
 # --- 5. SIDEBAR NAVIGATION ---
 st.sidebar.title("Main Navigation")
 
 page_choice = st.sidebar.selectbox(
     "Pilih Pekerjaan:",
-    ["Cost Calculator", "Area Calculator", "Summary"]
+    ["Cost Calculator", "Area Calculator"]
 )
 
 st.sidebar.markdown("---")
@@ -1919,9 +2076,7 @@ with c2:
 st.sidebar.markdown("---")
 
 # --- 6. PAGE ROUTING ---
-if page_choice == "Summary":
-    show_portfolio_summary()
-elif page_choice == "Area Calculator":
+if page_choice == "Area Calculator":
     show_area_calculator()
 else:
     show_cost_estimator()
