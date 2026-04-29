@@ -949,7 +949,7 @@ def show_cost_estimator():
         ]
         
         sc_rows = "".join([
-            f"<tr><td style='padding:8px;width:20%;background-color:#f8f9fa;border:1px solid #ddd;font-weight:600;'>{i[0]}</td>"
+            f"<tr><td style='padding:8px;width:40%;background-color:#f8f9fa;border:1px solid #ddd;font-weight:600;'>{i[0]}</td>"
             f"<td style='padding:8px;background-color:#ffffff;border:1px solid #ddd;'>Rp {(i[1]):,.0f}</td></tr>" 
             for i in items_sc
         ])
