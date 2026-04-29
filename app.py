@@ -572,16 +572,12 @@ def show_cost_estimator():
                 </tr>
                 <tr style="background-color: #f8f9fa; font-weight: bold; border-top: 2px solid #2c3e50;">
                     <td colspan="1" style="padding: 8px; text-align: right; border: 1px solid #ddd;">Total</td>
-                    <td colspan="9" style="padding: 8px; text-align: left; border: 1px solid #ddd; background-color: #ffffff;"> Rp {hc_total:,.0f}</td>
-                </tr>
-                <tr style="background-color: #f8f9fa; font-weight: bold; border-top: 1px solid #2c3e50;">
-                    <td colspan="1" style="padding: 8px; text-align: right; border: 1px solid #ddd;">Terbilang</td>
-                    <td colspan="9" style="padding: 8px; text-align: left; border: 1px solid #ddd; background-color: #ffffff;"> Rp {n2w(hc_total)}</td>
+                    <td colspan="9" style="padding: 8px; text-align: left; border: 1px solid #ddd; background-color: #ffffff;">Rp {hc_total:,.0f}</td>
                 </tr>
             </table>
         </div>
         """
-        with st.expander("Detail Hard Cost"):
+        with st.expander("Detail Hard Cost", expanded=False):
     
             st.write(html_table, unsafe_allow_html=True)
 
@@ -594,6 +590,7 @@ def show_cost_estimator():
                                ])
 
         with hc_sub_tabs[1]:
+            st.success(f"**Subtotal Earthworks:** Rp {t_earth:,.0f} ({format_idr_compact(t_earth)})")
             st.subheader("Earthworks")
             struc_earth = st.number_input("Earthworks (Rp)", value=get_val("u_earth", pt_data["struc_earth"]), key=f"u_earth_{curr_type_key}")
             st.caption(f"""
@@ -602,6 +599,7 @@ def show_cost_estimator():
                         Total    : Rp {struc_earth * gba:,.0f}  
                         Terbilang: {n2w(struc_earth * gba)}""")
         with hc_sub_tabs[2]:
+            st.success(f"**Subtotal Foundation:** Rp {t_found:,.0f} ({format_idr_compact(t_found)})")            
             st.subheader("Foundation")
             struc_found = st.number_input("Foundation Rate (Rp)", value=get_val("u_found", pt_data["struc_found"]), key=f"u_found_{curr_type_key}")
             st.caption(f"""
@@ -611,6 +609,7 @@ def show_cost_estimator():
                         Terbilang: {n2w(struc_found * gba)}""")
 
         with hc_sub_tabs[3]:
+            st.success(f"**Subtotal Structural:** Rp {t_struc:,.0f} ({format_idr_compact(t_struc)})")            
             st.subheader("Structural")
             struc_work = st.number_input("Structural Work Rate (Rp)", value=get_val("u_struc", pt_data["struc_work"]), key=f"u_struc_{curr_type_key}")
             st.caption(f"""
@@ -653,7 +652,7 @@ def show_cost_estimator():
 
             # Final Architectural Sum
             total_arch_display = sum([t_arch_base, t_lobby, t_precast, t_window, t_double, t_doors_tot, t_san_tot, t_floors_tot, t_misc_tot])
-     
+            st.success(f"**Subtotal Architectural:** Rp {total_arch_display:,.0f} ({format_idr_compact(total_arch_display)})")
             arch_sub_tabs = st.tabs(["1. Basic Finish", "2. Lobby", "3. Facade", "4. Pintu", "5. Sanitary", "6. Lantai", "7. Lain-lain"])
 
             with arch_sub_tabs[0]:
@@ -806,6 +805,8 @@ def show_cost_estimator():
                 c2.caption(f"""Hitungan: {railing_qty:,.0f} m' x Rooms {rooms:,.0f} unit x Rp {railing_rate:,.0f}  \n  Total Railing Work: Rp {rooms * railing_qty * railing_rate:,.0f}  \n  Terbilang: {n2w(rooms * railing_qty * railing_rate)}""")
                 
         with hc_sub_tabs[5]:
+            t_ffe_total = t_ffe + t_kitchen + t_misc
+            st.success(f"**Subtotal FF&E:** Rp {t_ffe_total:,.0f} ({format_idr_compact(t_ffe_total)})")
             st.subheader("FF&E")
             c1, c2, c3 = st.columns(3)
             
@@ -828,6 +829,7 @@ def show_cost_estimator():
                 st.caption(f"""Hitungan: Rp {misc_rate if misc_switch else 0:,.0f}  \n  Total Misc. Costs: Rp {misc_rate * misc_switch:,.0f}  \n  Terbilang: {n2w(misc_rate * misc_switch)}""")
         
         with hc_sub_tabs[6]:
+            st.success(f"**Subtotal MEP:** Rp {t_mep:,.0f} ({format_idr_compact(t_mep)})")
             st.subheader("MEP")
             c1, c2, c3 = st.columns(3)
             
@@ -835,6 +837,7 @@ def show_cost_estimator():
             c1.caption(f"""Hitungan: {gba:,.0f} m2 x Rp {mep_rate:,.0f}  \n  Total MEP Works: Rp {gba * mep_rate:,.0f}  \n  Terbilang: {n2w(gba * mep_rate)}""")
         
         with hc_sub_tabs[7]:
+            st.success(f"**Subtotal External:** Rp {t_external:,.0f} ({format_idr_compact(t_external)})")
             st.subheader("External")
             c1, c2, c3 = st.columns(3)
 
@@ -843,6 +846,8 @@ def show_cost_estimator():
             c1.caption(f"""Hitungan: {land_m2:,.0f} m2 x Rp {ext_land_rate:,.0f}  \n  Total External Works: Rp {land_m2 * ext_land_rate:,.0f}  \n  Terbilang: {n2w(land_m2 * ext_land_rate)}""")
         
         with hc_sub_tabs[8]:
+            t_fac_total = t_pub_fac + t_res_fac + t_proj_fac
+            st.success(f"**Subtotal Facilities:** Rp {t_fac_total:,.0f} ({format_idr_compact(t_fac_total)})")
             st.subheader("Facilities & Misc")
             c1, c2, c3 = st.columns(3)
             MAX_UNITS=100.0
@@ -909,17 +914,59 @@ def show_cost_estimator():
         hc_total = hc_subtotal + t_preliminary + t_contingency
 
         with hc_sub_tabs[0]:
+            st.success(f"**Subtotal Preliminary:** Rp {t_preliminary:,.0f} ({format_idr_compact(t_preliminary)})")
             st.subheader("Preliminary")
             f"5% x Rp {(hc_subtotal):,.0f} = Rp {(0.05 * hc_subtotal):,.0f}",
 
 
         with hc_sub_tabs[9]:
+            st.success(f"**Subtotal Contingency:** Rp {t_contingency:,.0f} ({format_idr_compact(t_contingency)})")
             st.subheader("Contingency")
             f"3% x Rp {(hc_subtotal):,.0f} = {(0.03 * hc_subtotal):,.0f}",
 
 
+
+
     with tab3:
         st.subheader("Soft Cost")
+        
+        # --- 1. PRE-CALCULATION (Ambil nilai dari session_state agar bisa dihitung di awal) ---
+        # Kita ambil nilai input yang sudah tersimpan untuk kalkulasi ringkasan di atas
+        t_qs_calc = get_val("sc_qs_m", 0.0) * get_val("sc_qs_r", 0.0)
+        t_pm_calc = get_val("sc_pm_m", 0.0) * get_val("sc_pm_r", 0.0)
+        t_cons_calc = gfa * get_val("sc_cons", pt_data["cons"])
+        t_ins_calc = hc_subtotal * (get_val("sc_ins", 0.12) / 100.0)
+        t_util_calc = gba * get_val("u_util", pt_data["utility"])
+        sc_total_calc = t_qs_calc + t_pm_calc + t_cons_calc + t_ins_calc + t_util_calc
+
+        # --- 2. RENDER SUMMARY TABLE (DI ATAS) ---
+        items_sc = [
+            ("1. QS Services", t_qs_calc),
+            ("2. PM Services", t_pm_calc),
+            ("3. Other Consultancy", t_cons_calc),
+            ("4. Insurances", t_ins_calc),
+            ("5. Utilities Connection", t_util_calc)
+        ]
+        
+        sc_rows = "".join([
+            f"<tr><td style='padding:8px;width:20%;background-color:#f8f9fa;border:1px solid #ddd;font-weight:600;'>{i[0]}</td>"
+            f"<td style='padding:8px;background-color:#ffffff;border:1px solid #ddd;'>Rp {(i[1]):,.0f}</td></tr>" 
+            for i in items_sc
+        ])
+
+        html_top_table = f"""
+        <table style="width:100%; border-collapse: collapse; font-family: sans-serif; font-size: 11px; border: 1px solid #ddd; margin-bottom: 15px;">
+            <tr style="background-color: #2c3e50; color: white;"><th colspan="2" style="padding: 8px; text-align: left;">SOFT COST SUMMARY</th></tr>
+            {sc_rows}
+            <tr style="background-color: #fff3cd; font-weight: bold; border-top: 2px solid #2c3e50;">
+                <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">TOTAL SOFT COST</td>
+                <td style="padding: 8px; text-align: left; border: 1px solid #ddd;">Rp {sc_total_calc:,.0f}</td>
+            </tr>
+        </table>
+        """
+        with st.expander("Soft Cost"):
+            st.markdown(html_top_table, unsafe_allow_html=True)
+            
         sc_sub_tabs = st.tabs(["1. Consultancy Services", "2. Insurances", "3. Utilities Connection"])
         with sc_sub_tabs [0]:
             sc_col1, sc_col2, sc_col3 = st.columns(3)
