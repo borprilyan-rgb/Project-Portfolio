@@ -546,40 +546,41 @@ def show_cost_estimator():
         hc_total = hc_subtotal + t_preliminary + t_contingency
         
 
-        items_1_10 = [
-            ("1. Prelim", t_preliminary),
+        items_hc = [
+            ("1. Preliminary", t_preliminary),
             ("2. Earthwork", t_earth),
-            ("3. Found", t_found),
-            ("4. Struc", t_struc),
-            ("5. Arch", total_arch_display),
+            ("3. Foundation", t_found),
+            ("4. Structure", t_struc),
+            ("5. Architecture", total_arch_display),
             ("6. FF&E", t_ffe + t_kitchen),
             ("7. MEP", t_mep),
             ("8. External", t_external),
-            ("9. Facil", t_pub_fac + t_res_fac + t_proj_fac),
-            ("10. Cont.", t_contingency)
-            ]
-
-        header_fill = "#2c3e50" 
+            ("9. Facility", t_pub_fac + t_res_fac + t_proj_fac),
+            ("10. Contingency", t_contingency)
+        ]
             
-        html_table = f"""
-        <div style="overflow-x: auto; margin-bottom: 20px;">
-            <table style="width:100%; border-collapse: collapse; font-family: sans-serif; font-size: 11px; border: 1px solid #ddd;">
-                <tr style="background-color: {header_fill}; color: white;">
-                    {"".join([f'<th style="padding: 5px; text-align: center; border: 1px solid #444;">{item[0]}</th>' for item in items_1_10])}
-                </tr>
-                <tr style="background-color: white;">
-                    {"".join([f'<td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_idr_compact(item[1])}</td>' for item in items_1_10])}
-                </tr>
-                <tr style="background-color: #f8f9fa; font-weight: bold; border-top: 2px solid #2c3e50;">
-                    <td colspan="1" style="padding: 8px; text-align: right; border: 1px solid #ddd;">Total</td>
-                    <td colspan="9" style="padding: 8px; text-align: left; border: 1px solid #ddd; background-color: #ffffff;">Rp {hc_total:,.0f}</td>
-                </tr>
-            </table>
-        </div>
+        hc_rows = "".join([
+            f"<tr><td style='padding:8px;width:40%;background-color:#f8f9fa;border:1px solid #ddd;font-weight:600;'>{i[0]}</td>"
+            f"<td style='padding:8px;background-color:#ffffff;border:1px solid #ddd;'>Rp {i[1]:,.0f}</td></tr>" 
+            for i in items_hc
+        ])
+
+        html_hc_table = f"""
+        <table style="width:100%; border-collapse: collapse; font-family: sans-serif; font-size: 11px; border: 1px solid #ddd; margin-bottom: 15px;">
+            <tr style="background-color: #2c3e50; color: white;">
+                <th colspan="2" style="padding: 8px; text-align: left;">HARD COST SUMMARY</th>
+            </tr>
+            {hc_rows}
+            <tr style="background-color: #fff3cd; font-weight: bold; border-top: 2px solid #2c3e50;">
+                <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">TOTAL HARD COST</td>
+                <td style="padding: 8px; text-align: left; border: 1px solid #ddd;">Rp {hc_total:,.0f}</td>
+            </tr>
+        </table>
         """
+        
         with st.expander("Detail Hard Cost", expanded=False):
     
-            st.write(html_table, unsafe_allow_html=True)
+            st.write(html_hc_table, unsafe_allow_html=True)
 
         # --- 4. THE SUB TABS ---
         hc_sub_tabs = st.tabs(["1. Preliminary", "2. Earthworks", 
@@ -925,8 +926,6 @@ def show_cost_estimator():
             f"3% x Rp {(hc_subtotal):,.0f} = {(0.03 * hc_subtotal):,.0f}",
 
 
-
-
     with tab3:
         st.subheader("Soft Cost")
         
@@ -948,24 +947,25 @@ def show_cost_estimator():
             ("5. Utilities Connection", t_util_calc)
         ]
         
-        sc_rows = "".join([
+        hc_rows = "".join([
             f"<tr><td style='padding:8px;width:40%;background-color:#f8f9fa;border:1px solid #ddd;font-weight:600;'>{i[0]}</td>"
             f"<td style='padding:8px;background-color:#ffffff;border:1px solid #ddd;'>Rp {(i[1]):,.0f}</td></tr>" 
             for i in items_sc
         ])
 
-        html_top_table = f"""
+        html_sc_table = f"""
         <table style="width:100%; border-collapse: collapse; font-family: sans-serif; font-size: 11px; border: 1px solid #ddd; margin-bottom: 15px;">
             <tr style="background-color: #2c3e50; color: white;"><th colspan="2" style="padding: 8px; text-align: left;">SOFT COST SUMMARY</th></tr>
-            {sc_rows}
+            {hc_rows}
             <tr style="background-color: #fff3cd; font-weight: bold; border-top: 2px solid #2c3e50;">
                 <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">TOTAL SOFT COST</td>
                 <td style="padding: 8px; text-align: left; border: 1px solid #ddd;">Rp {sc_total_calc:,.0f}</td>
             </tr>
         </table>
         """
+        
         with st.expander("Soft Cost"):
-            st.markdown(html_top_table, unsafe_allow_html=True)
+            st.markdown(html_sc_table, unsafe_allow_html=True)
             
         sc_sub_tabs = st.tabs(["1. Consultancy Services", "2. Insurances", "3. Utilities Connection"])
         with sc_sub_tabs [0]:
