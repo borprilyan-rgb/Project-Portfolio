@@ -20,6 +20,17 @@ def n2w(amount):
             return f"{amount:,.0f}"
     except:
         return "0"
+    
+def format_idr_compact(amount):
+    amount = float(amount)
+    if amount >= 1_000_000_000_000: # Triliun
+        return f"{amount / 1_000_000_000_000:,.2f} T"
+    elif amount >= 1_000_000_000: # Miliar
+        return f"{amount / 1_000_000_000:,.2f} M"
+    elif amount >= 1_000_000: # Juta
+        return f"{amount / 1_000_000:,.1f} Jt"
+    else:
+        return f"{amount:,.0f}"
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="Project Portfolio", layout="wide")
@@ -533,11 +544,8 @@ def show_cost_estimator():
         t_preliminary = hc_subtotal * 0.05
         t_contingency = hc_subtotal * 0.03
         hc_total = hc_subtotal + t_preliminary + t_contingency
+        
 
-        # --- 3. QUICK RECAP DASHBOARD (TAMPIL DI ATAS TABS) ---
-        # Dashboard Row 2 & 3 - Condensed using Markdown & Captions
-        # This takes up much less vertical space
-        col_group_1 = st.columns(10)
         items_1_10 = [
             ("1. Prelim", t_preliminary),
             ("2. Earthwork", t_earth),
@@ -549,11 +557,10 @@ def show_cost_estimator():
             ("8. External", t_external),
             ("9. Facil", t_pub_fac + t_res_fac + t_proj_fac),
             ("10. Cont.", t_contingency)
-        ]
+            ]
 
-# --- ULTRA COMPACT HTML TABLE WITH MERGED TOTAL ROW ---
-        header_fill = "#2c3e50"  # Slate Gray
-        
+        header_fill = "#2c3e50" 
+            
         html_table = f"""
         <div style="overflow-x: auto; margin-bottom: 20px;">
             <table style="width:100%; border-collapse: collapse; font-family: sans-serif; font-size: 11px; border: 1px solid #ddd;">
@@ -561,18 +568,19 @@ def show_cost_estimator():
                     {"".join([f'<th style="padding: 5px; text-align: center; border: 1px solid #444;">{item[0]}</th>' for item in items_1_10])}
                 </tr>
                 <tr style="background-color: white;">
-                    {"".join([f'<td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{item[1]/1e6:,.1f}jt</td>' for item in items_1_10])}
+                    {"".join([f'<td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_idr_compact(item[1])}</td>' for item in items_1_10])}
                 </tr>
                 <tr style="background-color: #f8f9fa; font-weight: bold; border-top: 2px solid #2c3e50;">
-                    <td colspan="9" style="padding: 8px; text-align: right; border: 1px solid #ddd;">TOTAL HARD COST :</td>
-                    <td style="padding: 8px; text-align: center; border: 1px solid #ddd; background-color: #fff3cd;">{hc_total/1e6:,.2f}jt</td>
+                    <td colspan="9" style="padding: 8px; text-align: right; border: 1px solid #ddd;">Total Hard Cost :</td>
+                    <td style="padding: 8px; text-align: center; border: 1px solid #ddd; background-color: #ffffff;">{format_idr_compact(hc_total)}</td>
                 </tr>
             </table>
         </div>
         """
-        
-        st.write(html_table, unsafe_allow_html=True)
-        
+        with st.expander("Detail Hard Cost"):
+    
+            st.write(html_table, unsafe_allow_html=True)
+
         # --- 4. THE SUB TABS ---
         hc_sub_tabs = st.tabs(["1. Preliminary", "2. Earthworks", 
                                "3. Foundation Works", "4. Structural", 
@@ -641,8 +649,6 @@ def show_cost_estimator():
 
             # Final Architectural Sum
             total_arch_display = sum([t_arch_base, t_lobby, t_precast, t_window, t_double, t_doors_tot, t_san_tot, t_floors_tot, t_misc_tot])
-
-            st.success(f"**Total Architectural Work: Rp {total_arch_display:,.0f}** ( {n2w(total_arch_display)} )")
      
             arch_sub_tabs = st.tabs(["1. Basic Finish", "2. Lobby", "3. Facade", "4. Pintu", "5. Sanitary", "6. Lantai", "7. Lain-lain"])
 
