@@ -466,11 +466,6 @@ def show_cost_estimator():
         sgfa = c4.number_input("SGFA (m2)", value=get_val("m_sgfa", 0.0), step=100.0, key=f"m_sgfa_{curr_id}")
         rooms = c5.number_input("Ruang (unit)", help="untuk Apartment/Hotel/Proyek Residensial", value=get_val("m_rooms", 0.0), step=1.0, key=f"m_rooms_{curr_id}")
         land_area = c1.number_input("Luas Tanah (m2)", value=get_val("m_land", 0.0), step=100.0, key=f"m_land_{curr_id}")
-        if gba == 0:
-            c2.warning("⚠️ Input nilai GBA")
-        if gfa == 0:
-            c3.warning("⚠️ Input nilai GFA")
-        st.markdown("---")
 
         # --- 2. THE ENGINE: PRE-CALCULATION (Mencegah UnboundLocalError) ---
         # Definisi variabel t_ satu per satu berdasarkan input/database
