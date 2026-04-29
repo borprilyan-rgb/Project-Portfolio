@@ -572,8 +572,7 @@ def show_cost_estimator():
         """
         
         st.write(html_table, unsafe_allow_html=True)
-        st.success(f"Total Hard Cost: Rp {hc_total/1e6:,.0f}jt")
-
+        
         # --- 4. THE SUB TABS ---
         hc_sub_tabs = st.tabs(["1. Preliminary", "2. Earthworks", 
                                "3. Foundation Works", "4. Structural", 
