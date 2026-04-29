@@ -571,11 +571,11 @@ def show_cost_estimator():
                     {"".join([f'<td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_idr_compact(item[1])}</td>' for item in items_1_10])}
                 </tr>
                 <tr style="background-color: #f8f9fa; font-weight: bold; border-top: 2px solid #2c3e50;">
-                    <td colspan="1" style="padding: 8px; text-align: right; border: 1px solid #ddd;">Total :</td>
+                    <td colspan="1" style="padding: 8px; text-align: right; border: 1px solid #ddd;">Total</td>
                     <td colspan="9" style="padding: 8px; text-align: left; border: 1px solid #ddd; background-color: #ffffff;"> Rp {hc_total:,.0f}</td>
                 </tr>
                 <tr style="background-color: #f8f9fa; font-weight: bold; border-top: 1px solid #2c3e50;">
-                    <td colspan="1" style="padding: 8px; text-align: right; border: 1px solid #ddd;">Terbilang :</td>
+                    <td colspan="1" style="padding: 8px; text-align: right; border: 1px solid #ddd;">Terbilang</td>
                     <td colspan="9" style="padding: 8px; text-align: left; border: 1px solid #ddd; background-color: #ffffff;"> Rp {n2w(hc_total)}</td>
                 </tr>
             </table>
