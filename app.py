@@ -565,70 +565,83 @@ def show_cost_estimator():
         st.header("Upload & Download")
         c1, c2 = st.columns(2)
         with c1:
-            uploaded_file = st.file_uploader("Upload Here:", type=["csv"])
+            st.subheader("Import")
+            uploaded_file = st.file_uploader("Upload CSV Database:", type=["csv"])
 
             if uploaded_file is not None:
-                if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != uploaded_file.file_id:
+                file_key = getattr(uploaded_file, 'file_id', uploaded_file.name)
+                
+                if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != file_key:
                     try:
                         df_import = pd.read_csv(uploaded_file)
                         
-                        # 1. Reset data
-                        st.session_state.projects[curr_id]["data"] = {} 
-                        
-                        # Temporary storage to reconstruct the custom items list
-                        temp_custom_items = {}
+                        if df_import is not None and not df_import.empty:
+                            # Dictionary to hold custom item reconstruction per project found in CSV
+                            # Structure: {pid: {idx: {item_data}}}
+                            global_temp_custom = {}
 
-                        for index, row in df_import.iterrows():
-                            key = str(row.get("Metric_Key", ""))
-                            val = row.get("Value", 0)
+                            # Iterate through each row in the CSV
+                            for index, row in df_import.iterrows():
+                                # Get Project ID from CSV or fallback to current project if missing
+                                pid = str(row.get("Project_ID", curr_id)).strip()
+                                key = str(row.get("Metric_Key", "")).strip()
+                                val = row.get("Value", "")
 
-                            if not key: continue 
+                                if not key or pd.isna(val): continue 
 
-                            if key == "proj_name":
-                                st.session_state.projects[curr_id]["name"] = str(val)
-                            elif key == "proj_type":
-                                st.session_state.projects[curr_id]["type"] = str(val)
-                            
-                            # Check if the key is a custom input (name, rate, or qty)
-                            elif key.startswith(("input_name", "input_rate", "input_qty")):
-                                # 2. Handle Custom Inputs for the Data Editor
-                                try:
-                                    # Extract the number from the key (e.g., "input_name1" -> 1)
-                                    idx = int(''.join(filter(str.isdigit, key)))
-                                    if idx not in temp_custom_items:
-                                        temp_custom_items[idx] = {"Item Description": "", "Rate (Rp)": 0.0, "Quantity": 1.0}
+                                # 1. Ensure the project exists in Session State
+                                if pid not in st.session_state.projects:
+                                    st.session_state.projects[pid] = {
+                                        "name": f"Imported Project {pid}",
+                                        "type": "Type1",
+                                        "data": {}
+                                    }
+                                
+                                # 2. Handle Metadata (Name/Type)
+                                if key == "proj_name":
+                                    st.session_state.projects[pid]["name"] = str(val)
+                                elif key == "proj_type":
+                                    st.session_state.projects[pid]["type"] = str(val)
+                                
+                                # 3. Handle Custom Inputs (Data Editor Breakdown)
+                                elif key.startswith(("input_name", "input_rate", "input_qty")):
+                                    if pid not in global_temp_custom:
+                                        global_temp_custom[pid] = {}
                                     
-                                    if "name" in key:
-                                        temp_custom_items[idx]["Item Description"] = str(val) if pd.notna(val) else ""
-                                    elif "rate" in key:
-                                        temp_custom_items[idx]["Rate (Rp)"] = float(val) if pd.notna(val) else 0.0
-                                    elif "qty" in key:
-                                        temp_custom_items[idx]["Quantity"] = float(val) if pd.notna(val) else 1.0
-                                except:
-                                    pass
-                            else:
-                                # Standard Metric Logic
-                                if str(val) in ["Type1", "Type2"]:
-                                    st.session_state.projects[curr_id]["data"][key] = str(val)
+                                    try:
+                                        idx = int(''.join(filter(str.isdigit, key)))
+                                        if idx not in global_temp_custom[pid]:
+                                            global_temp_custom[pid][idx] = {"Item Description": "", "Rate (Rp)": 0.0, "Quantity": 1.0}
+                                        
+                                        if "name" in key:
+                                            global_temp_custom[pid][idx]["Item Description"] = str(val)
+                                        elif "rate" in key:
+                                            global_temp_custom[pid][idx]["Rate (Rp)"] = float(val)
+                                        elif "qty" in key:
+                                            global_temp_custom[pid][idx]["Quantity"] = float(val)
+                                    except: continue
+
+                                # 4. Handle Standard Metrics
                                 else:
                                     try:
-                                        st.session_state.projects[curr_id]["data"][key] = float(val)
+                                        st.session_state.projects[pid]["data"][key] = float(val)
                                     except (ValueError, TypeError):
-                                        st.session_state.projects[curr_id]["data"][key] = 0.0 if (pd.isna(val) or val == "") else str(val)
+                                        st.session_state.projects[pid]["data"][key] = str(val)
 
-                        # 3. Reconstruct the list for the Data Editor (tab6)
-                        if temp_custom_items:
-                            # Sort by index to keep order and convert to list of dicts
-                            sorted_custom = [temp_custom_items[i] for i in sorted(temp_custom_items.keys())]
-                            st.session_state.projects[curr_id]["data"]["smart_custom_costs"] = sorted_custom
+                            # 5. Reconstruct 'smart_custom_costs' for all affected projects
+                            for pid, items_dict in global_temp_custom.items():
+                                sorted_custom = [items_dict[i] for i in sorted(items_dict.keys())]
+                                st.session_state.projects[pid]["data"]["smart_custom_costs"] = sorted_custom
 
-                        st.session_state.last_loaded_file = uploaded_file.file_id
-                        st.success("✅ Load Complete!")
-                        st.rerun()
-                    
+                            st.session_state.last_loaded_file = file_key
+                            st.success(f"✅ Import Successful! Processed {len(df_import['Project_ID'].unique()) if 'Project_ID' in df_import.columns else 1} project(s).")
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ The uploaded CSV is empty.")
+
                     except Exception as e:
-                        st.error(f"❌ Critical Error: {e}")
-
+                        st.error(f"❌ Error during import: {e}")
+                        
         with c2:
             st.subheader("Export")
 
