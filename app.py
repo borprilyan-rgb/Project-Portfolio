@@ -1190,7 +1190,7 @@ def show_cost_estimator():
             # Common styles
             summary_base = "margin-bottom: 20px; padding: 15px; border-radius: 8px; background-color: #FFFFFF; border: 1px solid #E0E0E0;"
             summary_label = "font-size: 16px; color: #666666; font-weight: bold;"
-            summary_val = "font-size: 24px; font-weight: bold; color: #000000; line-height: 1.2; margin-top: 5px;"
+            summary_val = "font-size: clamp(18px, 4vw, 24px); font-weight: bold; color: #000000; line-height: 1.2; margin-top: 5px;"
             summary_n2w = "font-size: 14px; color: #888888; font-weight: normal; margin-top: 5px;"
 
             # Hard Cost - Starting with Lime Accent
@@ -1216,7 +1216,7 @@ def show_cost_estimator():
             st.markdown(f"""
                 <div style="{summary_base} border-left: 12px solid #254E18; padding: 20px; background-color: #F5F7F5">
                     <div style="font-size: 18px; color: #666666; font-weight: bold;">Project Cost</div>
-                    <div style="font-size: 30px; font-weight: bold; color: #000000; line-height: 1.2; margin-top: 10px;">
+                    <div style="font-size: clamp(18px, 4vw, 30px); font-weight: bold; color: #000000; line-height: 1.2; margin-top: 10px;">
                         Rp {grand_total_project:,.2f}
                     </div>
                     <div style="font-size: 16px; color: #888888; margin-top: 8px;">
