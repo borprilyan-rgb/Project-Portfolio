@@ -564,11 +564,70 @@ def show_cost_estimator():
     with tab9:
         st.header("Upload & Download")
         c1, c2 = st.columns(2)
-        
         with c1:
-            st.subheader("Import")
-            uploaded_file = st.file_uploader("Upload CSV Database:", type=["csv"])
-            # ... (Your existing Import Logic goes here)
+            uploaded_file = st.file_uploader("Upload Here:", type=["csv"])
+
+            if uploaded_file is not None:
+                if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != uploaded_file.file_id:
+                    try:
+                        df_import = pd.read_csv(uploaded_file)
+                        
+                        # 1. Reset data
+                        st.session_state.projects[curr_id]["data"] = {} 
+                        
+                        # Temporary storage to reconstruct the custom items list
+                        temp_custom_items = {}
+
+                        for index, row in df_import.iterrows():
+                            key = str(row.get("Metric_Key", ""))
+                            val = row.get("Value", 0)
+
+                            if not key: continue 
+
+                            if key == "proj_name":
+                                st.session_state.projects[curr_id]["name"] = str(val)
+                            elif key == "proj_type":
+                                st.session_state.projects[curr_id]["type"] = str(val)
+                            
+                            # Check if the key is a custom input (name, rate, or qty)
+                            elif key.startswith(("input_name", "input_rate", "input_qty")):
+                                # 2. Handle Custom Inputs for the Data Editor
+                                try:
+                                    # Extract the number from the key (e.g., "input_name1" -> 1)
+                                    idx = int(''.join(filter(str.isdigit, key)))
+                                    if idx not in temp_custom_items:
+                                        temp_custom_items[idx] = {"Item Description": "", "Rate (Rp)": 0.0, "Quantity": 1.0}
+                                    
+                                    if "name" in key:
+                                        temp_custom_items[idx]["Item Description"] = str(val) if pd.notna(val) else ""
+                                    elif "rate" in key:
+                                        temp_custom_items[idx]["Rate (Rp)"] = float(val) if pd.notna(val) else 0.0
+                                    elif "qty" in key:
+                                        temp_custom_items[idx]["Quantity"] = float(val) if pd.notna(val) else 1.0
+                                except:
+                                    pass
+                            else:
+                                # Standard Metric Logic
+                                if str(val) in ["Type1", "Type2"]:
+                                    st.session_state.projects[curr_id]["data"][key] = str(val)
+                                else:
+                                    try:
+                                        st.session_state.projects[curr_id]["data"][key] = float(val)
+                                    except (ValueError, TypeError):
+                                        st.session_state.projects[curr_id]["data"][key] = 0.0 if (pd.isna(val) or val == "") else str(val)
+
+                        # 3. Reconstruct the list for the Data Editor (tab6)
+                        if temp_custom_items:
+                            # Sort by index to keep order and convert to list of dicts
+                            sorted_custom = [temp_custom_items[i] for i in sorted(temp_custom_items.keys())]
+                            st.session_state.projects[curr_id]["data"]["smart_custom_costs"] = sorted_custom
+
+                        st.session_state.last_loaded_file = uploaded_file.file_id
+                        st.success("✅ Load Complete!")
+                        st.rerun()
+                    
+                    except Exception as e:
+                        st.error(f"❌ Critical Error: {e}")
 
         with c2:
             st.subheader("Export")
