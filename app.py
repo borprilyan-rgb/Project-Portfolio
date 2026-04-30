@@ -1088,10 +1088,8 @@ def show_cost_estimator():
         tab1, tab2, tab3 = st.tabs([
         "Hasil",
         "Tabel", "Chart",
-
         ])
         
-# --- ROW 1: cs1 to cs6 (Lime to Forest Green) ---
         with tab1:
             cs1, cs2, cs3, cs4, cs5, cs6 = st.columns(6)
 
