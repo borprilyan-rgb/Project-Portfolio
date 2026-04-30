@@ -1100,97 +1100,97 @@ def show_cost_estimator():
             val_style = "font-size: 14px; font-weight: bold; color: #000000; margin-top: 4px;"
 
 # --- ROW 1: cs1 to cs6 ---
-            cs1, cs2, cs3, cs4, cs5, cs6 = st.columns(6)
+            with st.expander("Detail Hard Cost", expanded=False):
+                cs1, cs2, cs3, cs4, cs5, cs6 = st.columns(6)
 
-            # 1. Preliminary (Army Green - Start)
-            cs1.markdown(f"""<div style="{box_base} border-left: 5px solid #CDDC39;">
-                <div style="{label_style}">Preliminary</div>
-                <div style="{val_style}">{n2w(group_prelim)}</div>
-                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_prelim:,.0f}</div>
-            </div>""", unsafe_allow_html=True)
+                # 1. Preliminary (Army Green - Start)
+                cs1.markdown(f"""<div style="{box_base} border-left: 5px solid #CDDC39;">
+                    <div style="{label_style}">Preliminary</div>
+                    <div style="{val_style}">{n2w(group_prelim)}</div>
+                    <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_prelim:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
 
-            # 2. Earthwork (Lime)
-            cs2.markdown(f"""<div style="{box_base} border-left: 5px solid #8BC34A;">
-                <div style="{label_style}">Earthwork</div>
-                <div style="{val_style}">{n2w(group_earth)}</div>
-                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_earth:,.0f}</div>
-            </div>""", unsafe_allow_html=True)
+                # 2. Earthwork (Lime)
+                cs2.markdown(f"""<div style="{box_base} border-left: 5px solid #8BC34A;">
+                    <div style="{label_style}">Earthwork</div>
+                    <div style="{val_style}">{n2w(group_earth)}</div>
+                    <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_earth:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
 
-            # 3. Utility (Sage Green)
-            cs3.markdown(f"""<div style="{box_base} border-left: 5px solid #4CAF50;">
-                <div style="{label_style}">Utility</div>
-                <div style="{val_style}">{n2w(group_utility)}</div>
-                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_utility:,.0f}</div>
-            </div>""", unsafe_allow_html=True)
+                # 3. Utility (Sage Green)
+                cs3.markdown(f"""<div style="{box_base} border-left: 5px solid #4CAF50;">
+                    <div style="{label_style}">Utility</div>
+                    <div style="{val_style}">{n2w(group_utility)}</div>
+                    <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_utility:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
 
-            # 4. Foundation (Soft Green)
-            cs4.markdown(f"""<div style="{box_base} border-left: 5px solid #689F38;">
-                <div style="{label_style}">Foundation</div>
-                <div style="{val_style}">{n2w(group_found)}</div>
-                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_found:,.0f}</div>
-            </div>""", unsafe_allow_html=True)
+                # 4. Foundation (Soft Green)
+                cs4.markdown(f"""<div style="{box_base} border-left: 5px solid #689F38;">
+                    <div style="{label_style}">Foundation</div>
+                    <div style="{val_style}">{n2w(group_found)}</div>
+                    <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_found:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
 
-            # 5. Structural (Success Green)
-            cs5.markdown(f"""<div style="{box_base} border-left: 5px solid #388E3C;">
-                <div style="{label_style}">Structural</div>
-                <div style="{val_style}">{n2w(group_struc)}</div>
-                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_struc:,.0f}</div>
-            </div>""", unsafe_allow_html=True)
+                # 5. Structural (Success Green)
+                cs5.markdown(f"""<div style="{box_base} border-left: 5px solid #388E3C;">
+                    <div style="{label_style}">Structural</div>
+                    <div style="{val_style}">{n2w(group_struc)}</div>
+                    <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_struc:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
 
-            # 6. External Works (Olive)
-            cs6.markdown(f"""<div style="{box_base} border-left: 5px solid #254E18;">
-                <div style="{label_style}">External Works</div>
-                <div style="{val_style}">{n2w(group_ext)}</div>
-                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_ext:,.0f}</div>
-            </div>""", unsafe_allow_html=True)
+                # 6. External Works (Olive)
+                cs6.markdown(f"""<div style="{box_base} border-left: 5px solid #254E18;">
+                    <div style="{label_style}">External Works</div>
+                    <div style="{val_style}">{n2w(group_ext)}</div>
+                    <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_ext:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
 
 
-            # --- ROW 2: ct1 to ct6 ---
-            ct1, ct2, ct3, ct4, ct5, ct6 = st.columns(6)
+                # --- ROW 2: ct1 to ct6 ---
+                ct1, ct2, ct3, ct4, ct5, ct6 = st.columns(6)
 
-            # 7. Architecture (Medium Green)
-            ct2.markdown(f"""<div style="{box_base} border-left: 5px solid #9CCC65;">
-                <div style="{label_style}">Architecture</div>
-                <div style="{val_style}">{n2w(group_arch)}</div>
-                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_arch:,.0f}</div>
-            </div>""", unsafe_allow_html=True)
+                # 7. Architecture (Medium Green)
+                ct2.markdown(f"""<div style="{box_base} border-left: 5px solid #9CCC65;">
+                    <div style="{label_style}">Architecture</div>
+                    <div style="{val_style}">{n2w(group_arch)}</div>
+                    <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_arch:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
 
-            # 8. Miscellaneous (Dark Olive)
-            ct3.markdown(f"""<div style="{box_base} border-left: 5px solid #558B2F;">
-                <div style="{label_style}">Miscellaneous</div>
-                <div style="{val_style}">{n2w(group_misc)}</div>
-                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_misc:,.0f}</div>
-            </div>""", unsafe_allow_html=True)
+                # 8. Miscellaneous (Dark Olive)
+                ct3.markdown(f"""<div style="{box_base} border-left: 5px solid #558B2F;">
+                    <div style="{label_style}">Miscellaneous</div>
+                    <div style="{val_style}">{n2w(group_misc)}</div>
+                    <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_misc:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
 
-            # 9. FF & E (Dark Green)
-            ct4.markdown(f"""<div style="{box_base} border-left: 5px solid #2E7D32;">
-                <div style="{label_style}">FF & E</div>
-                <div style="{val_style}">{n2w(group_ffe)}</div>
-                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_ffe:,.0f}</div>
-            </div>""", unsafe_allow_html=True)
+                # 9. FF & E (Dark Green)
+                ct4.markdown(f"""<div style="{box_base} border-left: 5px solid #2E7D32;">
+                    <div style="{label_style}">FF & E</div>
+                    <div style="{val_style}">{n2w(group_ffe)}</div>
+                    <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_ffe:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
 
-            # 10. Contingency (Deep Army)
-            ct6.markdown(f"""<div style="{box_base} border-left: 5px solid #1B5E20;">
-                <div style="{label_style}">Contingency</div>
-                <div style="{val_style}">{n2w(group_conting)}</div>
-                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_conting:,.0f}</div>
-            </div>""", unsafe_allow_html=True)
+                # 10. Contingency (Deep Army)
+                ct6.markdown(f"""<div style="{box_base} border-left: 5px solid #1B5E20;">
+                    <div style="{label_style}">Contingency</div>
+                    <div style="{val_style}">{n2w(group_conting)}</div>
+                    <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_conting:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
 
-            # 11. MEP Works (Forest Green)
-            ct5.markdown(f"""<div style="{box_base} border-left: 5px solid #33691E;">
-                <div style="{label_style}">MEP Works</div>
-                <div style="{val_style}">{n2w(group_mep)}</div>
-                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_mep:,.0f}</div>
-            </div>""", unsafe_allow_html=True)
+                # 11. MEP Works (Forest Green)
+                ct5.markdown(f"""<div style="{box_base} border-left: 5px solid #33691E;">
+                    <div style="{label_style}">MEP Works</div>
+                    <div style="{val_style}">{n2w(group_mep)}</div>
+                    <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {group_mep:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
             
-            st.markdown("---")
     # --- TOTALS SUMMARY ---
             c1, c2 = st.columns(2)
 
             # Common styles
             summary_base = "margin-bottom: 20px; padding: 15px; border-radius: 8px; background-color: #FFFFFF; border: 1px solid #E0E0E0;"
             summary_label = "font-size: 16px; color: #666666; font-weight: bold;"
-            summary_val = "font-size: clamp(18px, 4vw, 24px); font-weight: bold; color: #000000; line-height: 1.2; margin-top: 5px;"
+            summary_val = "font-size: 24px; font-weight: bold; color: #000000; line-height: 1.2; margin-top: 5px;"
             summary_n2w = "font-size: 14px; color: #888888; font-weight: normal; margin-top: 5px;"
 
             # Hard Cost - Starting with Lime Accent
