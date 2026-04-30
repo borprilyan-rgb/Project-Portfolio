@@ -1216,7 +1216,7 @@ def show_cost_estimator():
             st.markdown(f"""
                 <div style="{summary_base} border-left: 12px solid #254E18; padding: 20px; background-color: #F5F7F5">
                     <div style="font-size: 18px; color: #666666; font-weight: bold;">Project Cost</div>
-                    <div style="font-size: 34px; font-weight: bold; color: #000000; line-height: 1.2; margin-top: 10px;">
+                    <div style="font-size: 30px; font-weight: bold; color: #000000; line-height: 1.2; margin-top: 10px;">
                         Rp {grand_total_project:,.2f}
                     </div>
                     <div style="font-size: 16px; color: #888888; margin-top: 8px;">
