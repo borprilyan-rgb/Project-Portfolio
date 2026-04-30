@@ -945,10 +945,9 @@ def show_cost_estimator():
     # --- TAB 5: CUSTOM ITEMS ---
     with tab6:
         st.subheader("Item Tambahan")
-
         default_smart_cc = [{"Item Description": "", "Rate (Rp)": 0.0, "Quantity": 1.0}]
         current_smart_cc = get_val("smart_custom_costs", default_smart_cc)
-
+        
         edited_smart_cc = st.data_editor(
             pd.DataFrame(current_smart_cc),
             num_rows="dynamic",
@@ -963,39 +962,32 @@ def show_cost_estimator():
             },
             use_container_width=True
         )
-
-        smart_custom_costs = 0.0
         
-        # New: List to store breakdown strings
-        smart_custom_inputs = {}
         smart_custom_costs = 0.0
+        smart_custom_inputs = {}
         breakdown_details = []
-
+        
         for index, row in edited_smart_cc.iterrows():
-            # Create a 1-based suffix for your keys (1, 2, 3...)
             suffix = index + 1
             
             desc = row.get("Item Description", "")
             rate = float(row.get("Rate (Rp)", 0.0))
             qty = float(row.get("Quantity", 1.0))
             
-            # Store individual keys as requested
             smart_custom_inputs[f"input_name{suffix}"] = desc
             smart_custom_inputs[f"input_rate{suffix}"] = rate
             smart_custom_inputs[f"input_qty{suffix}"] = qty
             
-            # Keep the total for the UI/Summary
             item_total = rate * qty
             smart_custom_costs += item_total
-
+            
             if rate > 0:
                 calc_str = f"**{desc}**: Rp {rate:,.2f} × {qty} qty = **Rp {item_total:,.2f}**"
                 breakdown_details.append(calc_str)
-
-        # Save this dictionary into your session state / get_val system
-        # This allows you to export it to PROJECT_DATABASE later
-        st.session_state[f"smart_custom_data_{curr_id}"] = smart_custom_inputs
-
+        
+        # Convert DataFrame to list of dictionaries and save
+        st.session_state.projects[curr_id]["data"]["smart_custom_costs"] = edited_smart_cc.to_dict('records')
+        
         st.markdown("---")
         st.markdown(f"### Total Harga Item Custom: Rp {smart_custom_costs:,.2f}")
 
@@ -1387,700 +1379,700 @@ def show_cost_estimator():
         st.markdown("This Page is Intentionally Left Blank")
         
 
-# def show_portfolio_summary():
-#     import io
-#     import xlsxwriter
-#     import re
-#     from datetime import date
+def show_portfolio_summary():
+    import io
+    import xlsxwriter
+    import re
+    from datetime import date
 
-#     tab_summary, tab_detailed = st.tabs(["FAD", "Rekap"])
+    tab_summary, tab_detailed = st.tabs(["FAD", "Rekap"])
     
-#     with tab_summary:
-#             st.subheader("Tabel FAD")
-#             active_id = st.session_state.current_proj_id
-#             today_str = date.today().strftime("%d-%m-%Y")
+    with tab_summary:
+        st.subheader("Tabel FAD")
+        active_id = st.session_state.current_proj_id
+        today_str = date.today().strftime("%d-%m-%Y")
 
-#             if "header_info" not in st.session_state.projects[active_id]["data"]:
-#                 st.session_state.projects[active_id]["data"]["header_info"] = {
-#                     "rev_no": "0", "updated": today_str, "created": today_str
-#                 }
+        if "header_info" not in st.session_state.projects[active_id]["data"]:
+            st.session_state.projects[active_id]["data"]["header_info"] = {
+                "rev_no": "0", "updated": today_str, "created": today_str
+            }
 
-#             with st.expander("Edit Header & Assumptions", expanded=False):
-#                 h_col1, h_col2, h_col3 = st.columns(3)
-#                 rev_input = h_col1.text_input("Revision Number:", value=st.session_state.projects[active_id]["data"]["header_info"]["rev_no"], key=f"rev_{active_id}")
-#                 upd_input = h_col2.text_input("Updated Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["updated"], key=f"upd_{active_id}")
-#                 cre_input = h_col3.text_input("Created Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["created"], key=f"cre_{active_id}")
-#                 st.session_state.projects[active_id]["data"]["header_info"] = {"rev_no": rev_input, "updated": upd_input, "created": cre_input}
+        with st.expander("Edit Header & Assumptions", expanded=False):
+            h_col1, h_col2, h_col3 = st.columns(3)
+            rev_input = h_col1.text_input("Revision Number:", value=st.session_state.projects[active_id]["data"]["header_info"]["rev_no"], key=f"rev_{active_id}")
+            upd_input = h_col2.text_input("Updated Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["updated"], key=f"upd_{active_id}")
+            cre_input = h_col3.text_input("Created Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["created"], key=f"cre_{active_id}")
+            st.session_state.projects[active_id]["data"]["header_info"] = {"rev_no": rev_input, "updated": upd_input, "created": cre_input}
 
-#                 st.divider()
-#                 current_assums = st.session_state.projects[active_id]["data"].get("assumptions", [
-#                     "Foundation System Standard Pilecaps.",
-#                     "No Basement.",
-#                     "Parking Provision Limited To On Street Level Parking",
-#                     "Floor To Floor Height At 3.3M",
-#                     "Facade Alumunium Window Wall - No Double Skin",
-#                     "External Façade Precast, No Double Skin For Parking Podium If Any.",
-#                     "Ground Lobby Finishes Completed With Artificial Stone & HT.",
-#                     "Typical Corridor | Floor Finishes : HT | Wall Finishes : Cement Sand Plaster C/W Emulsion Paint.",
-#                     "Aircon System | Apartement : AC Split",
-#                     "SBO Rebars @ Rp. 10.000/Kg",
-#                     "Excluded Smarthome",
-#                     "Lift : 2 Passenger Lift + 1 Services Lift / TOWER",
-#                     "Exclude Wardrobe",
-#                     "FFE : Kitchen Cabinet, Hob & Hood, Refrigerator & Washing Machine",
-#                     "Water Heater : Installation Only",
-#                     "Calculation Area Refer To DP's Calculation Dated 12.03.2026"
-#                 ])
+            st.divider()
+            current_assums = st.session_state.projects[active_id]["data"].get("assumptions", [
+                "Foundation System Standard Pilecaps.",
+                "No Basement.",
+                "Parking Provision Limited To On Street Level Parking",
+                "Floor To Floor Height At 3.3M",
+                "Facade Alumunium Window Wall - No Double Skin",
+                "External Façade Precast, No Double Skin For Parking Podium If Any.",
+                "Ground Lobby Finishes Completed With Artificial Stone & HT.",
+                "Typical Corridor | Floor Finishes : HT | Wall Finishes : Cement Sand Plaster C/W Emulsion Paint.",
+                "Aircon System | Apartement : AC Split",
+                "SBO Rebars @ Rp. 10.000/Kg",
+                "Excluded Smarthome",
+                "Lift : 2 Passenger Lift + 1 Services Lift / TOWER",
+                "Exclude Wardrobe",
+                "FFE : Kitchen Cabinet, Hob & Hood, Refrigerator & Washing Machine",
+                "Water Heater : Installation Only",
+                "Calculation Area Refer To DP's Calculation Dated 12.03.2026"
+            ])
 
-#                 df_assum = pd.DataFrame(current_assums, columns=["Note"])
-#                 ed_assum = st.data_editor(df_assum, num_rows="dynamic", use_container_width=True, key=f"ed_sum_{active_id}")
+            df_assum = pd.DataFrame(current_assums, columns=["Note"])
+            ed_assum = st.data_editor(df_assum, num_rows="dynamic", use_container_width=True, key=f"ed_sum_{active_id}")
 
-#                 new_list = ed_assum["Note"].dropna().tolist()
-#                 if new_list != current_assums:
-#                     st.session_state.projects[active_id]["data"]["assumptions"] = new_list
+            new_list = ed_assum["Note"].dropna().tolist()
+            if new_list != current_assums:
+                st.session_state.projects[active_id]["data"]["assumptions"] = new_list
 
-#             # --- MANUAL PROJECTS EDITOR ---
-#             st.markdown("---")
-#             st.subheader("Manual Additional Projects")
-#             st.caption("Add custom projects to the FAD summary below. Cost Ratios (Rp/m2) will be calculated automatically.")
+        # --- MANUAL PROJECTS EDITOR ---
+        st.markdown("---")
+        st.subheader("Manual Additional Projects")
+        st.caption("Add custom projects to the FAD summary below. Cost Ratios (Rp/m2) will be calculated automatically.")
+        
+        if "manual_fad_projects" not in st.session_state:
+            st.session_state.manual_fad_projects = pd.DataFrame(columns=[
+                "Project Name", "GBA", "GFA", "SGFA", "Units", "Budget Estimate (Rp)"
+            ])
+
+        edited_manual_df = st.data_editor(
+            st.session_state.manual_fad_projects,
+            num_rows="dynamic",
+            use_container_width=True,
+            key="manual_fad_editor",
+            column_config={
+                "GBA": st.column_config.NumberColumn("GBA", min_value=0, format="%.0f"),
+                "GFA": st.column_config.NumberColumn("GFA", min_value=0, format="%.0f"),
+                "SGFA": st.column_config.NumberColumn("SGFA", min_value=0, format="%.0f"),
+                "Units": st.column_config.NumberColumn("Units", min_value=0, format="%.0f"),
+                "Budget Estimate (Rp)": st.column_config.NumberColumn("Budget Estimate (Rp)", min_value=0, format="%.0f")
+            }
+        )
+
+        rev_label = f"R({rev_input})"
+        h_upd = upd_input
+        h_cre = cre_input
+        dynamic_assumptions = current_assums
+
+
+        def get_project_totals(proj_dict):
+            d = proj_dict.get("data", {})
+            pt_data = PROJECT_DATABASE.get(proj_dict.get("type", "Hotel"), PROJECT_DATABASE.get("Hotel", {}))
             
-#             if "manual_fad_projects" not in st.session_state:
-#                 st.session_state.manual_fad_projects = pd.DataFrame(columns=[
-#                     "Project Name", "GBA", "GFA", "SGFA", "Units", "Budget Estimate (Rp)"
-#                 ])
-
-#             edited_manual_df = st.data_editor(
-#                 st.session_state.manual_fad_projects,
-#                 num_rows="dynamic",
-#                 use_container_width=True,
-#                 key="manual_fad_editor",
-#                 column_config={
-#                     "GBA": st.column_config.NumberColumn("GBA", min_value=0, format="%.0f"),
-#                     "GFA": st.column_config.NumberColumn("GFA", min_value=0, format="%.0f"),
-#                     "SGFA": st.column_config.NumberColumn("SGFA", min_value=0, format="%.0f"),
-#                     "Units": st.column_config.NumberColumn("Units", min_value=0, format="%.0f"),
-#                     "Budget Estimate (Rp)": st.column_config.NumberColumn("Budget Estimate (Rp)", min_value=0, format="%.0f")
-#                 }
-#             )
-
-#             rev_label = f"R({rev_input})"
-#             h_upd = upd_input
-#             h_cre = cre_input
-#             dynamic_assumptions = current_assums
-
-#             def get_project_totals(proj_dict):
-#                 d = proj_dict.get("data", {})
-#                 pt_data = PROJECT_DATABASE.get(proj_dict["type"], PROJECT_DATABASE["Hotel"])
-#                 def v(key, default=0.0):
-#                     return d.get(key, pt_data.get(key, default))
-#                 gba = v("m_gba"); gfa = v("m_gfa"); sgfa = v("m_sgfa")
-#                 rooms = v("m_rooms"); facade = v("m_facade")
-#                 f_mult = fl_waste * fl_skirt
-#                 hc = (
-#                     (gba * v("u_earth")) + (gba * v("u_found")) + (gba * v("u_struc")) + (gfa * v("u_arch")) +
-#                     (facade * (v("r_fac_pre") / 100) * v("u_f_pre")) + (facade * (v("r_fac_win") / 100) * v("u_f_win")) +
-#                     (facade * (v("r_fac_doub") / 100) * v("u_f_doub")) + (v("m_door_w") * v("u_d_wood")) +
-#                     (v("m_door_g") * v("u_d_glass")) + (v("m_door_s") * v("u_d_steel")) +
-#                     (v("m_lobby") * v("u_lobby")) + (v("m_gondola") * v("u_gondola")) +
-#                     (rooms * v("r_san_qty") * v("u_s_room")) + (v("m_toil_m") * v("u_s_pub_m")) +
-#                     (v("m_toil_f") * v("u_s_pub_f")) + (v("m_toil_d") * v("u_s_dis")) +
-#                     (v("m_mushola") * v("u_s_mushola")) + (rooms * v("u_kit")) +
-#                     (v("m_door_w") * v("u_hw_wood")) + (v("m_door_s") * v("u_hw_steel")) +
-#                     (gfa * (v("r_fl_ht") / 100) * v("u_fl_ht") * f_mult) +
-#                     (gfa * (v("r_fl_vin") / 100) * v("u_fl_vin") * f_mult) +
-#                     (gfa * (v("r_fl_mar") / 100) * v("u_fl_mar") * f_mult) +
-#                     (v("m_carpet") * v("u_carpet")) + (v("m_glass") * v("u_glass")) +
-#                     (rooms * v("u_ffe")) + (v("u_misc") * d.get("misc_switch", 0)) +
-#                     (gba * v("u_mep")) + (gba * v("u_util")) +
-#                     (rooms * v("r_rail_qty") * v("u_rail")) + (v("m_skylight") * v("u_sky")) +
-#                     (v("m_land_m2") * v("u_ext")) + (v("m_fac_pub") * v("u_fac_p")) +
-#                     (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr")) + v("smart_custom_costs")
-#                 )
-                
-#                 custom_costs = d.get("smart_custom_costs", [])
-#                 dep_map = {
-#                     "None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa,
-#                     "Land Area": v("m_land"), "Rooms": rooms, "Facade": facade, "Lobby": v("m_lobby")
-#                 }
-#                 for item in custom_costs:
-#                     hc += (float(item.get("Rate (Rp)", 0)) * float(item.get("Quantity", 1)) *
-#                         dep_map.get(item.get("Linked Dependency"), 1.0))
-#                 hc_total = hc + (hc * 0.05) + (hc * 0.03)
-#                 sc_total = ((gfa * v("sc_cons")) + (v("sc_qs_m") * v("sc_qs_r")) +
-#                             (v("sc_pm_m") * v("sc_pm_r")) + (hc * (v("sc_ins") / 100)))
-#                 return {"gba": gba, "gfa": gfa, "sgfa": sgfa, "units": rooms, "budget": hc_total + sc_total}
-
-#             # --- DATA AGGREGATION (CALCULATED + MANUAL) ---
-#             combined_results = []
-#             idx = 1
+            # Safety net: Prevents app crashes if a user leaves a cell blank ("") in the data editor
+            def v(key, default=0.0):
+                try: return float(d.get(key, pt_data.get(key, default)))
+                except (ValueError, TypeError): return default
             
-#             # 1. Add Auto-Calculated Projects
-#             for p_id, p_data in st.session_state.projects.items():
-#                 m = get_project_totals(p_data)
-#                 combined_results.append({
-#                     "idx": idx, "name": p_data["name"].upper(),
-#                     "gba": m["gba"], "gfa": m["gfa"], "sgfa": m["sgfa"],
-#                     "units": m["units"], "budget": m["budget"]
-#                 })
-#                 idx += 1
+            gba = v("m_gba")
+            gfa = v("m_gfa")
+            sgfa = v("m_sgfa")
+            facade = v("m_facade")
+            rooms = v("m_rooms")
 
-#             # 2. Add Manual Projects
-#             edited_manual_df = edited_manual_df.fillna(0) # <--- ADD THIS LINE
-#             for _, row in edited_manual_df.iterrows():
-#                 p_name = str(row.get("Project Name", f"MANUAL PROJECT {idx}"))
-#                 if p_name == "nan" or not p_name.strip(): p_name = f"MANUAL PROJECT {idx}"
-                
-#                 combined_results.append({
-#                     "idx": idx, "name": p_name.upper(),
-#                     "gba": float(row.get("GBA", 0) or 0),
-#                     "gfa": float(row.get("GFA", 0) or 0),
-#                     "sgfa": float(row.get("SGFA", 0) or 0),
-#                     "units": float(row.get("Units", 0) or 0),
-#                     "budget": float(row.get("Budget Estimate (Rp)", 0) or 0)
-#                 })
-#                 idx += 1
+            # --- 1. Custom Costs Calculation ---
+            c_costs = d.get("smart_custom_costs", [])
 
-#             # 3. Calculate Ratios & Totals
-#             table_rows_html = ""
-#             total_gba = total_gfa = total_sgfa = total_budget = 0
+            smart_custom_costs = sum([(float(item.get("Rate (Rp)", 0)) * 
+                                       float(item.get("Quantity", 1))) for item in c_costs])
 
-#             for p in combined_results:
-#                 r_gba  = p["budget"] / p["gba"]  if p["gba"]  > 0 else 0
-#                 r_gfa  = p["budget"] / p["gfa"]  if p["gfa"]  > 0 else 0
-#                 r_sgfa = p["budget"] / p["sgfa"] if p["sgfa"] > 0 else 0
-
-#                 p["r_gba"] = r_gba
-#                 p["r_gfa"] = r_gfa
-#                 p["r_sgfa"] = r_sgfa
-
-#                 total_gba += p["gba"]
-#                 total_gfa += p["gfa"]
-#                 total_sgfa += p["sgfa"]
-#                 total_budget += p["budget"]
-
-#                 table_rows_html += (
-#                     f"<tr>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{p['idx']}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;text-align:left;'><b>{p['name']}</b></td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{p['gba']:,.0f}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{p['gfa']:,.0f}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{p['sgfa']:,.0f}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{p['units']:,.0f}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>Units</td>"
-#                     f"<td style='border:1px solid black;padding:5px;text-align:right;'><b>{p['budget']:,.0f}</b></td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{r_gba:,.0f}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{r_gfa:,.0f}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{r_sgfa:,.0f}</td>"
-#                     f"</tr>"
-#                 )
-
-#             t_r_gba  = total_budget / total_gba  if total_gba  > 0 else 0
-#             t_r_gfa  = total_budget / total_gfa  if total_gfa  > 0 else 0
-#             t_r_sgfa = total_budget / total_sgfa if total_sgfa > 0 else 0
-
-#             # --- EXCEL BUILDER ---
-#             buffer = io.BytesIO()
-#             workbook = xlsxwriter.Workbook(buffer, {"in_memory": True, "nan_inf_to_errors": True})
-#             worksheet = workbook.add_worksheet("Portfolio Summary")
-
-#             f_blue_L    = workbook.add_format({"bg_color": "#0062a8", "font_color": "white", "bold": True, "valign": "vcenter"})
-#             f_th        = workbook.add_format({"bg_color": "#f2f2f2", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "text_wrap": True})
-#             f_td_c      = workbook.add_format({"align": "center", "valign": "vcenter", "border": 1})
-#             f_td_L_b    = workbook.add_format({"align": "left", "valign": "vcenter", "border": 1, "bold": True})
-#             f_td_R_b    = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1, "bold": True, "num_format": "#,##0"})
-#             f_td_num    = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
-#             f_tot_L     = workbook.add_format({"bg_color": "#e0e0e0", "bold": True, "align": "center", "valign": "vcenter", "border": 1})
-#             f_tot_num   = workbook.add_format({"bg_color": "#e0e0e0", "bold": True, "align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
-#             f_tot_empty = workbook.add_format({"bg_color": "#e0e0e0", "border": 1})
-#             f_assum_h   = workbook.add_format({"bg_color": "#ffdf70", "bold": True, "border": 1, "valign": "vcenter"})
-#             f_assum_c   = workbook.add_format({"align": "center", "border": 1})
-#             f_assum_L   = workbook.add_format({"align": "left", "border": 1})
-
-#             worksheet.set_column("A:A", 5); worksheet.set_column("B:B", 38); worksheet.set_column("C:E", 15)
-#             worksheet.set_column("F:F", 10); worksheet.set_column("G:G", 8); worksheet.set_column("H:H", 22)
-#             worksheet.set_column("I:K", 15)
-
-#             for row in range(5):
-#                 worksheet.merge_range(row, 0, row, 10, "", f_blue_L)
-#             worksheet.write_string(0, 0, f"ASG GROUP PROPERTY DEVELOPMENT | VERSION : {rev_label}", f_blue_L)
-#             worksheet.write_string(1, 0, "QS & PROCUREMENT DIVISION", f_blue_L)
-#             worksheet.write_string(2, 0, "PROJECT PORTFOLIO | ALL ACTIVE PROJECTS", f_blue_L)
-#             worksheet.write_string(3, 0, f"REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA | UPDATED : {h_upd}", f_blue_L)
-#             worksheet.write_string(4, 0, f"BUDGET ESTIMATE {rev_label} | CREATED : {h_cre}", f_blue_L)
-
-#             worksheet.merge_range("A7:A8", "SN", f_th); worksheet.merge_range("B7:B8", "AREA", f_th)
-#             worksheet.merge_range("C7:E7", "BUILDING AREA (M2)", f_th)
-#             worksheet.write_string("C8", "GBA", f_th); worksheet.write_string("D8", "GFA", f_th); worksheet.write_string("E8", "SGFA", f_th)
-#             worksheet.merge_range("F7:G8", "UNIT", f_th); worksheet.merge_range("H7:H8", "BUDGET ESTIMATE\nRP", f_th)
-#             worksheet.merge_range("I7:K7", "COST RATIO RP/M2", f_th)
-#             worksheet.write_string("I8", "GBA", f_th); worksheet.write_string("J8", "GFA", f_th); worksheet.write_string("K8", "SGFA", f_th)
-
-#             row_idx = 8
-#             for p in combined_results:
-#                 worksheet.write_number(row_idx, 0, p["idx"], f_td_c)
-#                 worksheet.write_string(row_idx, 1, p["name"], f_td_L_b)
-#                 worksheet.write_number(row_idx, 2, p["gba"], f_td_num)
-#                 worksheet.write_number(row_idx, 3, p["gfa"], f_td_num)
-#                 worksheet.write_number(row_idx, 4, p["sgfa"], f_td_num)
-#                 worksheet.write_number(row_idx, 5, p["units"], f_td_c)
-#                 worksheet.write_string(row_idx, 6, "Units", f_td_c)
-#                 worksheet.write_number(row_idx, 7, p["budget"], f_td_R_b)
-#                 worksheet.write_number(row_idx, 8, p["r_gba"], f_td_num)
-#                 worksheet.write_number(row_idx, 9, p["r_gfa"], f_td_num)
-#                 worksheet.write_number(row_idx, 10, p["r_sgfa"], f_td_num)
-#                 row_idx += 1
-
-#             worksheet.merge_range(row_idx, 0, row_idx, 1, "TOTAL", f_tot_L)
-#             worksheet.write_number(row_idx, 2, total_gba, f_tot_num)
-#             worksheet.write_number(row_idx, 3, total_gfa, f_tot_num)
-#             worksheet.write_number(row_idx, 4, total_sgfa, f_tot_num)
-#             worksheet.write_string(row_idx, 5, "", f_tot_empty)
-#             worksheet.write_string(row_idx, 6, "", f_tot_empty)
-#             worksheet.write_number(row_idx, 7, total_budget, f_tot_num)
-#             worksheet.write_number(row_idx, 8, t_r_gba, f_tot_num)
-#             worksheet.write_number(row_idx, 9, t_r_gfa, f_tot_num)
-#             worksheet.write_number(row_idx, 10, t_r_sgfa, f_tot_num)
-
-#             row_idx += 2
-#             worksheet.write_string(row_idx, 0, "I.", f_assum_h)
-#             worksheet.merge_range(row_idx, 1, row_idx, 10, "ASSUMPTIONS", f_assum_h)
-#             for i, assum in enumerate(dynamic_assumptions, 1):
-#                 row_idx += 1
-#                 worksheet.write_number(row_idx, 0, i, f_assum_c)
-#                 text = str(assum)
-#                 date_match = re.search(r"(\d{2}[./-]\d{2}[./-]\d{4})", text)
-#                 if date_match:
-#                     worksheet.merge_range(row_idx, 1, row_idx, 10, "", f_assum_L)
-#                     parts = text.split(date_match.group(1))
-#                     rich_args = []
-#                     if parts[0]: rich_args.append(parts[0])
-#                     rich_args.extend([workbook.add_format({"font_color": "red"}), date_match.group(1)])
-#                     if len(parts) > 1 and parts[1]: rich_args.append(parts[1])
-#                     worksheet.write_rich_string(row_idx, 1, *rich_args, f_assum_L)
-#                 else:
-#                     worksheet.merge_range(row_idx, 1, row_idx, 10, text, f_assum_L)
-#             workbook.close()
-
-#             st.download_button(
-#                 label="Download FAD as .xlsx",
-#                 data=buffer.getvalue(),
-#                 file_name=f"ASG_Portfolio_{active_id}.xlsx",
-#                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-#                 use_container_width=True
-#             )
-
-#             # --- HTML TABLE RENDER ---
-#             assum_html_rows = ""
-#             for i, assum in enumerate(dynamic_assumptions, 1):
-#                 display_text = re.sub(r"(\d{2}[./-]\d{2}[./-]\d{4})", r"<span style='color:red;'>\1</span>", str(assum))
-#                 assum_html_rows += (
-#                     f"<tr><td style='text-align:center;border-right:1px solid #e0e0e0;padding:2px;'>{i}</td>"
-#                     f"<td style='padding:2px 5px;'>{display_text}</td></tr>"
-#                 )
-
-#             html_string = f"""
-#             <div style="font-family:Calibri,sans-serif;font-size:13px;color:black;background-color:white;padding:20px;border-radius:5px;">
-#                 <div style="background-color:#0062a8;color:white;padding:12px;font-weight:bold;line-height:1.6;font-size:14px;text-align:left;">
-#                     <div>ASG GROUP PROPERTY DEVELOPMENT <span style="margin-left:20px;">VERSION : {rev_label}</span></div>
-#                     <div>QS &amp; PROCUREMENT DIVISION</div>
-#                     <div>PROJECT PORTFOLIO | ALL ACTIVE PROJECTS</div>
-#                     <div>REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA <span style="margin-left:20px;">UPDATED : {h_upd}</span></div>
-#                     <div>BUDGET ESTIMATE {rev_label} <span style="margin-left:20px;">CREATED : {h_cre}</span></div>
-#                 </div>
-#                 <br>
-#                 <table style="width:100%;border-collapse:collapse;border:2px solid black;text-align:center;">
-#                     <tr style="background-color:#f2f2f2;font-weight:bold;">
-#                         <td rowspan="2" style="border:1px solid black;padding:5px;">SN</td>
-#                         <td rowspan="2" style="border:1px solid black;padding:5px;">AREA</td>
-#                         <td colspan="3" style="border:1px solid black;padding:5px;">BUILDING AREA (M2)</td>
-#                         <td colspan="2" rowspan="2" style="border:1px solid black;padding:5px;">UNIT</td>
-#                         <td rowspan="2" style="border:1px solid black;padding:5px;">BUDGET ESTIMATE<br>RP</td>
-#                         <td colspan="3" style="border:1px solid black;padding:5px;">COST RATIO RP/M2</td>
-#                     </tr>
-#                     <tr style="background-color:#f2f2f2;font-weight:bold;">
-#                         <td style="border:1px solid black;padding:5px;">GBA</td>
-#                         <td style="border:1px solid black;padding:5px;">GFA</td>
-#                         <td style="border:1px solid black;padding:5px;">SGFA</td>
-#                         <td style="border:1px solid black;padding:5px;">GBA</td>
-#                         <td style="border:1px solid black;padding:5px;">GFA</td>
-#                         <td style="border:1px solid black;padding:5px;">SGFA</td>
-#                     </tr>
-#                     {table_rows_html}
-#                     <tr style="background-color:#e0e0e0;font-weight:bold;">
-#                         <td colspan="2" style="border:1px solid black;padding:5px;">TOTAL</td>
-#                         <td style="border:1px solid black;padding:5px;">{total_gba:,.0f}</td>
-#                         <td style="border:1px solid black;padding:5px;">{total_gfa:,.0f}</td>
-#                         <td style="border:1px solid black;padding:5px;">{total_sgfa:,.0f}</td>
-#                         <td colspan="2" style="border:1px solid black;padding:5px;"></td>
-#                         <td style="border:1px solid black;padding:5px;text-align:right;">{total_budget:,.0f}</td>
-#                         <td style="border:1px solid black;padding:5px;">{t_r_gba:,.0f}</td>
-#                         <td style="border:1px solid black;padding:5px;">{t_r_gfa:,.0f}</td>
-#                         <td style="border:1px solid black;padding:5px;">{t_r_sgfa:,.0f}</td>
-#                     </tr>
-#                 </table>
-#                 <br>
-#                 <table style="width:100%;border-collapse:collapse;border:1px solid #dcdcdc;text-align:left;">
-#                     <tr style="background-color:#ffdf70;font-weight:bold;">
-#                         <td style="border:1px solid white;padding:3px 5px;width:30px;text-align:center;">I.</td>
-#                         <td style="border:1px solid white;padding:3px 5px;">ASSUMPTIONS</td>
-#                     </tr>
-#                     {assum_html_rows}
-#                 </table>
-#             </div>
-#             """
-#             st.markdown(html_string.replace("\n", ""), unsafe_allow_html=True)
-
-#     with tab_detailed:
-#             st.subheader("Tabel Rekapitulasi")
-
-#             # 1. SETUP: Prepare to collect data for ALL projects
-#             all_projects_data = []
-#             grand_total_all_projects = 0
+            # --- 2. Detailed Item Calculations ---
+            t_earth = gba * v("u_earth")
+            t_found = gba * v("u_found")
+            t_struc = gba * v("u_struc")
             
-#             # Area trackers for combined ratios
-#             total_gba_all = 0; total_gfa_all = 0; total_sgfa_all = 0
+            # Architecture Components
+            t_arch_base = gfa * v("u_arch")
+            t_precast = facade * (v("r_fac_pre") / 100.0) * v("u_f_pre")
+            t_window  = facade * (v("r_fac_win") / 100.0) * v("u_f_win")
+            t_double  = facade * (v("r_fac_doub") / 100.0) * v("u_f_doub")
+            t_w_door = v("m_door_w") * v("u_d_wood")
+            t_g_door = v("m_door_g") * v("u_d_glass")
+            t_s_door = v("m_door_s") * v("u_d_steel")
+            t_lobby  = v("m_lobby") * v("u_lobby")
+            t_gondola = v("m_gondola") * v("u_gondola")
+            t_unit_san = rooms * v("r_san_qty", 1.0) * v("u_s_room")
+            t_t_male   = v("m_toil_m") * v("u_s_pub_m")
+            t_t_female = v("m_toil_f") * v("u_s_pub_f")
+            t_t_dis    = v("m_toil_d") * v("u_s_dis")
+            t_mushola  = v("m_mushola") * v("u_s_mushola")
+            t_kitchen = rooms * v("u_kit")
+            t_hw_w    = v("m_door_w") * v("u_hw_wood")
+            t_hw_s    = v("m_door_s") * v("u_hw_steel")
             
-#             # Subtotal trackers for the first "TOTAL" column
-#             sum_hardcost = 0; sum_prelim = 0; sum_earth = 0; sum_found = 0; sum_struc = 0
-#             sum_arch = 0; sum_ffe = 0; sum_mep = 0; sum_util = 0; sum_ext = 0; sum_fac = 0
-#             sum_cont = 0; sum_softcost = 0; sum_cons = 0; sum_qs = 0; sum_pm = 0; sum_ins = 0
-
-#             # 2. CALCULATE EACH PROJECT
-#             for p_id, p_dict in st.session_state.projects.items():
-#                 d = p_dict.get("data", {})
-#                 pt_data = PROJECT_DATABASE.get(p_dict["type"], PROJECT_DATABASE["Hotel"])
-                
-#                 def v(key, default=0.0):
-#                     try:
-#                         return float(d.get(key, pt_data.get(key, default)))
-#                     except (ValueError, TypeError):
-#                         return 0.0
-
-#                 gba = v("m_gba"); gfa = v("m_gfa"); sgfa = v("m_sgfa")
-#                 facade = v("m_facade"); rooms = v("m_rooms")
-#                 f_mult = fl_waste * fl_skirt
-
-#                 # Hardcosts
-#                 v_earth = gba * v("u_earth")
-#                 v_found = gba * v("u_found")
-#                 v_struc = gba * v("u_struc")
-#                 v_arch = (
-#                     (gfa * v("u_arch")) + (facade * (v("r_fac_pre") / 100) * v("u_f_pre")) + 
-#                     (facade * (v("r_fac_win") / 100) * v("u_f_win")) + (facade * (v("r_fac_doub") / 100) * v("u_f_doub")) + 
-#                     (v("m_door_w") * v("u_d_wood")) + (v("m_door_g") * v("u_d_glass")) + (v("m_door_s") * v("u_d_steel")) + 
-#                     (v("m_lobby") * v("u_lobby")) + (v("m_gondola") * v("u_gondola")) + (rooms * v("r_san_qty") * v("u_s_room")) + 
-#                     (v("m_toil_m") * v("u_s_pub_m")) + (v("m_toil_f") * v("u_s_pub_f")) + (v("m_toil_d") * v("u_s_dis")) + 
-#                     (v("m_mushola") * v("u_s_mushola")) + (v("m_door_w") * v("u_hw_wood")) + (v("m_door_s") * v("u_hw_steel")) + 
-#                     (gfa * (v("r_fl_ht") / 100) * v("u_fl_ht") * f_mult) + (gfa * (v("r_fl_vin") / 100) * v("u_fl_vin") * f_mult) + 
-#                     (gfa * (v("r_fl_mar") / 100) * v("u_fl_mar") * f_mult) + (v("m_carpet") * v("u_carpet")) + 
-#                     (v("m_glass") * v("u_glass")) + (rooms * v("r_rail_qty") * v("u_rail")) + (v("m_skylight") * v("u_sky")) + (v("smart_custom_costs"))
-#                 )
-#                 v_ffe = (rooms * v("u_ffe")) + (rooms * v("u_kit")) + (v("u_misc") * d.get("misc_switch", 0))
-#                 v_mep = gba * v("u_mep")
-#                 v_util = gba * v("u_util")
-#                 v_ext = v("m_land_m2") * v("u_ext")
-#                 v_fac = (v("m_fac_pub") * v("u_fac_p")) + (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr"))
-                
-#                 # Custom
-#                 c_costs = d.get("smart_custom_costs", [])
-#                 dep_map = {"None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa, "Land Area": v("m_land"), "Rooms": rooms, "Facade": facade, "Lobby": v("m_lobby")}
-#                 v_custom = sum([(float(item.get("Rate (Rp)", 0)) * float(item.get("Quantity", 1)) * dep_map.get(item.get("Linked Dependency"), 1.0)) for item in c_costs])
-
-#                 hc_sub = v_earth + v_found + v_struc + v_arch + v_ffe + v_mep + v_util + v_ext + v_fac + v_custom
-#                 v_prelim = (hc_sub) * 0.05
-#                 v_cont = (hc_sub) * 0.03
-#                 hc_tot = hc_sub + v_prelim + v_cont
-
-#                 # Softcosts
-#                 v_cons = gfa * v("sc_cons")
-#                 v_qs = v("sc_qs_m") * v("sc_qs_r")
-#                 v_pm = v("sc_pm_m") * v("sc_pm_r")
-#                 v_ins = (hc_sub) * (v("sc_ins") / 100)
-#                 sc_tot = v_cons + v_qs + v_pm + v_ins
-                
-#                 p_grand = hc_tot + sc_tot
-
-#                 # Store for this project
-#                 proj_data = {
-#                     "name": p_dict["name"], "gba": gba, "gfa": gfa, "sgfa": sgfa, "grand": p_grand,
-#                     "vals": {
-#                         "hc": hc_tot, "prelim": v_prelim, "earth": v_earth, "found": v_found, "struc": v_struc,
-#                         "arch": v_arch, "ffe": v_ffe, "mep": v_mep, "util": v_util, "ext": v_ext, "fac": v_fac,
-#                         "cont": v_cont, "sc": sc_tot, "cons": v_cons, "qs": v_qs, "pm": v_pm, "ins": v_ins
-#                     }
-#                 }
-#                 all_projects_data.append(proj_data)
-
-#                 # Add to grand totals
-#                 total_gba_all += gba
-#                 total_gfa_all += gfa
-#                 total_sgfa_all += sgfa
-                
-#                 sum_hardcost += hc_tot; sum_prelim += v_prelim; sum_earth += v_earth; sum_found += v_found
-#                 sum_struc += v_struc; sum_arch += v_arch; sum_ffe += v_ffe; sum_mep += v_mep
-#                 sum_util += v_util; sum_ext += v_ext; sum_fac += v_fac; sum_cont += v_cont
-#                 sum_softcost += sc_tot; sum_cons += v_cons; sum_qs += v_qs; sum_pm += v_pm; sum_ins += v_ins
-#                 grand_total_all_projects += p_grand
-
-#             # 3. BUILD DYNAMIC HTML HEADERS
-#             color_palette = ["#ccffe6", "#ffe6e6", "#e6e6ff", "#ffffe6", "#ffe6ff"] # Colors for different projects
+            f_mult = (1 + (v("fl_waste", 5.0) / 100.0)) * (1 + (v("fl_skirt", 10.0) / 100.0))
+            t_ht      = gfa * (v("r_fl_ht") / 100.0) * v("u_fl_ht") * f_mult
+            t_vinyl   = gfa * (v("r_fl_vin") / 100.0) * v("u_fl_vin") * f_mult
+            t_marmer  = gfa * (v("r_fl_mar") / 100.0) * v("u_fl_mar") * f_mult
             
-#             # Header Row 1 (Project Names)
-#             header_col_names = f'<td colspan="4" style="border:1px solid black; padding:4px; background-color: #e6f2ff;">TOTAL <span style="margin:0 15px;">Cost Ratio (Rp/m2)</span></td>'
+            t_carpet     = v("m_carpet") * v("u_carpet")
+            t_glass_work = v("m_glass") * v("u_glass")
+            t_railing    = (rooms * v("r_rail_qty", 1.0)) * v("u_rail")
+            t_skylight   = v("m_skylight") * v("u_sky")
+
+            # ---> TOTAL ARCHITECTURE (Includes Custom Costs)
+            total_arch = (t_arch_base + t_precast + t_window + t_double + t_w_door + t_g_door + t_s_door + 
+                          t_lobby + t_gondola + t_unit_san + t_t_male + t_t_female + t_t_dis + t_mushola + 
+                          t_kitchen + t_hw_w + t_hw_s + t_ht + t_vinyl + t_marmer + t_carpet + t_glass_work + 
+                          t_railing + t_skylight + smart_custom_costs)
+
+            # Other Hardcosts
+            t_ffe        = (rooms * v("u_ffe")) + (v("u_misc") * float(d.get("misc_switch", 0)))
+            t_mep        = gba * v("u_mep")
+            t_utility    = gba * v("u_util")
+            t_external   = v("m_land_m2", v("m_land")) * v("u_ext")
+            t_fac        = (v("m_fac_pub") * v("u_fac_p")) + (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr"))
+
+            # --- 3. Subtotals & Grand Totals ---
+            construction_subtotal = t_earth + t_found + t_struc + total_arch + t_ffe + t_mep + t_utility + t_external + t_fac
+
+            t_preliminary = construction_subtotal * 0.05
+            t_contingency = (construction_subtotal + t_preliminary) * 0.03
+            grand_total_hc = construction_subtotal + t_preliminary + t_contingency
+
+            t_consultancy = gfa * v("sc_cons")
+            t_qs = v("sc_qs_m") * v("sc_qs_r")
+            t_pm = v("sc_pm_m") * v("sc_pm_r")
+            t_insurance = grand_total_hc * (v("sc_ins") / 100.0)
+
+            total_soft_cost = t_consultancy + t_qs + t_pm + t_insurance
+            grand_total_project = grand_total_hc + total_soft_cost
+
+            # Return exactly what the loops need
+            return {
+                "gba": gba, "gfa": gfa, "sgfa": sgfa, "units": rooms, "budget": grand_total_project,
+                "earth": t_earth, "found": t_found, "struc": t_struc, "arch": total_arch, 
+                "ffe": t_ffe, "mep": t_mep, "util": t_utility, "ext": t_external, "fac": t_fac, 
+                "prelim": t_preliminary, "cont": t_contingency, "hc": grand_total_hc, 
+                "cons": t_consultancy, "qs": t_qs, "pm": t_pm, "ins": t_insurance, "sc": total_soft_cost
+            }
+
+        # --- DATA AGGREGATION (CALCULATED + MANUAL) ---
+        combined_results = []
+        idx = 1
+        
+        # 1. Add Auto-Calculated Projects
+        for p_id, p_data in st.session_state.projects.items():
+            m = get_project_totals(p_data)
+            combined_results.append({
+                "idx": idx, "name": p_data["name"].upper(),
+                "gba": m["gba"], "gfa": m["gfa"], "sgfa": m["sgfa"],
+                "units": m["units"], "budget": m["budget"]
+            })
+            idx += 1
+
+        # 2. Add Manual Projects
+        edited_manual_df = edited_manual_df.fillna(0) 
+        for _, row in edited_manual_df.iterrows():
+            p_name = str(row.get("Project Name", f"MANUAL PROJECT {idx}"))
+            if p_name == "nan" or not p_name.strip(): p_name = f"MANUAL PROJECT {idx}"
             
-#             # Header Row 2 (Cost Ratio Titles)
-#             header_ratios = f'<td colspan="4" style="border:1px solid black; padding:4px; background-color: #e6f2ff; color: red;">ALL PROJECTS</td>'
+            combined_results.append({
+                "idx": idx, "name": p_name.upper(),
+                "gba": float(row.get("GBA", 0) or 0),
+                "gfa": float(row.get("GFA", 0) or 0),
+                "sgfa": float(row.get("SGFA", 0) or 0),
+                "units": float(row.get("Units", 0) or 0),
+                "budget": float(row.get("Budget Estimate (Rp)", 0) or 0)
+            })
+            idx += 1
+
+        # 3. Calculate Ratios & Totals
+        table_rows_html = ""
+        total_gba = total_gfa = total_sgfa = total_budget = 0
+
+        for p in combined_results:
+            r_gba  = p["budget"] / p["gba"]  if p["gba"]  > 0 else 0
+            r_gfa  = p["budget"] / p["gfa"]  if p["gfa"]  > 0 else 0
+            r_sgfa = p["budget"] / p["sgfa"] if p["sgfa"] > 0 else 0
+
+            p["r_gba"] = r_gba
+            p["r_gfa"] = r_gfa
+            p["r_sgfa"] = r_sgfa
+
+            total_gba += p["gba"]
+            total_gfa += p["gfa"]
+            total_sgfa += p["sgfa"]
+            total_budget += p["budget"]
+
+            table_rows_html += (
+                f"<tr>"
+                f"<td style='border:1px solid black;padding:5px;'>{p['idx']}</td>"
+                f"<td style='border:1px solid black;padding:5px;text-align:left;'><b>{p['name']}</b></td>"
+                f"<td style='border:1px solid black;padding:5px;'>{p['gba']:,.0f}</td>"
+                f"<td style='border:1px solid black;padding:5px;'>{p['gfa']:,.0f}</td>"
+                f"<td style='border:1px solid black;padding:5px;'>{p['sgfa']:,.0f}</td>"
+                f"<td style='border:1px solid black;padding:5px;'>{p['units']:,.0f}</td>"
+                f"<td style='border:1px solid black;padding:5px;'>Units</td>"
+                f"<td style='border:1px solid black;padding:5px;text-align:right;'><b>{p['budget']:,.0f}</b></td>"
+                f"<td style='border:1px solid black;padding:5px;'>{r_gba:,.0f}</td>"
+                f"<td style='border:1px solid black;padding:5px;'>{r_gfa:,.0f}</td>"
+                f"<td style='border:1px solid black;padding:5px;'>{r_sgfa:,.0f}</td>"
+                f"</tr>"
+            )
+
+        t_r_gba  = total_budget / total_gba  if total_gba  > 0 else 0
+        t_r_gfa  = total_budget / total_gfa  if total_gfa  > 0 else 0
+        t_r_sgfa = total_budget / total_sgfa if total_sgfa > 0 else 0
+
+        # --- EXCEL BUILDER (FAD) ---
+        buffer = io.BytesIO()
+        workbook = xlsxwriter.Workbook(buffer, {"in_memory": True, "nan_inf_to_errors": True})
+        worksheet = workbook.add_worksheet("Portfolio Summary")
+
+        f_blue_L    = workbook.add_format({"bg_color": "#0062a8", "font_color": "white", "bold": True, "valign": "vcenter"})
+        f_th        = workbook.add_format({"bg_color": "#f2f2f2", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "text_wrap": True})
+        f_td_c      = workbook.add_format({"align": "center", "valign": "vcenter", "border": 1})
+        f_td_L_b    = workbook.add_format({"align": "left", "valign": "vcenter", "border": 1, "bold": True})
+        f_td_R_b    = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1, "bold": True, "num_format": "#,##0"})
+        f_td_num    = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
+        f_tot_L     = workbook.add_format({"bg_color": "#e0e0e0", "bold": True, "align": "center", "valign": "vcenter", "border": 1})
+        f_tot_num   = workbook.add_format({"bg_color": "#e0e0e0", "bold": True, "align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
+        f_tot_empty = workbook.add_format({"bg_color": "#e0e0e0", "border": 1})
+        f_assum_h   = workbook.add_format({"bg_color": "#ffdf70", "bold": True, "border": 1, "valign": "vcenter"})
+        f_assum_c   = workbook.add_format({"align": "center", "border": 1})
+        f_assum_L   = workbook.add_format({"align": "left", "border": 1})
+
+        worksheet.set_column("A:A", 5); worksheet.set_column("B:B", 38); worksheet.set_column("C:E", 15)
+        worksheet.set_column("F:F", 10); worksheet.set_column("G:G", 8); worksheet.set_column("H:H", 22)
+        worksheet.set_column("I:K", 15)
+
+        for row in range(5):
+            worksheet.merge_range(row, 0, row, 10, "", f_blue_L)
+        worksheet.write_string(0, 0, f"ASG GROUP PROPERTY DEVELOPMENT | VERSION : {rev_label}", f_blue_L)
+        worksheet.write_string(1, 0, "QS & PROCUREMENT DIVISION", f_blue_L)
+        worksheet.write_string(2, 0, "PROJECT PORTFOLIO | ALL ACTIVE PROJECTS", f_blue_L)
+        worksheet.write_string(3, 0, f"REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA | UPDATED : {h_upd}", f_blue_L)
+        worksheet.write_string(4, 0, f"BUDGET ESTIMATE {rev_label} | CREATED : {h_cre}", f_blue_L)
+
+        worksheet.merge_range("A7:A8", "SN", f_th); worksheet.merge_range("B7:B8", "AREA", f_th)
+        worksheet.merge_range("C7:E7", "BUILDING AREA (M2)", f_th)
+        worksheet.write_string("C8", "GBA", f_th); worksheet.write_string("D8", "GFA", f_th); worksheet.write_string("E8", "SGFA", f_th)
+        worksheet.merge_range("F7:G8", "UNIT", f_th); worksheet.merge_range("H7:H8", "BUDGET ESTIMATE\nRP", f_th)
+        worksheet.merge_range("I7:K7", "COST RATIO RP/M2", f_th)
+        worksheet.write_string("I8", "GBA", f_th); worksheet.write_string("J8", "GFA", f_th); worksheet.write_string("K8", "SGFA", f_th)
+
+        row_idx = 8
+        for p in combined_results:
+            worksheet.write_number(row_idx, 0, p["idx"], f_td_c)
+            worksheet.write_string(row_idx, 1, p["name"], f_td_L_b)
+            worksheet.write_number(row_idx, 2, p["gba"], f_td_num)
+            worksheet.write_number(row_idx, 3, p["gfa"], f_td_num)
+            worksheet.write_number(row_idx, 4, p["sgfa"], f_td_num)
+            worksheet.write_number(row_idx, 5, p["units"], f_td_c)
+            worksheet.write_string(row_idx, 6, "Units", f_td_c)
+            worksheet.write_number(row_idx, 7, p["budget"], f_td_R_b)
+            worksheet.write_number(row_idx, 8, p["r_gba"], f_td_num)
+            worksheet.write_number(row_idx, 9, p["r_gfa"], f_td_num)
+            worksheet.write_number(row_idx, 10, p["r_sgfa"], f_td_num)
+            row_idx += 1
+
+        worksheet.merge_range(row_idx, 0, row_idx, 1, "TOTAL", f_tot_L)
+        worksheet.write_number(row_idx, 2, total_gba, f_tot_num)
+        worksheet.write_number(row_idx, 3, total_gfa, f_tot_num)
+        worksheet.write_number(row_idx, 4, total_sgfa, f_tot_num)
+        worksheet.write_string(row_idx, 5, "", f_tot_empty)
+        worksheet.write_string(row_idx, 6, "", f_tot_empty)
+        worksheet.write_number(row_idx, 7, total_budget, f_tot_num)
+        worksheet.write_number(row_idx, 8, t_r_gba, f_tot_num)
+        worksheet.write_number(row_idx, 9, t_r_gfa, f_tot_num)
+        worksheet.write_number(row_idx, 10, t_r_sgfa, f_tot_num)
+
+        row_idx += 2
+        worksheet.write_string(row_idx, 0, "I.", f_assum_h)
+        worksheet.merge_range(row_idx, 1, row_idx, 10, "ASSUMPTIONS", f_assum_h)
+        for i, assum in enumerate(dynamic_assumptions, 1):
+            row_idx += 1
+            worksheet.write_number(row_idx, 0, i, f_assum_c)
+            text = str(assum)
+            date_match = re.search(r"(\d{2}[./-]\d{2}[./-]\d{4})", text)
+            if date_match:
+                worksheet.merge_range(row_idx, 1, row_idx, 10, "", f_assum_L)
+                parts = text.split(date_match.group(1))
+                rich_args = []
+                if parts[0]: rich_args.append(parts[0])
+                rich_args.extend([workbook.add_format({"font_color": "red"}), date_match.group(1)])
+                if len(parts) > 1 and parts[1]: rich_args.append(parts[1])
+                worksheet.write_rich_string(row_idx, 1, *rich_args, f_assum_L)
+            else:
+                worksheet.merge_range(row_idx, 1, row_idx, 10, text, f_assum_L)
+        workbook.close()
+
+        st.download_button(
+            label="Download FAD as .xlsx",
+            data=buffer.getvalue(),
+            file_name=f"ASG_Portfolio_{active_id}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+
+        # --- HTML TABLE RENDER (FAD) ---
+        assum_html_rows = ""
+        for i, assum in enumerate(dynamic_assumptions, 1):
+            display_text = re.sub(r"(\d{2}[./-]\d{2}[./-]\d{4})", r"<span style='color:red;'>\1</span>", str(assum))
+            assum_html_rows += (
+                f"<tr><td style='text-align:center;border-right:1px solid #e0e0e0;padding:2px;'>{i}</td>"
+                f"<td style='padding:2px 5px;'>{display_text}</td></tr>"
+            )
+
+        html_string = f"""
+        <div style="font-family:Calibri,sans-serif;font-size:13px;color:black;background-color:white;padding:20px;border-radius:5px;">
+            <div style="background-color:#0062a8;color:white;padding:12px;font-weight:bold;line-height:1.6;font-size:14px;text-align:left;">
+                <div>ASG GROUP PROPERTY DEVELOPMENT <span style="margin-left:20px;">VERSION : {rev_label}</span></div>
+                <div>QS &amp; PROCUREMENT DIVISION</div>
+                <div>PROJECT PORTFOLIO | ALL ACTIVE PROJECTS</div>
+                <div>REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA <span style="margin-left:20px;">UPDATED : {h_upd}</span></div>
+                <div>BUDGET ESTIMATE {rev_label} <span style="margin-left:20px;">CREATED : {h_cre}</span></div>
+            </div>
+            <br>
+            <table style="width:100%;border-collapse:collapse;border:2px solid black;text-align:center;">
+                <tr style="background-color:#f2f2f2;font-weight:bold;">
+                    <td rowspan="2" style="border:1px solid black;padding:5px;">SN</td>
+                    <td rowspan="2" style="border:1px solid black;padding:5px;">AREA</td>
+                    <td colspan="3" style="border:1px solid black;padding:5px;">BUILDING AREA (M2)</td>
+                    <td colspan="2" rowspan="2" style="border:1px solid black;padding:5px;">UNIT</td>
+                    <td rowspan="2" style="border:1px solid black;padding:5px;">BUDGET ESTIMATE<br>RP</td>
+                    <td colspan="3" style="border:1px solid black;padding:5px;">COST RATIO RP/M2</td>
+                </tr>
+                <tr style="background-color:#f2f2f2;font-weight:bold;">
+                    <td style="border:1px solid black;padding:5px;">GBA</td>
+                    <td style="border:1px solid black;padding:5px;">GFA</td>
+                    <td style="border:1px solid black;padding:5px;">SGFA</td>
+                    <td style="border:1px solid black;padding:5px;">GBA</td>
+                    <td style="border:1px solid black;padding:5px;">GFA</td>
+                    <td style="border:1px solid black;padding:5px;">SGFA</td>
+                </tr>
+                {table_rows_html}
+                <tr style="background-color:#e0e0e0;font-weight:bold;">
+                    <td colspan="2" style="border:1px solid black;padding:5px;">TOTAL</td>
+                    <td style="border:1px solid black;padding:5px;">{total_gba:,.0f}</td>
+                    <td style="border:1px solid black;padding:5px;">{total_gfa:,.0f}</td>
+                    <td style="border:1px solid black;padding:5px;">{total_sgfa:,.0f}</td>
+                    <td colspan="2" style="border:1px solid black;padding:5px;"></td>
+                    <td style="border:1px solid black;padding:5px;text-align:right;">{total_budget:,.0f}</td>
+                    <td style="border:1px solid black;padding:5px;">{t_r_gba:,.0f}</td>
+                    <td style="border:1px solid black;padding:5px;">{t_r_gfa:,.0f}</td>
+                    <td style="border:1px solid black;padding:5px;">{t_r_sgfa:,.0f}</td>
+                </tr>
+            </table>
+            <br>
+            <table style="width:100%;border-collapse:collapse;border:1px solid #dcdcdc;text-align:left;">
+                <tr style="background-color:#ffdf70;font-weight:bold;">
+                    <td style="border:1px solid white;padding:3px 5px;width:30px;text-align:center;">I.</td>
+                    <td style="border:1px solid white;padding:3px 5px;">ASSUMPTIONS</td>
+                </tr>
+                {assum_html_rows}
+            </table>
+        </div>
+        """
+        st.markdown(html_string.replace("\n", ""), unsafe_allow_html=True)
+
+
+    with tab_detailed:
+        st.subheader("Tabel Rekapitulasi")
+
+        # 1. SETUP: Prepare to collect data for ALL projects
+        all_projects_data = []
+        grand_total_all_projects = 0
+        
+        # Area trackers for combined ratios
+        total_gba_all = 0; total_gfa_all = 0; total_sgfa_all = 0
+        
+        # Subtotal trackers for the first "TOTAL" column
+        sum_hardcost = 0; sum_prelim = 0; sum_earth = 0; sum_found = 0; sum_struc = 0
+        sum_arch = 0; sum_ffe = 0; sum_mep = 0; sum_util = 0; sum_ext = 0; sum_fac = 0
+        sum_cont = 0; sum_softcost = 0; sum_cons = 0; sum_qs = 0; sum_pm = 0; sum_ins = 0
+
+        # 2. CALCULATE EACH PROJECT USING THE UNIFIED FUNCTION
+        for p_id, p_dict in st.session_state.projects.items():
+            m = get_project_totals(p_dict)
             
-#             # Header Row 3 (GBA/GFA/SGFA labels)
-#             header_sublabels = f"""
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">TOTAL (Rp)</td>
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">GBA</td>
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">GFA</td>
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">SGFA</td>
-#             """
+            proj_data = {
+                "name": p_dict["name"], "gba": m["gba"], "gfa": m["gfa"], "sgfa": m["sgfa"], "grand": m["budget"],
+                "vals": {
+                    "hc": m["hc"], "prelim": m["prelim"], "earth": m["earth"], "found": m["found"], "struc": m["struc"],
+                    "arch": m["arch"], "ffe": m["ffe"], "mep": m["mep"], "util": m["util"], "ext": m["ext"], "fac": m["fac"],
+                    "cont": m["cont"], "sc": m["sc"], "cons": m["cons"], "qs": m["qs"], "pm": m["pm"], "ins": m["ins"]
+                }
+            }
+            all_projects_data.append(proj_data)
+
+            # Add to grand totals
+            total_gba_all += m["gba"]
+            total_gfa_all += m["gfa"]
+            total_sgfa_all += m["sgfa"]
             
-#             # Header Row 4 (Overall Area Totals)
-#             header_empty = f"""
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">-</td>
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">{total_gba_all:,.0f}</td>
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">{total_gfa_all:,.0f}</td>
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">{total_sgfa_all:,.0f}</td>
-#             """
+            sum_hardcost += m["hc"]; sum_prelim += m["prelim"]; sum_earth += m["earth"]; sum_found += m["found"]
+            sum_struc += m["struc"]; sum_arch += m["arch"]; sum_ffe += m["ffe"]; sum_mep += m["mep"]
+            sum_util += m["util"]; sum_ext += m["ext"]; sum_fac += m["fac"]; sum_cont += m["cont"]
+            sum_softcost += m["sc"]; sum_cons += m["cons"]; sum_qs += m["qs"]; sum_pm += m["pm"]; sum_ins += m["ins"]
+            grand_total_all_projects += m["budget"]
 
-#             for i, p in enumerate(all_projects_data):
-#                 bg_col = color_palette[i % len(color_palette)]
-                
-#                 header_col_names += f'<td colspan="4" style="border:1px solid black; padding:4px; background-color: {bg_col};">ESTIMATE <span style="margin:0 15px;">Cost Ratio (Rp/m2)</span></td>'
-#                 header_ratios += f'<td colspan="4" style="border:1px solid black; padding:4px; background-color: {bg_col}; color: red;">{p["name"].upper()}</td>'
-#                 header_sublabels += f"""
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">TOTAL (Rp)</td>
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">GBA</td>
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">GFA</td>
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">SGFA</td>
-#                 """
-#                 header_empty += f"""
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">-</td>
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">{p["gba"]:,.0f}</td>
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">{p["gfa"]:,.0f}</td>
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">{p["sgfa"]:,.0f}</td>
-#                 """
+        # 3. BUILD DYNAMIC HTML HEADERS
+        color_palette = ["#ccffe6", "#ffe6e6", "#e6e6ff", "#ffffe6", "#ffe6ff"] # Colors for different projects
+        
+        # Header Row 1 (Project Names)
+        header_col_names = f'<td colspan="4" style="border:1px solid black; padding:4px; background-color: #e6f2ff;">TOTAL <span style="margin:0 15px;">Cost Ratio (Rp/m2)</span></td>'
+        
+        # Header Row 2 (Cost Ratio Titles)
+        header_ratios = f'<td colspan="4" style="border:1px solid black; padding:4px; background-color: #e6f2ff; color: red;">ALL PROJECTS</td>'
+        
+        # Header Row 3 (GBA/GFA/SGFA labels)
+        header_sublabels = f"""
+            <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">TOTAL (Rp)</td>
+            <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">GBA</td>
+            <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">GFA</td>
+            <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">SGFA</td>
+        """
+        
+        # Header Row 4 (Overall Area Totals)
+        header_empty = f"""
+            <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">-</td>
+            <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">{total_gba_all:,.0f}</td>
+            <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">{total_gfa_all:,.0f}</td>
+            <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">{total_sgfa_all:,.0f}</td>
+        """
 
-#             # 4. ROW DEFINITIONS
-#             row_map = [
-#                 {"sn": "I", "desc": "HARDCOST", "coa": "118-14-000", "key": "hc", "sum": sum_hardcost, "is_main": True},
-#                 {"sn": "1", "desc": "PRELIMINARIES WORKS", "coa": "118-14-100", "key": "prelim", "sum": sum_prelim, "is_main": False},
-#                 {"sn": "2", "desc": "EARTHWORKS", "coa": "118-14-200", "key": "earth", "sum": sum_earth, "is_main": False},
-#                 {"sn": "3", "desc": "FOUNDATIONS", "coa": "118-14-300", "key": "found", "sum": sum_found, "is_main": False},
-#                 {"sn": "4", "desc": "STRUCTURAL WORKS", "coa": "118-14-500", "key": "struc", "sum": sum_struc, "is_main": False},
-#                 {"sn": "5", "desc": "ARCHITECTURAL WORKS", "coa": "118-14-600", "key": "arch", "sum": sum_arch, "is_main": False},
-#                 {"sn": "6", "desc": "FF & E", "coa": "118-14-700", "key": "ffe", "sum": sum_ffe, "is_main": False},
-#                 {"sn": "7", "desc": "M.E.P WORKS", "coa": "118-14-800", "key": "mep", "sum": sum_mep, "is_main": False},
-#                 {"sn": "8", "desc": "UTILITY CONNECTION", "coa": "118-13-900", "key": "util", "sum": sum_util, "is_main": False},
-#                 {"sn": "9", "desc": "EXTERNAL WORKS", "coa": "118-14-930", "key": "ext", "sum": sum_ext, "is_main": False},
-#                 {"sn": "10", "desc": "FACILITY", "coa": "118-14-960", "key": "fac", "sum": sum_fac, "is_main": False},
-#                 {"sn": "11", "desc": "CONTINGENCIES", "coa": "", "key": "cont", "sum": sum_cont, "is_main": False},
-#                 {"sn": "II", "desc": "SOFTCOST", "coa": "118-13-000", "key": "sc", "sum": sum_softcost, "is_main": True},
-#                 {"sn": "1", "desc": "CONSULTANCY SERVICES FEE", "coa": "118-13-202", "key": "cons", "sum": sum_cons, "is_main": False},
-#                 {"sn": "2", "desc": "QS SERVICES", "coa": "118-13-201", "key": "qs", "sum": sum_qs, "is_main": False},
-#                 {"sn": "3", "desc": "PROJECT MANAGEMENT SERVICES", "coa": "118-13-203", "key": "pm", "sum": sum_pm, "is_main": False},
-#                 {"sn": "4", "desc": "INSURANCE COVERAGE", "coa": "118-13-300", "key": "ins", "sum": sum_ins, "is_main": False},
-#                 {"sn": "IV", "desc": "TOTAL, EXCLD PPN", "coa": "", "key": "grand", "sum": grand_total_all_projects, "is_main": True, "is_grand_total": True}
-#             ]
-
-#             # 5. BUILD DATA ROWS DYNAMICALLY
-#             html_rows = ""
-#             for row in row_map:
-#                 bg_color = "#e6f2e6" if row.get("is_main") else "white"
-#                 font_w = "bold" if row.get("is_main") else "normal"
-#                 blue_bg = "background-color:#3b82f6;color:white;" if row.get("is_grand_total") else ""
-                
-#                 pct = (row["sum"] / grand_total_all_projects * 100) if grand_total_all_projects > 0 else 0
-                
-#                 # Overall Portfolio Ratios
-#                 tot_r_gba = (row["sum"] / total_gba_all) if total_gba_all > 0 else 0
-#                 tot_r_gfa = (row["sum"] / total_gfa_all) if total_gfa_all > 0 else 0
-#                 tot_r_sgfa = (row["sum"] / total_sgfa_all) if total_sgfa_all > 0 else 0
-
-#                 # Start row with left-side static labels and the Grand Total section
-#                 row_html = f"""
-#                 <tr style="background-color:{bg_color}; font-weight:{font_w}; {blue_bg}">
-#                     <td style="border:1px solid black; padding:4px; text-align:center;">{row['sn']}</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:left;">{row['desc']}</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:center;">{row['coa']}</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:center;">{pct:.2f}%</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:right;">{row['sum']:,.0f}</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:right;">{tot_r_gba:,.0f}</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:right;">{tot_r_gfa:,.0f}</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:right;">{tot_r_sgfa:,.0f}</td>
-#                 """
-                
-#                 # Append data dynamically for each project
-#                 for p in all_projects_data:
-#                     val = p['grand'] if row['key'] == 'grand' else p['vals'][row['key']]
-#                     r_gba = (val / p['gba']) if p['gba'] > 0 else 0
-#                     r_gfa = (val / p['gfa']) if p['gfa'] > 0 else 0
-#                     r_sgfa = (val / p['sgfa']) if p['sgfa'] > 0 else 0
-                    
-#                     row_html += f"""
-#                         <td style="border:1px solid black; padding:4px; text-align:right;">{val:,.0f}</td>
-#                         <td style="border:1px solid black; padding:4px; text-align:right;">{r_gba:,.0f}</td>
-#                         <td style="border:1px solid black; padding:4px; text-align:right;">{r_gfa:,.0f}</td>
-#                         <td style="border:1px solid black; padding:4px; text-align:right;">{r_sgfa:,.0f}</td>
-#                     """
-                
-#                 row_html += "</tr>"
-#                 html_rows += row_html
-
-#             # 6. RENDER FINAL TABLE
-#             detailed_html = f"""
-#             <div style="font-family: Arial, sans-serif; font-size: 11px; color: black; background-color: white; overflow-x: auto; margin-bottom: 20px;">
-#                 <table style="width: 100%; border-collapse: collapse; border: 2px solid black; text-align: center; white-space: nowrap;">
-#                     <thead>
-#                         <tr style="background-color: #f2f2f2; font-weight: bold;">
-#                             <td rowspan="3" style="border:1px solid black; padding:4px; width:30px;">SN</td>
-#                             <td rowspan="3" style="border:1px solid black; padding:4px; width:200px;">DESCRIPTION</td>
-#                             <td rowspan="3" style="border:1px solid black; padding:4px;">COA</td>
-#                             <td rowspan="3" style="border:1px solid black; padding:4px;">%</td>
-#                             {header_col_names}
-#                         </tr>
-#                         <tr style="font-weight: bold;">
-#                             {header_ratios}
-#                         </tr>
-#                         <tr style="background-color: #f2f2f2; font-weight: bold;">
-#                             {header_sublabels}
-#                         </tr>
-#                         <tr style="background-color: #f2f2f2; font-weight: bold;">
-#                             <td colspan="4" style="border:1px solid black; padding:4px;"></td>
-#                             {header_empty}
-#                         </tr>
-#                     </thead>
-#                     <tbody>
-#                         {html_rows}
-#                     </tbody>
-#                 </table>
-#             </div>
-#             """
-#             st.markdown(detailed_html.replace("\n", ""), unsafe_allow_html=True)
-
-#             # --- EXCEL DOWNLOAD LOGIC ---
-#             h_info = st.session_state.projects[active_id]["data"].get("header_info", {})
-#             rev_label = f"R({h_info.get('rev_no', '0')})"
-#             h_upd = h_info.get("updated", "")
-#             h_cre = h_info.get("created", "")
-
-#             buffer_det = io.BytesIO()
-#             wb = xlsxwriter.Workbook(buffer_det, {"in_memory": True})
-#             ws = wb.add_worksheet("Detailed Estimate")
-
-#             # Formats
-#             f_blue = wb.add_format({"bg_color": "#0062a8", "font_color": "white", "bold": True, "valign": "vcenter"})
-#             f_th = wb.add_format({"bg_color": "#f2f2f2", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "text_wrap": True})
-#             f_th_tot = wb.add_format({"bg_color": "#e6f2ff", "bold": True, "align": "center", "valign": "vcenter", "border": 1})
-#             f_th_tot_red = wb.add_format({"bg_color": "#e6f2ff", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "font_color": "red"})
+        for i, p in enumerate(all_projects_data):
+            bg_col = color_palette[i % len(color_palette)]
             
-#             f_c = wb.add_format({"align": "center", "valign": "vcenter", "border": 1})
-#             f_L = wb.add_format({"align": "left", "valign": "vcenter", "border": 1})
-#             f_pct = wb.add_format({"align": "center", "valign": "vcenter", "border": 1, "num_format": "0.00%"})
-#             f_num = wb.add_format({"align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
+            header_col_names += f'<td colspan="4" style="border:1px solid black; padding:4px; background-color: {bg_col};">ESTIMATE <span style="margin:0 15px;">Cost Ratio (Rp/m2)</span></td>'
+            header_ratios += f'<td colspan="4" style="border:1px solid black; padding:4px; background-color: {bg_col}; color: red;">{p["name"].upper()}</td>'
+            header_sublabels += f"""
+                <td style="border:1px solid black; padding:4px; background-color: {bg_col};">TOTAL (Rp)</td>
+                <td style="border:1px solid black; padding:4px; background-color: {bg_col};">GBA</td>
+                <td style="border:1px solid black; padding:4px; background-color: {bg_col};">GFA</td>
+                <td style="border:1px solid black; padding:4px; background-color: {bg_col};">SGFA</td>
+            """
+            header_empty += f"""
+                <td style="border:1px solid black; padding:4px; background-color: {bg_col};">-</td>
+                <td style="border:1px solid black; padding:4px; background-color: {bg_col};">{p["gba"]:,.0f}</td>
+                <td style="border:1px solid black; padding:4px; background-color: {bg_col};">{p["gfa"]:,.0f}</td>
+                <td style="border:1px solid black; padding:4px; background-color: {bg_col};">{p["sgfa"]:,.0f}</td>
+            """
 
-#             f_mc = wb.add_format({"bg_color": "#e6f2e6", "bold": True, "align": "center", "valign": "vcenter", "border": 1})
-#             f_mL = wb.add_format({"bg_color": "#e6f2e6", "bold": True, "align": "left", "valign": "vcenter", "border": 1})
-#             f_mpct = wb.add_format({"bg_color": "#e6f2e6", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "num_format": "0.00%"})
-#             f_mnum = wb.add_format({"bg_color": "#e6f2e6", "bold": True, "align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
+        # 4. ROW DEFINITIONS
+        row_map = [
+            {"sn": "I", "desc": "HARDCOST", "coa": "118-14-000", "key": "hc", "sum": sum_hardcost, "is_main": True},
+            {"sn": "1", "desc": "PRELIMINARIES WORKS", "coa": "118-14-100", "key": "prelim", "sum": sum_prelim, "is_main": False},
+            {"sn": "2", "desc": "EARTHWORKS", "coa": "118-14-200", "key": "earth", "sum": sum_earth, "is_main": False},
+            {"sn": "3", "desc": "FOUNDATIONS", "coa": "118-14-300", "key": "found", "sum": sum_found, "is_main": False},
+            {"sn": "4", "desc": "STRUCTURAL WORKS", "coa": "118-14-500", "key": "struc", "sum": sum_struc, "is_main": False},
+            {"sn": "5", "desc": "ARCHITECTURAL WORKS", "coa": "118-14-600", "key": "arch", "sum": sum_arch, "is_main": False},
+            {"sn": "6", "desc": "FF & E", "coa": "118-14-700", "key": "ffe", "sum": sum_ffe, "is_main": False},
+            {"sn": "7", "desc": "M.E.P WORKS", "coa": "118-14-800", "key": "mep", "sum": sum_mep, "is_main": False},
+            {"sn": "8", "desc": "UTILITY CONNECTION", "coa": "118-13-900", "key": "util", "sum": sum_util, "is_main": False},
+            {"sn": "9", "desc": "EXTERNAL WORKS", "coa": "118-14-930", "key": "ext", "sum": sum_ext, "is_main": False},
+            {"sn": "10", "desc": "FACILITY", "coa": "118-14-960", "key": "fac", "sum": sum_fac, "is_main": False},
+            {"sn": "11", "desc": "CONTINGENCIES", "coa": "", "key": "cont", "sum": sum_cont, "is_main": False},
+            {"sn": "II", "desc": "SOFTCOST", "coa": "118-13-000", "key": "sc", "sum": sum_softcost, "is_main": True},
+            {"sn": "1", "desc": "CONSULTANCY SERVICES FEE", "coa": "118-13-202", "key": "cons", "sum": sum_cons, "is_main": False},
+            {"sn": "2", "desc": "QS SERVICES", "coa": "118-13-201", "key": "qs", "sum": sum_qs, "is_main": False},
+            {"sn": "3", "desc": "PROJECT MANAGEMENT SERVICES", "coa": "118-13-203", "key": "pm", "sum": sum_pm, "is_main": False},
+            {"sn": "4", "desc": "INSURANCE COVERAGE", "coa": "118-13-300", "key": "ins", "sum": sum_ins, "is_main": False},
+            {"sn": "IV", "desc": "TOTAL, EXCLD PPN", "coa": "", "key": "grand", "sum": grand_total_all_projects, "is_main": True, "is_grand_total": True}
+        ]
 
-#             f_gc = wb.add_format({"bg_color": "#3b82f6", "font_color": "white", "bold": True, "align": "center", "border": 1})
-#             f_gL = wb.add_format({"bg_color": "#3b82f6", "font_color": "white", "bold": True, "align": "left", "border": 1})
-#             f_gpct = wb.add_format({"bg_color": "#3b82f6", "font_color": "white", "bold": True, "align": "center", "border": 1, "num_format": "0.00%"})
-#             f_gnum = wb.add_format({"bg_color": "#3b82f6", "font_color": "white", "bold": True, "align": "right", "border": 1, "num_format": "#,##0"})
-
-#             ws.set_column("A:A", 5); ws.set_column("B:B", 35); ws.set_column("C:C", 12); ws.set_column("D:D", 8)
+        # 5. BUILD DATA ROWS DYNAMICALLY
+        html_rows = ""
+        for row in row_map:
+            bg_color = "#e6f2e6" if row.get("is_main") else "white"
+            font_w = "bold" if row.get("is_main") else "normal"
+            blue_bg = "background-color:#3b82f6;color:white;" if row.get("is_grand_total") else ""
             
-#             # Header Block
-#             for r in range(5): ws.merge_range(r, 0, r, 7 + (len(all_projects_data)*4), "", f_blue)
-#             ws.write_string(0, 0, f"ASG GROUP PROPERTY DEVELOPMENT | VERSION : {rev_label}", f_blue)
-#             ws.write_string(1, 0, "QS & PROCUREMENT DIVISION", f_blue)
-#             ws.write_string(2, 0, "DETAILED ESTIMATE | ALL ACTIVE PROJECTS", f_blue)
-#             ws.write_string(3, 0, f"REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA | UPDATED : {h_upd}", f_blue)
-#             ws.write_string(4, 0, f"BUDGET ESTIMATE {rev_label} | CREATED : {h_cre}", f_blue)
-
-#             # Table Headers
-#             ws.merge_range("A7:A9", "SN", f_th); ws.merge_range("B7:B9", "DESCRIPTION", f_th)
-#             ws.merge_range("C7:C9", "COA", f_th); ws.merge_range("D7:D9", "%", f_th)
-
-#             # Dynamic Header Columns
-#             col_idx = 4
-#             ws.merge_range(6, col_idx, 6, col_idx+3, "ESTIMATE Cost Ratio (Rp/m2)", f_th_tot)
-#             ws.merge_range(7, col_idx, 7, col_idx+3, "TOTAL ALL PROJECTS", f_th_tot_red)
-#             ws.write(8, col_idx, "TOTAL (Rp)", f_th_tot); ws.write(8, col_idx+1, "GBA", f_th_tot)
-#             ws.write(8, col_idx+2, "GFA", f_th_tot); ws.write(8, col_idx+3, "SGFA", f_th_tot)
+            pct = (row["sum"] / grand_total_all_projects * 100) if grand_total_all_projects > 0 else 0
             
-#             # Write Total Area row
-#             ws.write_row(9, 0, ["", "", "", ""], f_th)
-#             ws.write(9, col_idx, "-", f_th_tot); ws.write(9, col_idx+1, total_gba_all, f_th_tot)
-#             ws.write(9, col_idx+2, total_gfa_all, f_th_tot); ws.write(9, col_idx+3, total_sgfa_all, f_th_tot)
-#             col_idx += 4
+            # Overall Portfolio Ratios
+            tot_r_gba = (row["sum"] / total_gba_all) if total_gba_all > 0 else 0
+            tot_r_gfa = (row["sum"] / total_gfa_all) if total_gfa_all > 0 else 0
+            tot_r_sgfa = (row["sum"] / total_sgfa_all) if total_sgfa_all > 0 else 0
 
-#             for i, p in enumerate(all_projects_data):
-#                 color_hex = color_palette[i % len(color_palette)]
-#                 f_proj_th = wb.add_format({"bg_color": color_hex, "bold": True, "align": "center", "valign": "vcenter", "border": 1})
-#                 f_proj_th_red = wb.add_format({"bg_color": color_hex, "bold": True, "align": "center", "valign": "vcenter", "border": 1, "font_color": "red"})
+            # Start row with left-side static labels and the Grand Total section
+            row_html = f"""
+            <tr style="background-color:{bg_color}; font-weight:{font_w}; {blue_bg}">
+                <td style="border:1px solid black; padding:4px; text-align:center;">{row['sn']}</td>
+                <td style="border:1px solid black; padding:4px; text-align:left;">{row['desc']}</td>
+                <td style="border:1px solid black; padding:4px; text-align:center;">{row['coa']}</td>
+                <td style="border:1px solid black; padding:4px; text-align:center;">{pct:.2f}%</td>
+                <td style="border:1px solid black; padding:4px; text-align:right;">{row['sum']:,.0f}</td>
+                <td style="border:1px solid black; padding:4px; text-align:right;">{tot_r_gba:,.0f}</td>
+                <td style="border:1px solid black; padding:4px; text-align:right;">{tot_r_gfa:,.0f}</td>
+                <td style="border:1px solid black; padding:4px; text-align:right;">{tot_r_sgfa:,.0f}</td>
+            """
+            
+            # Append data dynamically for each project
+            for p in all_projects_data:
+                val = p['grand'] if row['key'] == 'grand' else p['vals'][row['key']]
+                r_gba = (val / p['gba']) if p['gba'] > 0 else 0
+                r_gfa = (val / p['gfa']) if p['gfa'] > 0 else 0
+                r_sgfa = (val / p['sgfa']) if p['sgfa'] > 0 else 0
                 
-#                 ws.set_column(col_idx, col_idx+3, 14)
-#                 ws.merge_range(6, col_idx, 6, col_idx+3, "ESTIMATE Cost Ratio (Rp/m2)", f_proj_th)
-#                 ws.merge_range(7, col_idx, 7, col_idx+3, p["name"].upper(), f_proj_th_red)
-#                 ws.write(8, col_idx, "TOTAL (Rp)", f_proj_th); ws.write(8, col_idx+1, "GBA", f_proj_th)
-#                 ws.write(8, col_idx+2, "GFA", f_proj_th); ws.write(8, col_idx+3, "SGFA", f_proj_th)
-                
-#                 ws.write(9, col_idx, "-", f_proj_th); ws.write(9, col_idx+1, p["gba"], f_proj_th)
-#                 ws.write(9, col_idx+2, p["gfa"], f_proj_th); ws.write(9, col_idx+3, p["sgfa"], f_proj_th)
-#                 col_idx += 4
+                row_html += f"""
+                    <td style="border:1px solid black; padding:4px; text-align:right;">{val:,.0f}</td>
+                    <td style="border:1px solid black; padding:4px; text-align:right;">{r_gba:,.0f}</td>
+                    <td style="border:1px solid black; padding:4px; text-align:right;">{r_gfa:,.0f}</td>
+                    <td style="border:1px solid black; padding:4px; text-align:right;">{r_sgfa:,.0f}</td>
+                """
+            
+            row_html += "</tr>"
+            html_rows += row_html
 
-#             # Write Data
-#             row_idx = 10
-#             for row in row_map:
-#                 if row.get("is_grand_total"): fmt_c, fmt_str, fmt_pct, fmt_num = f_gc, f_gL, f_gpct, f_gnum
-#                 elif row.get("is_main"): fmt_c, fmt_str, fmt_pct, fmt_num = f_mc, f_mL, f_mpct, f_mnum
-#                 else: fmt_c, fmt_str, fmt_pct, fmt_num = f_c, f_L, f_pct, f_num
+        # 6. RENDER FINAL TABLE
+        detailed_html = f"""
+        <div style="font-family: Arial, sans-serif; font-size: 11px; color: black; background-color: white; overflow-x: auto; margin-bottom: 20px;">
+            <table style="width: 100%; border-collapse: collapse; border: 2px solid black; text-align: center; white-space: nowrap;">
+                <thead>
+                    <tr style="background-color: #f2f2f2; font-weight: bold;">
+                        <td rowspan="3" style="border:1px solid black; padding:4px; width:30px;">SN</td>
+                        <td rowspan="3" style="border:1px solid black; padding:4px; width:200px;">DESCRIPTION</td>
+                        <td rowspan="3" style="border:1px solid black; padding:4px;">COA</td>
+                        <td rowspan="3" style="border:1px solid black; padding:4px;">%</td>
+                        {header_col_names}
+                    </tr>
+                    <tr style="font-weight: bold;">
+                        {header_ratios}
+                    </tr>
+                    <tr style="background-color: #f2f2f2; font-weight: bold;">
+                        {header_sublabels}
+                    </tr>
+                    <tr style="background-color: #f2f2f2; font-weight: bold;">
+                        <td colspan="4" style="border:1px solid black; padding:4px;"></td>
+                        {header_empty}
+                    </tr>
+                </thead>
+                <tbody>
+                    {html_rows}
+                </tbody>
+            </table>
+        </div>
+        """
+        st.markdown(detailed_html.replace("\n", ""), unsafe_allow_html=True)
 
-#                 pct_val = (row["sum"] / grand_total_all_projects) if grand_total_all_projects > 0 else 0
+        # --- EXCEL DOWNLOAD LOGIC (DETAILED) ---
+        h_info = st.session_state.projects[active_id]["data"].get("header_info", {})
+        rev_label = f"R({h_info.get('rev_no', '0')})"
+        h_upd = h_info.get("updated", "")
+        h_cre = h_info.get("created", "")
 
-#                 ws.write(row_idx, 0, row['sn'], fmt_c)
-#                 ws.write(row_idx, 1, row['desc'], fmt_str)
-#                 ws.write(row_idx, 2, row['coa'], fmt_c)
-#                 ws.write(row_idx, 3, pct_val, fmt_pct)
-                
-#                 # Grand totals and their ratios
-#                 tot_r_gba = (row["sum"] / total_gba_all) if total_gba_all > 0 else 0
-#                 tot_r_gfa = (row["sum"] / total_gfa_all) if total_gfa_all > 0 else 0
-#                 tot_r_sgfa = (row["sum"] / total_sgfa_all) if total_sgfa_all > 0 else 0
-                
-#                 ws.write(row_idx, 4, row['sum'], fmt_num)
-#                 ws.write(row_idx, 5, tot_r_gba, fmt_num); ws.write(row_idx, 6, tot_r_gfa, fmt_num); ws.write(row_idx, 7, tot_r_sgfa, fmt_num)
+        buffer_det = io.BytesIO()
+        wb = xlsxwriter.Workbook(buffer_det, {"in_memory": True})
+        ws = wb.add_worksheet("Detailed Estimate")
 
-#                 col_idx = 8
-#                 for p in all_projects_data:
-#                     val = p['grand'] if row['key'] == 'grand' else p['vals'][row['key']]
-#                     r_gba = (val / p['gba']) if p['gba'] > 0 else 0
-#                     r_gfa = (val / p['gfa']) if p['gfa'] > 0 else 0
-#                     r_sgfa = (val / p['sgfa']) if p['sgfa'] > 0 else 0
+        # Formats
+        f_blue = wb.add_format({"bg_color": "#0062a8", "font_color": "white", "bold": True, "valign": "vcenter"})
+        f_th = wb.add_format({"bg_color": "#f2f2f2", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "text_wrap": True})
+        f_th_tot = wb.add_format({"bg_color": "#e6f2ff", "bold": True, "align": "center", "valign": "vcenter", "border": 1})
+        f_th_tot_red = wb.add_format({"bg_color": "#e6f2ff", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "font_color": "red"})
+        
+        f_c = wb.add_format({"align": "center", "valign": "vcenter", "border": 1})
+        f_L = wb.add_format({"align": "left", "valign": "vcenter", "border": 1})
+        f_pct = wb.add_format({"align": "center", "valign": "vcenter", "border": 1, "num_format": "0.00%"})
+        f_num = wb.add_format({"align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
 
-#                     ws.write(row_idx, col_idx, val, fmt_num)
-#                     ws.write(row_idx, col_idx+1, r_gba, fmt_num)
-#                     ws.write(row_idx, col_idx+2, r_gfa, fmt_num)
-#                     ws.write(row_idx, col_idx+3, r_sgfa, fmt_num)
-#                     col_idx += 4
+        f_mc = wb.add_format({"bg_color": "#e6f2e6", "bold": True, "align": "center", "valign": "vcenter", "border": 1})
+        f_mL = wb.add_format({"bg_color": "#e6f2e6", "bold": True, "align": "left", "valign": "vcenter", "border": 1})
+        f_mpct = wb.add_format({"bg_color": "#e6f2e6", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "num_format": "0.00%"})
+        f_mnum = wb.add_format({"bg_color": "#e6f2e6", "bold": True, "align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
 
-#                 row_idx += 1
+        f_gc = wb.add_format({"bg_color": "#3b82f6", "font_color": "white", "bold": True, "align": "center", "border": 1})
+        f_gL = wb.add_format({"bg_color": "#3b82f6", "font_color": "white", "bold": True, "align": "left", "border": 1})
+        f_gpct = wb.add_format({"bg_color": "#3b82f6", "font_color": "white", "bold": True, "align": "center", "border": 1, "num_format": "0.00%"})
+        f_gnum = wb.add_format({"bg_color": "#3b82f6", "font_color": "white", "bold": True, "align": "right", "border": 1, "num_format": "#,##0"})
 
-#             wb.close()
+        ws.set_column("A:A", 5); ws.set_column("B:B", 35); ws.set_column("C:C", 12); ws.set_column("D:D", 8)
+        
+        # Header Block
+        for r in range(5): ws.merge_range(r, 0, r, 7 + (len(all_projects_data)*4), "", f_blue)
+        ws.write_string(0, 0, f"ASG GROUP PROPERTY DEVELOPMENT | VERSION : {rev_label}", f_blue)
+        ws.write_string(1, 0, "QS & PROCUREMENT DIVISION", f_blue)
+        ws.write_string(2, 0, "DETAILED ESTIMATE | ALL ACTIVE PROJECTS", f_blue)
+        ws.write_string(3, 0, f"REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA | UPDATED : {h_upd}", f_blue)
+        ws.write_string(4, 0, f"BUDGET ESTIMATE {rev_label} | CREATED : {h_cre}", f_blue)
 
-#             st.download_button(
-#                 label="Download Rekap as .xlsx",
-#                 data=buffer_det.getvalue(),
-#                 file_name="ASG_Detailed_Estimate_All_Projects.xlsx",
-#                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-#                 use_container_width=True
-#             )
+        # Table Headers
+        ws.merge_range("A7:A9", "SN", f_th); ws.merge_range("B7:B9", "DESCRIPTION", f_th)
+        ws.merge_range("C7:C9", "COA", f_th); ws.merge_range("D7:D9", "%", f_th)
+
+        # Dynamic Header Columns
+        col_idx = 4
+        ws.merge_range(6, col_idx, 6, col_idx+3, "ESTIMATE Cost Ratio (Rp/m2)", f_th_tot)
+        ws.merge_range(7, col_idx, 7, col_idx+3, "TOTAL ALL PROJECTS", f_th_tot_red)
+        ws.write(8, col_idx, "TOTAL (Rp)", f_th_tot); ws.write(8, col_idx+1, "GBA", f_th_tot)
+        ws.write(8, col_idx+2, "GFA", f_th_tot); ws.write(8, col_idx+3, "SGFA", f_th_tot)
+        
+        # Write Total Area row
+        ws.write_row(9, 0, ["", "", "", ""], f_th)
+        ws.write(9, col_idx, "-", f_th_tot); ws.write(9, col_idx+1, total_gba_all, f_th_tot)
+        ws.write(9, col_idx+2, total_gfa_all, f_th_tot); ws.write(9, col_idx+3, total_sgfa_all, f_th_tot)
+        col_idx += 4
+
+        for i, p in enumerate(all_projects_data):
+            color_hex = color_palette[i % len(color_palette)]
+            f_proj_th = wb.add_format({"bg_color": color_hex, "bold": True, "align": "center", "valign": "vcenter", "border": 1})
+            f_proj_th_red = wb.add_format({"bg_color": color_hex, "bold": True, "align": "center", "valign": "vcenter", "border": 1, "font_color": "red"})
+            
+            ws.set_column(col_idx, col_idx+3, 14)
+            ws.merge_range(6, col_idx, 6, col_idx+3, "ESTIMATE Cost Ratio (Rp/m2)", f_proj_th)
+            ws.merge_range(7, col_idx, 7, col_idx+3, p["name"].upper(), f_proj_th_red)
+            ws.write(8, col_idx, "TOTAL (Rp)", f_proj_th); ws.write(8, col_idx+1, "GBA", f_proj_th)
+            ws.write(8, col_idx+2, "GFA", f_proj_th); ws.write(8, col_idx+3, "SGFA", f_proj_th)
+            
+            ws.write(9, col_idx, "-", f_proj_th); ws.write(9, col_idx+1, p["gba"], f_proj_th)
+            ws.write(9, col_idx+2, p["gfa"], f_proj_th); ws.write(9, col_idx+3, p["sgfa"], f_proj_th)
+            col_idx += 4
+
+        # Write Data
+        row_idx = 10
+        for row in row_map:
+            if row.get("is_grand_total"): fmt_c, fmt_str, fmt_pct, fmt_num = f_gc, f_gL, f_gpct, f_gnum
+            elif row.get("is_main"): fmt_c, fmt_str, fmt_pct, fmt_num = f_mc, f_mL, f_mpct, f_mnum
+            else: fmt_c, fmt_str, fmt_pct, fmt_num = f_c, f_L, f_pct, f_num
+
+            pct_val = (row["sum"] / grand_total_all_projects) if grand_total_all_projects > 0 else 0
+
+            ws.write(row_idx, 0, row['sn'], fmt_c)
+            ws.write(row_idx, 1, row['desc'], fmt_str)
+            ws.write(row_idx, 2, row['coa'], fmt_c)
+            ws.write(row_idx, 3, pct_val, fmt_pct)
+            
+            # Grand totals and their ratios
+            tot_r_gba = (row["sum"] / total_gba_all) if total_gba_all > 0 else 0
+            tot_r_gfa = (row["sum"] / total_gfa_all) if total_gfa_all > 0 else 0
+            tot_r_sgfa = (row["sum"] / total_sgfa_all) if total_sgfa_all > 0 else 0
+            
+            ws.write(row_idx, 4, row['sum'], fmt_num)
+            ws.write(row_idx, 5, tot_r_gba, fmt_num); ws.write(row_idx, 6, tot_r_gfa, fmt_num); ws.write(row_idx, 7, tot_r_sgfa, fmt_num)
+
+            col_idx = 8
+            for p in all_projects_data:
+                val = p['grand'] if row['key'] == 'grand' else p['vals'][row['key']]
+                r_gba = (val / p['gba']) if p['gba'] > 0 else 0
+                r_gfa = (val / p['gfa']) if p['gfa'] > 0 else 0
+                r_sgfa = (val / p['sgfa']) if p['sgfa'] > 0 else 0
+
+                ws.write(row_idx, col_idx, val, fmt_num)
+                ws.write(row_idx, col_idx+1, r_gba, fmt_num)
+                ws.write(row_idx, col_idx+2, r_gfa, fmt_num)
+                ws.write(row_idx, col_idx+3, r_sgfa, fmt_num)
+                col_idx += 4
+
+            row_idx += 1
+
+        wb.close()
+
+        st.download_button(
+            label="Download Rekap as .xlsx",
+            data=buffer_det.getvalue(),
+            file_name="ASG_Detailed_Estimate_All_Projects.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
 
 # --- 5. SIDEBAR NAVIGATION ---
 st.sidebar.title("Main Navigation")
@@ -2123,8 +2115,8 @@ st.sidebar.markdown("---")
 # --- 6. PAGE ROUTING ---
 if page_choice == "Area Calculator":
     show_area_calculator()
-# elif page_choice == "Summary":
-#     show_portfolio_summary()
+elif page_choice == "Summary":
+     show_portfolio_summary()
 else:
     show_cost_estimator()
 
