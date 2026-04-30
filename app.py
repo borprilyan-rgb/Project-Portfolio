@@ -1091,13 +1091,9 @@ def show_cost_estimator():
         ])
         
         with tab1:
-            cs1, cs2, cs3, cs4, cs5, cs6 = st.columns(6)
-
             box_base = "margin-bottom: 12px; padding: 8px; border-radius: 5px; background-color: #FFFFFF; border: 1px solid #E0E0E0;"
             label_style = "font-size: 12px; color: #666666; font-weight: bold;"
             val_style = "font-size: 14px; font-weight: bold; color: #000000; margin-top: 4px;"
-
-# --- ROW 1: cs1 to cs6 ---
             with st.expander("Detail Hard Cost", expanded=False):
                 cs1, cs2, cs3, cs4, cs5, cs6 = st.columns(6)
 
