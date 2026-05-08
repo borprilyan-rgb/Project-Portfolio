@@ -1392,7 +1392,10 @@ def show_cost_estimator():
             pd.DataFrame(current_smart_cc),
             num_rows="dynamic",
             key=f"edit_smart_cc_{curr_id}",
+            # ADD THIS LINE BELOW
+            column_order=["Item Description", "Rate (Rp)", "Quantity"], 
             column_config={
+                "Item Description": st.column_config.TextColumn("Item Description", width="large"),
                 "Quantity": st.column_config.NumberColumn(
                     "Quantity",
                     min_value=0,
