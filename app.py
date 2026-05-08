@@ -14,6 +14,8 @@ import tempfile
 #streamlit run app.py
 APP_VERSION = "1.1.0"
 
+MASTER_DELETE_PW = "Jkt12345?"
+
 from supabase import create_client, Client
 
 # 1. Connect to the Cloud
@@ -2070,14 +2072,31 @@ with c1:
     st.button("Tambah", on_click=cb_add_project, type="primary", use_container_width=True)
     
 with c2:
-    can_delete = len(st.session_state.projects) > 1
-    st.button("Hapus", disabled=not can_delete, on_click=cb_delete_project, type="secondary", help="Delete Active Project", use_container_width=True)
+    unlock_delete = st.sidebar.toggle("Unlock Delete Buttons", help="Requires Master Password")
 
-if st.sidebar.button("Hapus Semua Proyek", type="secondary", use_container_width=True):
-    st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
-    st.session_state.proj_counter = 1
-    st.session_state.current_proj_id = "proj_1"
-    st.rerun()
+    if unlock_delete:
+        pw_input = st.sidebar.text_input("Enter Admin Password", type="password")
+        
+        if pw_input == MASTER_DELETE_PW:
+            st.sidebar.success("Access Granted")
+            
+                # Your original delete project logic
+            can_delete = len(st.session_state.projects) > 1
+            if st.button("Hapus", disabled=not can_delete, type="secondary", use_container_width=True):
+                del st.session_state.projects[st.session_state.current_proj_id]
+                st.session_state.current_proj_id = list(st.session_state.projects.keys())[0]
+                save_data()
+                st.rerun()
+            
+            if st.sidebar.button("⚠️ HAPUS SEMUA DATA", type="primary", use_container_width=True):
+                st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
+                st.session_state.proj_counter = 1
+                st.session_state.current_proj_id = "proj_1"
+                save_data()
+                st.rerun()
+        else:
+            if pw_input: # Only show error if they actually typed something
+                st.sidebar.error("Incorrect Password")
 
 # --- NEW: GLOBAL PROJECT EDITOR IN SIDEBAR ---
 st.sidebar.markdown("---")
