@@ -30,8 +30,18 @@ def save_data(filename="autosave.json"):
     # 3. Replace the old file
     os.replace(tempname, filename)
 
-if st.session_state.get("storage_loaded", False):
-    save_data()
+
+
+def load_data(filename="autosave.json"):
+    """Tries to load the JSON file from the local directory."""
+    if os.path.exists(filename):
+        try:
+            with open(filename, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            # If the file is corrupted or empty, return None to start fresh
+            return None
+    return None    
 
 local_storage = None
 
