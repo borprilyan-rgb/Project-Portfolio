@@ -26,13 +26,23 @@ def load_data():
             return None
     return None
 
-def save_data(data):
-    """Saves the project data to the JSON file."""
+def save_data(): # Remove 'data' from here
+    """Saves the project data from session state to the JSON file."""
+    if "projects" not in st.session_state:
+        return
+        
+    payload = {
+        "app_version": APP_VERSION,
+        "projects": st.session_state.projects,
+        "current_proj_id": st.session_state.current_proj_id,
+        "proj_counter": st.session_state.proj_counter
+    }
+    
     try:
         with open(DB_FILE, "w") as f:
-            json.dump(data, f, indent=4)
+            json.dump(payload, f, indent=4)
     except Exception as e:
-        pass # Silent fail for prototype
+        pass
 
 def save_data_safely(data, filename="autosave.json"):
     # 1. Get the directory of the target file
