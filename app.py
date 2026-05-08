@@ -1393,7 +1393,7 @@ def show_cost_estimator():
             num_rows="dynamic",
             key=f"edit_smart_cc_{curr_id}",
             # ADD THIS LINE BELOW
-            column_order=["Item Description", "Rate (Rp)", "Quantity"], 
+            column_order=["Item Description", "Quantity", "Rate (Rp)"], 
             column_config={
                 "Item Description": st.column_config.TextColumn("Item Description", width="large"),
                 "Quantity": st.column_config.NumberColumn(
