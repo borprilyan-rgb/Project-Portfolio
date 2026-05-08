@@ -13,59 +13,25 @@ import tempfile
 #streamlit run app.py
 APP_VERSION = "1.1.0"
 
-DB_FILE = "autosave.json"
-
-def load_data():
-    """Tries to load the JSON file from the local directory."""
-    if os.path.exists(DB_FILE):
-        try:
-            with open(DB_FILE, "r") as f:
-                return json.load(f)
-        except Exception as e:
-            # If the file is corrupted, return None so the app can start fresh
-            return None
-    return None
-
-def save_data(): # Remove 'data' from here
-    """Saves the project data from session state to the JSON file."""
-    if "projects" not in st.session_state:
-        return
-        
-    payload = {
-        "app_version": APP_VERSION,
-        "projects": st.session_state.projects,
-        "current_proj_id": st.session_state.current_proj_id,
-        "proj_counter": st.session_state.proj_counter
-    }
-    
-    try:
-        with open(DB_FILE, "w") as f:
-            json.dump(payload, f, indent=4)
-    except Exception as e:
-        pass
-
-def save_data_safely(data, filename="autosave.json"):
+def save_data(filename="autosave.json"):
     # 1. Get the directory of the target file
     dir_name = os.path.dirname(os.path.abspath(filename))
     
-    # 2. Create a temporary file in the same directory
+    # 2. Create a temporary file and dump data directly from session_state
     with tempfile.NamedTemporaryFile('w', dir=dir_name, delete=False) as tf:
-        json.dump(data, tf, indent=4)
+        json.dump({
+            "app_version": APP_VERSION,
+            "projects": st.session_state.projects,
+            "current_proj_id": st.session_state.current_proj_id,
+            "proj_counter": st.session_state.proj_counter
+        }, tf, indent=4)
         tempname = tf.name
     
-    # 3. Atomically replace the old file with the new one
-    # This is a 'success or nothing' operation
+    # 3. Replace the old file
     os.replace(tempname, filename)
 
-# Use this in your final save execution
 if st.session_state.get("storage_loaded", False):
-    payload = {
-        "app_version": APP_VERSION,
-        "projects": st.session_state.projects,
-        "current_proj_id": st.session_state.current_proj_id,
-        "proj_counter": st.session_state.proj_counter
-    }
-    save_data_safely(payload)
+    save_data()
 
 local_storage = None
 
@@ -339,9 +305,15 @@ def cb_delete_project():
     st.session_state.current_proj_id = list(st.session_state.projects.keys())[0]
 
 def cb_switch_project():
-    selected_label = st.session_state.project_selector
+    # Use .get() to avoid the AttributeError if the key is missing
+    selected_label = st.session_state.get("project_selector")
+    
+    if not selected_label:
+        return
+
     proj_ids = list(st.session_state.projects.keys())
     proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
+    
     if selected_label in proj_labels:
         selected_idx = proj_labels.index(selected_label)
         st.session_state.current_proj_id = proj_ids[selected_idx]
@@ -843,8 +815,7 @@ def show_area_calculator():
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.3), ncol=3, frameon=False)
         
         st.pyplot(fig)
-
-            
+      
 def update_price(metric_key, db_key):
     """Update flooring price based on spec radio selection."""
     c_id = st.session_state.current_proj_id
