@@ -5,43 +5,52 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import plotly.graph_objects as go
 import num2words as n2w
+import ast
 
-import json
+import json as _json
 import os
 import tempfile
 
 #streamlit run app.py
 APP_VERSION = "1.1.0"
 
-def save_data(filename="autosave.json"):
-    # 1. Get the directory of the target file
-    dir_name = os.path.dirname(os.path.abspath(filename))
-    
-    # 2. Create a temporary file and dump data directly from session_state
-    with tempfile.NamedTemporaryFile('w', dir=dir_name, delete=False) as tf:
-        json.dump({
-            "app_version": APP_VERSION,
-            "projects": st.session_state.projects,
-            "current_proj_id": st.session_state.current_proj_id,
-            "proj_counter": st.session_state.proj_counter
-        }, tf, indent=4)
-        tempname = tf.name
-    
-    # 3. Replace the old file
-    os.replace(tempname, filename)
+from supabase import create_client, Client
 
+# 1. Connect to the Cloud
+url: str = st.secrets["SUPABASE_URL"]
+key: str = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(url, key)
 
+def save_data():
+    """Takes your projects and 'uploads' them to the cloud table."""
+    if not st.session_state.get("storage_loaded", False):
+        return
 
-def load_data(filename="autosave.json"):
-    """Tries to load the JSON file from the local directory."""
-    if os.path.exists(filename):
-        try:
-            with open(filename, "r") as f:
-                return json.load(f)
-        except Exception as e:
-            # If the file is corrupted or empty, return None to start fresh
-            return None
-    return None    
+    payload = {
+        "app_version": APP_VERSION,
+        "projects": st.session_state.projects,
+        "current_proj_id": st.session_state.current_proj_id,
+        "proj_counter": st.session_state.proj_counter
+    }
+
+    try:
+        # 'upsert' means: If id 'main_storage' exists, update it. If not, create it.
+        supabase.table("project_storage").upsert({
+            "id": "main_storage", 
+            "data": payload
+        }).execute()
+    except Exception as e:
+        st.error(f"Cloud Save Error: {e}")
+
+def load_data():
+    """Pulls your projects 'down' from the cloud table."""
+    try:
+        response = supabase.table("project_storage").select("data").eq("id", "main_storage").execute()
+        if response.data:
+            return response.data[0]["data"]
+    except Exception as e:
+        print(f"Cloud Load Error: {e}")
+    return None
 
 local_storage = None
 
@@ -327,6 +336,7 @@ def cb_switch_project():
     if selected_label in proj_labels:
         selected_idx = proj_labels.index(selected_label)
         st.session_state.current_proj_id = proj_ids[selected_idx]
+        save_data()     
 #endregion#
 
 #region
@@ -979,166 +989,160 @@ def show_cost_estimator():
         """)
     
     with tab9:
-        st.header("Upload & Download")
-        c1, c2 = st.columns(2)
-        with c1:
-            st.subheader("Import")
-            uploaded_file = st.file_uploader("Upload CSV Database:", type=["csv"])
+            st.header("Upload & Download")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.subheader("Import")
+                uploaded_file = st.file_uploader("Upload CSV Database:", type=["csv"])
 
-            if uploaded_file is not None:
-                file_key = getattr(uploaded_file, 'file_id', uploaded_file.name)
-                
-                if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != file_key:
-                    try:
-                        df_import = pd.read_csv(uploaded_file)
-                        
-                        if df_import is not None and not df_import.empty:
-                            # Dictionary to hold custom item reconstruction per project found in CSV
-                            # Structure: {pid: {idx: {item_data}}}
-                            global_temp_custom = {}
+                if uploaded_file is not None:
+                    file_key = getattr(uploaded_file, 'file_id', uploaded_file.name)
+                    
+                    if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != file_key:
+                        try:
+                            import ast  # Needed to turn strings back into tables
+                            df_import = pd.read_csv(uploaded_file)
+                            
+                            if df_import is not None and not df_import.empty:
+                                global_temp_custom = {}
+                                import_pid_map = {} # Track mapped IDs to prevent row-by-row renaming
 
-                            # Iterate through each row in the CSV
-                            for index, row in df_import.iterrows():
-                                # Get Project ID from CSV or fallback to current project if missing
-                                pid = str(row.get("Project_ID", curr_id)).strip()
-                                key = str(row.get("Metric_Key", "")).strip()
-                                val = row.get("Value", "")
+                                for index, row in df_import.iterrows():
+                                    # Get raw ID
+                                    raw_pid = str(row.get("Project_ID", curr_id)).strip()
+                                    key = str(row.get("Metric_Key", "")).strip()
+                                    val = row.get("Value", "")
 
-                                if not key or pd.isna(val): continue 
+                                    if not key or pd.isna(val): continue 
 
-                                # 1. Ensure the project exists in Session State
-                                if "import_pid_map" not in locals():
-                                    import_pid_map = {}
+                                    # 1. Handle Project ID Mapping (Renaming if duplicate exists)
+                                    if raw_pid not in import_pid_map:
+                                        target_pid = raw_pid
+                                        if target_pid in st.session_state.projects:
+                                            # Unique suffix for this file import
+                                            target_pid = f"{target_pid}_imported_{file_key[:4]}"
+                                        import_pid_map[raw_pid] = target_pid
 
-                                # Get the raw ID from CSV
-                                raw_pid = str(row.get("Project_ID", curr_id)).strip()
+                                    pid = import_pid_map[raw_pid]
 
-                                # Check if we've already decided on a name for this raw_pid during this loop
-                                if raw_pid not in import_pid_map:
-                                    target_pid = raw_pid
-                                    # If the original exists, create a unique new ID for this whole import session
-                                    if target_pid in st.session_state.projects:
-                                        target_pid = f"{target_pid}_imported_{file_key[:4]}" # unique to this file
-                                    import_pid_map[raw_pid] = target_pid
-
-                                # Now use the mapped ID for the rest of the logic
-                                pid = import_pid_map[raw_pid]
-
-                                if pid not in st.session_state.projects:
-                                    st.session_state.projects[pid] = {
-                                        "name": f"Imported Project {pid}",
-                                        "type": "Hotel", # Default
-                                        "data": {}
-                                    }
-                                
-                                # 2. Handle Metadata (Name/Type)
-                                if key == "proj_name":
-                                    st.session_state.projects[pid]["name"] = str(val)
-                                elif key == "proj_type":
-                                    st.session_state.projects[pid]["type"] = str(val)
-                                
-                                # 3. Handle Custom Inputs (Data Editor Breakdown)
-                                elif key.startswith(("input_name", "input_rate", "input_qty")):
-                                    if pid not in global_temp_custom:
-                                        global_temp_custom[pid] = {}
+                                    if pid not in st.session_state.projects:
+                                        st.session_state.projects[pid] = {
+                                            "name": f"Imported Project {pid}",
+                                            "type": "Hotel", 
+                                            "data": {}
+                                        }
                                     
-                                    try:
-                                        idx = int(''.join(filter(str.isdigit, key)))
-                                        if idx not in global_temp_custom[pid]:
-                                            global_temp_custom[pid][idx] = {"Item Description": "", "Rate (Rp)": 0.0, "Quantity": 1.0}
-                                        
-                                        if "name" in key:
-                                            global_temp_custom[pid][idx]["Item Description"] = str(val)
-                                        elif "rate" in key:
-                                            global_temp_custom[pid][idx]["Rate (Rp)"] = float(val)
-                                        elif "qty" in key:
-                                            global_temp_custom[pid][idx]["Quantity"] = float(val)
-                                    except: continue
+                                    # 2. Handle Metadata
+                                    if key == "proj_name":
+                                        st.session_state.projects[pid]["name"] = str(val)
+                                    elif key == "proj_type":
+                                        st.session_state.projects[pid]["type"] = str(val)
+                                    
+                                    # 3. Handle Custom Item Reconstruction
+                                    elif key.startswith(("input_name", "input_rate", "input_qty")):
+                                        if pid not in global_temp_custom:
+                                            global_temp_custom[pid] = {}
+                                        try:
+                                            idx = int(''.join(filter(str.isdigit, key)))
+                                            if idx not in global_temp_custom[pid]:
+                                                global_temp_custom[pid][idx] = {"Item Description": "", "Rate (Rp)": 0.0, "Quantity": 1.0}
+                                            
+                                            if "name" in key: global_temp_custom[pid][idx]["Item Description"] = str(val)
+                                            elif "rate" in key: global_temp_custom[pid][idx]["Rate (Rp)"] = float(val)
+                                            elif "qty" in key: global_temp_custom[pid][idx]["Quantity"] = float(val)
+                                        except: continue
 
-                                # 4. Handle Standard Metrics
-                                else:
-                                    try:
-                                        st.session_state.projects[pid]["data"][key] = float(val)
-                                    except (ValueError, TypeError):
-                                        st.session_state.projects[pid]["data"][key] = str(val)
+                                    # 4. Handle Standard Metrics & Nested Tables (Area Calculator)
+                                    else:
+                                        try:
+                                            str_val = str(val).strip()
 
-                            # 5. Reconstruct 'smart_custom_costs' for all affected projects
-                            for pid, items_dict in global_temp_custom.items():
-                                sorted_custom = [items_dict[i] for i in sorted(items_dict.keys())]
-                                st.session_state.projects[pid]["data"]["smart_custom_costs"] = sorted_custom
+                                            # Strip surrounding quotes that CSV may add
+                                            if str_val.startswith('"') and str_val.endswith('"'):
+                                                str_val = str_val[1:-1]
 
-                            st.session_state.last_loaded_file = file_key
-                            st.success(f"✅ Import Successful! Processed {len(df_import['Project_ID'].unique()) if 'Project_ID' in df_import.columns else 1} project(s).")
-                            st.rerun()
-                        else:
-                            st.warning("⚠️ The uploaded CSV is empty.")
+                                            if str_val.startswith("[{") or str_val.startswith("['"): 
+                                                # Try JSON first (clean), then fall back to Python literal
+                                                try:
+                                                    st.session_state.projects[pid]["data"][key] = _json.loads(str_val)
+                                                except Exception:
+                                                    try:
+                                                        st.session_state.projects[pid]["data"][key] = ast.literal_eval(str_val)
+                                                    except Exception:
+                                                        st.session_state.projects[pid]["data"][key] = str_val
+                                            else:
+                                                try:
+                                                    st.session_state.projects[pid]["data"][key] = float(val)
+                                                except (ValueError, TypeError):
+                                                    st.session_state.projects[pid]["data"][key] = str(val)
+                                        except (ValueError, TypeError, SyntaxError):
+                                            st.session_state.projects[pid]["data"][key] = str(val)
 
-                    except Exception as e:
-                        st.error(f"❌ Error during import: {e}")
-                        
-        with c2:
-            st.subheader("Export")
+                                # 5. Finalize Custom Item Lists
+                                for pid_key, items_dict in global_temp_custom.items():
+                                    sorted_custom = [items_dict[i] for i in sorted(items_dict.keys())]
+                                    st.session_state.projects[pid_key]["data"]["smart_custom_costs"] = sorted_custom
 
-            # --- 1. LOGIC FOR CURRENT PROJECT ONLY ---
-            current_project_csv = []
-            # Project Meta for current
-            current_project_csv.append({"Project_ID": curr_id, "Metric_Key": "proj_name", "Value": curr_proj["name"]})
-            current_project_csv.append({"Project_ID": curr_id, "Metric_Key": "proj_type", "Value": curr_proj["type"]})
-            
-            # Standard Metrics for current
-            for k, v in st.session_state.projects[curr_id]["data"].items():
-                if k not in ("smart_custom_costs", "header_info", "assumptions"):
-                    current_project_csv.append({"Project_ID": curr_id, "Metric_Key": k, "Value": v})
-            
-            # Custom Items for current
-            custom_data_curr = st.session_state.get(f"smart_custom_data_{curr_id}", {})
-            for k, v in custom_data_curr.items():
-                current_project_csv.append({"Project_ID": curr_id, "Metric_Key": k, "Value": v})
+                                # 6. CLEAR UI CACHE ANCHORS (Crucial for Area Calculator reload)
+                                keys_to_clear = [k for k in st.session_state.keys() if "base_table_" in k or "area_editor_" in k]
+                                for k in keys_to_clear:
+                                    del st.session_state[k]
 
-            df_curr = pd.DataFrame(current_project_csv)
-            csv_buffer = df_curr.to_csv(index=False).encode("utf-8") # Now defined!
-
-
-            # --- 2. LOGIC FOR ALL PROJECTS (GLOBAL) ---
-            all_projects_csv = []
-            for pid, pdata in st.session_state.projects.items():
-                all_projects_csv.append({"Project_ID": pid, "Metric_Key": "proj_name", "Value": pdata["name"]})
-                all_projects_csv.append({"Project_ID": pid, "Metric_Key": "proj_type", "Value": pdata["type"]})
+                                st.session_state.last_loaded_file = file_key
+                                st.success(f"✅ Import Successful! New projects created to avoid overwrites.")
+                                st.rerun()
+                            else:
+                                st.warning("⚠️ The uploaded CSV is empty.")
+                        except Exception as e:
+                            st.error(f"❌ Error during import: {e}")
+                            
+            with c2:
+                st.subheader("Export")
+                # --- 1. CURRENT PROJECT ONLY ---
+                current_project_csv = []
+                current_project_csv.append({"Project_ID": curr_id, "Metric_Key": "proj_name", "Value": curr_proj["name"]})
+                current_project_csv.append({"Project_ID": curr_id, "Metric_Key": "proj_type", "Value": curr_proj["type"]})
                 
-                for k, v in pdata["data"].items():
-                    if k not in ("smart_custom_costs", "header_info", "assumptions"):
-                        all_projects_csv.append({"Project_ID": pid, "Metric_Key": k, "Value": v})
-                
-                custom_data_pid = st.session_state.get(f"smart_custom_data_{pid}", {})
-                for k, v in custom_data_pid.items():
-                    all_projects_csv.append({"Project_ID": pid, "Metric_Key": k, "Value": v})
+                for k, v in st.session_state.projects[curr_id]["data"].items():
+                    if k not in ("header_info", "assumptions"):
+                        serialized_v = _json.dumps(v) if isinstance(v, list) else v
+                        current_project_csv.append({"Project_ID": curr_id, "Metric_Key": k, "Value": serialized_v})
 
-            df_all = pd.DataFrame(all_projects_csv)
-            csv_all_buffer = df_all.to_csv(index=False).encode("utf-8")
+                df_curr = pd.DataFrame(current_project_csv)
+                csv_buffer = df_curr.to_csv(index=False).encode("utf-8")
 
+                # --- 2. GLOBAL DATABASE ---
+                all_projects_csv = []
+                for pid, pdata in st.session_state.projects.items():
+                    all_projects_csv.append({"Project_ID": pid, "Metric_Key": "proj_name", "Value": pdata["name"]})
+                    all_projects_csv.append({"Project_ID": pid, "Metric_Key": "proj_type", "Value": pdata["type"]})
+                    for k, v in pdata["data"].items():
+                        if k not in ("header_info", "assumptions"):
+                            all_projects_csv.append({"Project_ID": pid, "Metric_Key": k, "Value": v})
 
-            # --- 3. DOWNLOAD BUTTONS ---
-            
-            # Button for Current Project
-            st.download_button(
-                label=f"Download {curr_proj['name']} only",
-                data=csv_buffer,
-                file_name=f"Project_{curr_id}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
+                df_all = pd.DataFrame(all_projects_csv)
+                csv_all_buffer = df_all.to_csv(index=False).encode("utf-8")
 
-            # Button for Global Database
-            st.download_button(
-                label="Download All Projects ",
-                data=csv_all_buffer,
-                file_name="ProCalc_Global_Database.csv",
-                mime="text/csv",
-                use_container_width=True,
-                type="primary" 
-            )
+                # --- 3. DOWNLOAD BUTTONS ---
+                st.download_button(
+                    label=f"Download {curr_proj['name']} only",
+                    data=csv_buffer,
+                    file_name=f"Project_{curr_id}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
 
-    # --- TAB 1: PROJECT METRICS ---
+                st.download_button(
+                    label="Download All Projects",
+                    data=csv_all_buffer,
+                    file_name="ProCalc_Global_Database.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    type="primary" 
+                )
+
+        # --- TAB 1: PROJECT METRICS ---
+
     with tab2:
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 
@@ -1425,10 +1429,17 @@ def show_cost_estimator():
                 calc_str = f"**{desc}**: Rp {rate:,.2f} × {qty} qty = **Rp {item_total:,.2f}**"
                 breakdown_details.append(calc_str)
 
-        # Save this dictionary into your session state / get_val system
-        # This allows you to export it to PROJECT_DATABASE later
+# ... (keep your loop the same) ...
+        
+        # 1. Update the 'smart_custom_data' for export logic (what you already have)
         st.session_state[f"smart_custom_data_{curr_id}"] = smart_custom_inputs
-
+        
+        # 2. ADD THIS: Update the raw list so the table editor actually remembers the rows!
+        st.session_state.projects[curr_id]["data"]["smart_custom_costs"] = edited_smart_cc.to_dict('records')
+        
+        # 3. Now save to JSON
+        save_data()
+        
         st.markdown("---")
         st.markdown(f"### Total Harga Item Custom: Rp {smart_custom_costs:,.2f}")
 
@@ -1884,6 +1895,7 @@ def show_cost_estimator():
         "sc_pm_m": pm_months, "sc_pm_r": pm_rate, "sc_ins": insurance_pct
     })
 
+    save_data()
 
     with tab8:
             st.header("Detail Pembuktian & Logika Perhitungan")
@@ -2030,11 +2042,13 @@ new_type = st.sidebar.selectbox("Jenis Proyek", types_list, index=type_index, ke
 needs_rerun = False
 if new_name != curr_proj["name"]:
     st.session_state.projects[curr_id]["name"] = new_name
+    save_data() # SAVE HERE
     needs_rerun = True
 
 if new_type != curr_proj["type"]:
     st.session_state.projects[curr_id]["type"] = new_type
-    st.session_state.projects[curr_id]["data"] = {} # Clear old rates on type change
+    st.session_state.projects[curr_id]["data"] = {}
+    save_data() # SAVE HERE
     needs_rerun = True
 
 if needs_rerun:
@@ -2054,10 +2068,16 @@ c1, c2 = st.sidebar.columns(2)
 
 with c1:
     st.button("Tambah", on_click=cb_add_project, type="primary", use_container_width=True)
-
+    
 with c2:
     can_delete = len(st.session_state.projects) > 1
     st.button("Hapus", disabled=not can_delete, on_click=cb_delete_project, type="secondary", help="Delete Active Project", use_container_width=True)
+
+if st.sidebar.button("Hapus Semua Proyek", type="secondary", use_container_width=True):
+    st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
+    st.session_state.proj_counter = 1
+    st.session_state.current_proj_id = "proj_1"
+    st.rerun()
 
 # --- NEW: GLOBAL PROJECT EDITOR IN SIDEBAR ---
 st.sidebar.markdown("---")
