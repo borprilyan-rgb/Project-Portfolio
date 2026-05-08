@@ -1,11 +1,43 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-from num2words import num2words
-from streamlit_local_storage import LocalStorage
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import plotly.graph_objects as go
+import num2words as n2w
 
-# Initialize the storage object immediately
-local_storage = LocalStorage()
+import json
+import os
+import tempfile
+from database import PROJECT_DATABASE
+
+#streamlit run app.py
+APP_VERSION = "1.1.0"
+
+def save_data_safely(data, filename="autosave.json"):
+    # 1. Get the directory of the target file
+    dir_name = os.path.dirname(os.path.abspath(filename))
+    
+    # 2. Create a temporary file in the same directory
+    with tempfile.NamedTemporaryFile('w', dir=dir_name, delete=False) as tf:
+        json.dump(data, tf, indent=4)
+        tempname = tf.name
+    
+    # 3. Atomically replace the old file with the new one
+    # This is a 'success or nothing' operation
+    os.replace(tempname, filename)
+
+# Use this in your final save execution
+if st.session_state.get("storage_loaded", False):
+    payload = {
+        "app_version": APP_VERSION,
+        "projects": st.session_state.projects,
+        "current_proj_id": st.session_state.current_proj_id,
+        "proj_counter": st.session_state.proj_counter
+    }
+    save_data_safely(payload)
+
+local_storage = None
 
 def n2w(amount):
     try:
@@ -21,250 +53,7 @@ def n2w(amount):
     except:
         return "0"
 
-# --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="Project Portfolio", layout="wide")
-
-PROJECT_DATABASE = {
-    "Apartment": {
-        #Foundation & Structure
-        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
-        #Architecture
-        "arch_base": 1058000.0, "lobby": 1500000.0,
-        "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
-        #Pintu & Hardware
-        "door_wood": 3500000.0, "door_steel": 7000000.0,
-        "hw_wood": 750000.0, "hw_steel": 1850000.0, "door_glass": 1000000.0, 
-        #Sanitari
-        "san_room_rate": 26875000.0, "san_pub_f": 98075000.0, "san_pub_m": 77050000.0,
-        "san_dis": 30275000.0, "san_mushola": 36500000.0,
-        #Lantai, Finishing & Interior
-        "fl_waste" : 10.0,
-        "fl_ht_rate": {"Type1": 150000.0, "Type2": 350000.0},
-        "fl_vinyl_rate": {"Type1": 500000.0, "Type2": 750000.0},
-        "fl_marmer_rate": {"Type1": 750000.0, "Type2": 1500000.0},
-
-        "gondola": 600000000.0, "carpet": 1200000.0, "glass": 700000.0,
-        
-        "ffe": 32000000.0, "misc": 32000000.0, "kitchen": 0.0,
-
-        "facade_precast_pct": 10.0, "facade_window_pct": 80.0, "facade_double_pct": 10.0,
-        "fl_ht_pct": 90.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 10.0,
-        "san_room_qty": 1.0, "railing_qty": 0.0,
-        "mep": 4000000.0, "utility": 150000.0,
-        "railing_rate": 2200000.0, "skylight_rate": 4500000.0,
-         "ext_land": 1563000.0,
-        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0,
-        "cons": 174000.0
-    },
-    "Hotel": {
-        "arch_base": 1079000.0, "door_wood": 4750000.0, "door_steel": 8000000.0,
-        "hw_wood": 8250000.0, "hw_steel": 2850000.0, "lobby": 2000000.0,
-        "gondola": 2000000000.0, "carpet": 1200000.0, "glass": 800000.0,
-        "san_room_rate": 62050000.0, "san_pub_f": 107825000.0, "san_pub_m": 86050000.0,
-        "ffe": 59650000.0, "misc": 52500000.0, "kitchen": 0.0,
-        "fl_ht_rate": {"Type1": 150000.0, "Type2": 350000.0},
-        "fl_vinyl_rate": {"Type1": 500000.0, "Type2": 750000.0},
-        "fl_marmer_rate": {"Type1": 750000.0, "Type2": 1500000.0},
-        "facade_precast_pct": 60.0, "facade_window_pct": 30.0, "facade_double_pct": 10.0,
-        "fl_ht_pct": 90.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 10.0,
-        "san_room_qty": 3.0, "railing_qty": 5.0,
-        "mep": 2810941.24, "utility": 92098.0,
-        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
-        "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
-        "door_glass": 1000000.0, "railing_rate": 2200000.0, "skylight_rate": 4500000.0,
-        "san_dis": 30275000.0, "san_mushola": 36500000.0, "ext_land": 1563000.0,
-        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0,
-        "cons": 199000.0
-    },
-    "Retail": {
-        "arch_base": 1084000.0, "door_wood": 6000000.0, "door_steel": 8000000.0,
-        "hw_wood": 6500000.0, "hw_steel": 2850000.0, "lobby": 2500000.0,
-        "gondola": 2500000000.0, "carpet": 1500000.0, "glass": 800000.0,
-        "san_room_rate": 0.0, "san_pub_f": 154175000.0, "san_pub_m": 126225000.0,
-        "ffe": 0.0, "misc": 0.0, "kitchen": 0.0,
-        "fl_ht_rate": {"Type1": 150000.0, "Type2": 350000.0},
-        "fl_vinyl_rate": {"Type1": 500000.0, "Type2": 750000.0},
-        "fl_marmer_rate": {"Type1": 750000.0, "Type2": 1500000.0},
-        "facade_precast_pct": 10.0, "facade_window_pct": 80.0, "facade_double_pct": 10.0,
-        "fl_ht_pct": 90.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 10.0,
-        "san_room_qty": 0.0, "railing_qty": 0.0,
-        "mep": 4000000.0, "utility": 150000.0,
-        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
-        "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
-        "door_glass": 1000000.0, "railing_rate": 2200000.0, "skylight_rate": 4500000.0,
-        "san_dis": 30275000.0, "san_mushola": 36500000.0, "ext_land": 1563000.0,
-        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0,
-        "cons": 174000.0
-    },
-    "Parking": {
-        "arch_base": 668000.0,
-        "mep": 4000000.0,
-        "utility": 150000.0,
-        "door_wood": 0.0, "door_steel": 0.0, "door_glass": 0.0,
-        "hw_wood": 0.0, "hw_steel": 0.0, "lobby": 0.0, "gondola": 0.0,
-        "carpet": 0.0, "glass": 0.0, "ffe": 0.0, "misc": 0.0, "kitchen": 0.0,
-        "san_room_rate": 0.0, "san_pub_f": 0.0, "san_pub_m": 0.0,
-        "fl_ht_rate": {"Type1": 0.0, "Type2": 0.0},
-        "fl_vinyl_rate": {"Type1": 0.0, "Type2": 0.0},
-        "fl_marmer_rate": {"Type1": 0.0, "Type2": 0.0},
-        "facade_precast_pct": 10.0, "facade_window_pct": 80.0, "facade_double_pct": 10.0,
-        "fl_ht_pct": 90.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 10.0,
-        "san_room_qty": 0.0, "railing_qty": 0.0,
-        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
-        "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
-        "railing_rate": 2200000.0, "skylight_rate": 4500000.0,
-        "san_dis": 30275000.0, "san_mushola": 36500000.0, "ext_land": 1563000.0,
-        "fac_pub": 31000000.0, "fac_res": 10000000.0, "fac_proj": 2000000000.0,
-        "cons": 53000.0
-    },
-    "Luxury Apartment": {
-        "arch_base": 1517450.0,
-        "mep": 3295000.0,
-        "utility": 53362.0,
-        "door_wood": 4500000.0, "door_steel": 6750000.0, "door_glass": 1000000.0,
-        "hw_wood": 1500000.0, "hw_steel": 1400000.0, "lobby": 2500000.0, "gondola": 2000000000.0,
-        "carpet": 0.0, "glass": 0.0, "ffe": 29500000.0, "misc": 5250000000.0, "kitchen": 0.0,
-        "san_room_rate": 24450000.0, "san_pub_f": 154175000.0, "san_pub_m": 126225000.0,
-        "fl_ht_rate": {"Type1": 350000.0, "Type2": 200000.0},
-        "fl_vinyl_rate": {"Type1": 0.0, "Type2": 0.0},
-        "fl_marmer_rate": {"Type1": 0.0, "Type2": 0.0},
-        "facade_precast_pct": 0.0, "facade_window_pct": 0.0, "facade_double_pct": 0.0,
-        "fl_ht_pct": 0.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 0.0,
-        "san_room_qty": 1.0, "railing_qty": 0.0,
-        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
-        "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 1000000.0,
-        "railing_rate": 1100000.0, "skylight_rate": 4500000.0,
-        "san_dis": 24481500.0, "san_mushola": 36500000.0, "ext_land": 632077.0,
-        "fac_pub": 0.0, "fac_res": 221432.0, "fac_proj": 2000000000.0,
-        "cons": 172813.093
-    },
-    "Apartment2": {
-        "arch_base": 1614800.0,
-        "mep": 2247000.0,
-        "utility": 84274.0,
-        "door_wood": 3500000.0, "door_steel": 6750000.0, "door_glass": 1000000.0,
-        "hw_wood": 1500000.0, "hw_steel": 1400000.0, "lobby": 2500000.0, "gondola": 1500000000.0,
-        "carpet": 0.0, "glass": 0.0, "ffe": 29500000.0, "misc": 5250000000.0, "kitchen": 0.0,
-        "san_room_rate": 24450000.0, "san_pub_f": 154175000.0, "san_pub_m": 126225000.0,
-        "fl_ht_rate": {"Type1": 350000.0, "Type2": 200000.0},
-        "fl_vinyl_rate": {"Type1": 0.0, "Type2": 0.0},
-        "fl_marmer_rate": {"Type1": 0.0, "Type2": 0.0},
-        "facade_precast_pct": 0.0, "facade_window_pct": 0.0, "facade_double_pct": 0.0,
-        "fl_ht_pct": 0.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 0.0,
-        "san_room_qty": 1.0, "railing_qty": 0.0,
-        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
-        "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 1000000.0,
-        "railing_rate": 1100000.0, "skylight_rate": 4500000.0,
-        "san_dis": 24481500.0, "san_mushola": 36500000.0, "ext_land": 459538.0,
-        "fac_pub": 0.0, "fac_res": 72243.0, "fac_proj": 2000000000.0,
-        "cons": 171378.327
-    },
-    "Hotel 3 Star": {
-        "arch_base": 1517450.0,
-        "mep": 4223000.0,
-        "utility": 131787.0,
-        "door_wood": 4500000.0, "door_steel": 6750000.0, "door_glass": 1000000.0,
-        "hw_wood": 8000000.0, "hw_steel": 1900000.0, "lobby": 5000000.0, "gondola": 1500000000.0,
-        "carpet": 0.0, "glass": 0.0, "ffe": 64567647.0, "misc": 5250000000.0, "kitchen": 0.0,
-        "san_room_rate": 62050000.0, "san_pub_f": 154175000.0, "san_pub_m": 126225000.0,
-        "fl_ht_rate": {"Type1": 350000.0, "Type2": 200000.0},
-        "fl_vinyl_rate": {"Type1": 0.0, "Type2": 0.0},
-        "fl_marmer_rate": {"Type1": 0.0, "Type2": 0.0},
-        "facade_precast_pct": 0.0, "facade_window_pct": 0.0, "facade_double_pct": 0.0,
-        "fl_ht_pct": 0.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 0.0,
-        "san_room_qty": 1.0, "railing_qty": 0.0,
-        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
-        "facade_precast_rate": 800000.0, "facade_window_rate": 2400000.0, "facade_double_rate": 1000000.0,
-        "railing_rate": 1100000.0, "skylight_rate": 4500000.0,
-        "san_dis": 62050000.0, "san_mushola": 0.0, "ext_land": 213198.0,
-        "fac_pub": 0.0, "fac_res": 108200.0, "fac_proj": 2000000000.0,
-        "cons": 173906.6059
-    },
-    "Retail2": {
-        "arch_base": 984500.0,
-        "mep": 2651000.0,
-        "utility": 23724.0,
-        "door_wood": 3500000.0, "door_steel": 5000000.0, "door_glass": 1000000.0,
-        "hw_wood": 750000.0, "hw_steel": 1900000.0, "lobby": 2500000.0, "gondola": 2000000000.0,
-        "carpet": 0.0, "glass": 0.0, "ffe": 0.0, "misc": 0.0, "kitchen": 0.0,
-        "san_room_rate": 0.0, "san_pub_f": 154175000.0, "san_pub_m": 126225000.0,
-        "fl_ht_rate": {"Type1": 350000.0, "Type2": 200000.0},
-        "fl_vinyl_rate": {"Type1": 0.0, "Type2": 0.0},
-        "fl_marmer_rate": {"Type1": 0.0, "Type2": 0.0},
-        "facade_precast_pct": 0.0, "facade_window_pct": 0.0, "facade_double_pct": 0.0,
-        "fl_ht_pct": 0.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 0.0,
-        "san_room_qty": 1.0, "railing_qty": 0.0,
-        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
-        "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 2500000.0,
-        "railing_rate": 2000000.0, "skylight_rate": 4500000.0,
-        "san_dis": 62050000.0, "san_mushola": 36500000.0, "ext_land": 559277.0,
-        "fac_pub": 0.0, "fac_res": 0.0, "fac_proj": 2000000000.0,
-        "cons": 181035.685
-    },
-    "Terrace Village": {
-        "arch_base": 1517450.0,
-        "mep": 4337000.0,
-        "utility": 61168.0,
-        "door_wood": 3500000.0, "door_steel": 5000000.0, "door_glass": 1000000.0,
-        "hw_wood": 750000.0, "hw_steel": 1400000.0, "lobby": 2500000.0, "gondola": 2000000000.0,
-        "carpet": 0.0, "glass": 0.0, "ffe": 0.0, "misc": 5250000000.0, "kitchen": 0.0,
-        "san_room_rate": 24450000.0, "san_pub_f": 154175000.0, "san_pub_m": 126225000.0,
-        "fl_ht_rate": {"Type1": 350000.0, "Type2": 200000.0},
-        "fl_vinyl_rate": {"Type1": 0.0, "Type2": 0.0},
-        "fl_marmer_rate": {"Type1": 0.0, "Type2": 0.0},
-        "facade_precast_pct": 0.0, "facade_window_pct": 0.0, "facade_double_pct": 0.0,
-        "fl_ht_pct": 0.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 0.0,
-        "san_room_qty": 1.0, "railing_qty": 0.0,
-        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
-        "facade_precast_rate": 800000.0, "facade_window_rate": 1250000.0, "facade_double_rate": 1000000.0,
-        "railing_rate": 2000000.0, "skylight_rate": 4500000.0,
-        "san_dis": 24481500.0, "san_mushola": 36500000.0, "ext_land": 1024897.0,
-        "fac_pub": 0.0, "fac_res": 1715946.0, "fac_proj": 2000000000.0,
-        "cons": 168148.6486
-    },
-    "Podium Village": {
-        "arch_base": 1517450.0,
-        "mep": 3142000.0,
-        "utility": 45249.0,
-        "door_wood": 4500000.0, "door_steel": 6750000.0, "door_glass": 1000000.0,
-        "hw_wood": 8000000.0, "hw_steel": 1900000.0, "lobby": 5000000.0, "gondola": 1500000000.0,
-        "carpet": 0.0, "glass": 0.0, "ffe": 0.0, "misc": 5250000000.0, "kitchen": 0.0,
-        "san_room_rate": 62050000.0, "san_pub_f": 154175000.0, "san_pub_m": 126225000.0,
-        "fl_ht_rate": {"Type1": 350000.0, "Type2": 200000.0},
-        "fl_vinyl_rate": {"Type1": 0.0, "Type2": 0.0},
-        "fl_marmer_rate": {"Type1": 0.0, "Type2": 0.0},
-        "facade_precast_pct": 0.0, "facade_window_pct": 0.0, "facade_double_pct": 0.0,
-        "fl_ht_pct": 0.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 0.0,
-        "san_room_qty": 1.0, "railing_qty": 0.0,
-        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
-        "facade_precast_rate": 800000.0, "facade_window_rate": 2400000.0, "facade_double_rate": 1000000.0,
-        "railing_rate": 1100000.0, "skylight_rate": 4500000.0,
-        "san_dis": 62050000.0, "san_mushola": 0.0, "ext_land": 416735.0,
-        "fac_pub": 0.0, "fac_res": 100897.0, "fac_proj": 2000000000.0,
-        "cons": 173505.7655
-    },
-    "Parking2": {
-        "arch_base": 1040000.0,
-        "mep": 900000.0,
-        "utility": 0.0,
-        "door_wood": 0.0, "door_steel": 0.0, "door_glass": 0.0,
-        "hw_wood": 0.0, "hw_steel": 0.0, "lobby": 0.0, "gondola": 0.0,
-        "carpet": 0.0, "glass": 0.0, "ffe": 0.0, "misc": 0.0, "kitchen": 0.0,
-        "san_room_rate": 0.0, "san_pub_f": 0.0, "san_pub_m": 0.0,
-        "fl_ht_rate": {"Type1": 0.0, "Type2": 0.0},
-        "fl_vinyl_rate": {"Type1": 0.0, "Type2": 0.0},
-        "fl_marmer_rate": {"Type1": 0.0, "Type2": 0.0},
-        "facade_precast_pct": 0.0, "facade_window_pct": 0.0, "facade_double_pct": 0.0,
-        "fl_ht_pct": 0.0, "fl_vinyl_pct": 0.0, "fl_marmer_pct": 0.0,
-        "san_room_qty": 1.0, "railing_qty": 0.0,
-        "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
-        "facade_precast_rate": 0.0, "facade_window_rate": 0.0, "facade_double_rate": 0.0,
-        "railing_rate": 0.0, "skylight_rate": 0.0,
-        "san_dis": 0.0, "san_mushola": 0.0, "ext_land": 0.0,
-        "fac_pub": 0.0, "fac_res": 0.0, "fac_proj": 0.0,
-        "cons": 52500.0
-    }
-}
 
 #region# 2. Callback Functions
 def cb_add_project():
@@ -286,186 +75,504 @@ def cb_switch_project():
         st.session_state.current_proj_id = proj_ids[selected_idx]
 #endregion#
 
-#region# 3. SESSION STATE
+#region
+# Initialization
 if "projects" not in st.session_state:
-    # Look for a backup in the browser's "Cookie" (LocalStorage)
-    stored_data = local_storage.getItem("asg_calculator_backup")
+    stored_data = load_data()
     
     if stored_data:
-        # CAVEAT 3 FIX: Check if it's our new "Wrapped" payload
-        if "projects_dict" in stored_data:
-            st.session_state.projects = stored_data["projects_dict"]
-            st.session_state.current_proj_id = stored_data.get("current_proj_id", list(st.session_state.projects.keys())[0])
-            st.session_state.proj_counter = stored_data.get("proj_counter", 1)
-        else:
-            # Backward compatibility for the old cookie format
-            st.session_state.projects = stored_data
-            st.session_state.current_proj_id = list(stored_data.keys())[0]
-            
-            # BUG 1 FIX: Safely derive max ID to prevent collision after deletes
-            existing_ids = []
-            for k in stored_data.keys():
-                if k.startswith("proj_"):
-                    parts = k.split("_")
-                    if len(parts) > 1 and parts[1].isdigit():
-                        existing_ids.append(int(parts[1]))
-            st.session_state.proj_counter = max(existing_ids) if existing_ids else 1
-            
-        # BUG 2 FIX: Flag that storage has successfully loaded
-        st.session_state.storage_loaded = True
-
-    elif stored_data == {} or stored_data is None:
-        # If no cookie exists, create a blank project
-        st.session_state.projects = {
-            "proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}
-        }
+        # Restore from JSON
+        st.session_state.projects = stored_data["projects"]
+        st.session_state.current_proj_id = stored_data["current_proj_id"]
+        st.session_state.proj_counter = stored_data["proj_counter"]
+        
+        # Migration check (v1.0.0 -> v1.1.0)
+        if stored_data.get("app_version", "1.0.0") < "1.1.0":
+            for pid in st.session_state.projects:
+                p_data = st.session_state.projects[pid].get("data", {})
+                if "vis_land" not in p_data:
+                    p_data.update({
+                        "vis_land": 1000.0, "vis_floors": 5, "vis_stair": 20.0,
+                        "vis_mep": 20.0, "vis_corr": 50.0, "vis_unit": 100.0,
+                        "vis_lobby": 50.0, "vis_roof": 80.0, "vis_mep_out": 20.0
+                    })
+                    st.session_state.projects[pid]["data"] = p_data
+    else:
+        # Default fresh start
+        st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
         st.session_state.current_proj_id = "proj_1"
         st.session_state.proj_counter = 1
-        st.session_state.storage_loaded = True
-#endregion#
+    
+    st.session_state.storage_loaded = True
+#endregion
 
-# --- 4. PAGE FUNCTIONS ---
+def show_project_database():
+    tab1, tab2 = st.tabs([
+    "Database", " "
+    ])
+
+# --- TAB 1: PETUNJUK PEMAKAIAN ---
+    with tab1:
+        flattened_data = []
+        for project_type, metrics in PROJECT_DATABASE.items():
+            row = {"Project Type": project_type}
+            for key, value in metrics.items():
+                # Handle nested rate dictionaries (e.g., fl_ht_rate)
+                if isinstance(value, dict):
+                    for sub_key, sub_val in value.items():
+                        row[f"{key}_{sub_key}"] = sub_val
+                else:
+                    row[key] = value
+            flattened_data.append(row)
+
+        # 2. Create DataFrame
+        df_db = pd.DataFrame(flattened_data)
+
+        # 3. Display in Streamlit
+        st.subheader("Standard Project Database Rates")
+        st.dataframe(
+            df_db, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                "Project Type": st.column_config.TextColumn("Project Type", width="medium"),
+                "struc_work": st.column_config.NumberColumn("Structure Rate", format="Rp %,.0f"),
+                "arch_base": st.column_config.NumberColumn("Arch Base", format="Rp %,.0f"),
+            }
+        )
 
 def show_area_calculator():
     st.title("Area Calculator")
-    st.markdown("---")
+    
+    # 1. Identify the Active Project
+    curr_id = st.session_state.current_proj_id
+    curr_proj = st.session_state.projects[curr_id]
+    
+    def get_area_val(key, default=0.0):
+        return curr_proj["data"].get(key, default)
 
-    st.sidebar.subheader("Plot & Block")
-    num_plots = st.sidebar.number_input("Number of Plots", min_value=1, value=1)
+    tab1, tab2 = st.tabs(["Calculator", "Trial"])
+    
+    with tab1:
+        st.subheader("1. Detailed Area Breakdown - Floor Stacking")
+        st.caption("Input your breakdown per floor. GBA, GFA, SGFA, and NFA will be calculated automatically.")
 
-    blocks_per_plot = {}
-    for p in range(int(num_plots)):
-        blocks_per_plot[p] = st.sidebar.number_input(f"Block Groups in Plot {p+1}", min_value=1, value=2, key=f"ng_setup_{p}")
+        # ==========================================
+        # THE FIX: THE STATE ANCHOR
+        # ==========================================
+        # We isolate the base data so the data_editor doesn't reset on every keystroke.
+        base_key = f"base_table_{curr_id}"
+        
+        if base_key not in st.session_state:
+            if "area_table_data" in curr_proj["data"]:
+                st.session_state[base_key] = curr_proj["data"]["area_table_data"]
+            else:
+                default_stack = [
+                    {"FL": "Roof Machine", "Space Type": "Roof", "Parkir": 0.0, "Roof/Deck": 200.0, "MEP Outdoor": 80.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 790.0, "Unit": 0.0, "Office": 0.0},
+                    {"FL": "Roof", "Space Type": "Roof", "Parkir": 0.0, "Roof/Deck": 200.0, "MEP Outdoor": 80.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 790.0, "Unit": 0.0, "Office": 0.0},
+                    {"FL": "5F", "Space Type": "Unit", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 75.0, "Stair, MEP, Etc": 150.0, "Unit": 500.0, "Office": 0.0},
+                    {"FL": "4F", "Space Type": "Unit", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 75.0, "Stair, MEP, Etc": 150.0, "Unit": 500.0, "Office": 0.0},
+                    {"FL": "3F", "Space Type": "Unit", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 75.0, "Stair, MEP, Etc": 150.0, "Unit": 500.0, "Office": 0.0},
+                    {"FL": "2F", "Space Type": "Unit", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 75.0, "Stair, MEP, Etc": 150.0, "Unit": 500.0, "Office": 0.0},
+                    {"FL": "1F", "Space Type": "Lobby", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 20.0, "Koridor/Lobby": 75.0, "Stair, MEP, Etc": 0.0, "Unit": 500.0, "Office": 0.0}
+                ]
+                st.session_state[base_key] = default_stack
+                curr_proj["data"]["area_table_data"] = default_stack
 
-    st.sidebar.markdown("---")
-    st.sidebar.header("Area Grand Totals")
-    gba_placeholder = st.sidebar.empty()
-    gfa_placeholder = st.sidebar.empty()
-    sgfa_placeholder = st.sidebar.empty()
-    units_placeholder = st.sidebar.empty()
+        # --- TOP SETUP CONTROLS ---
+        with st.expander("⚙️ Quick Floor Generator", expanded=False):
+            c_name, c_h, c_b, c_u = st.columns(4)
+            
+            # Using get_area_val ensures the data survives page reloads
+            tower_name = c_name.text_input("Tower Name", value=get_area_val("tname", "1 TOWER"), key=f"wid_tname_{curr_id}")
+            curr_proj["data"]["tname"] = tower_name
+            
+            f2f_height = c_h.number_input("Floor-to-floor (m)", value=float(get_area_val("f2f", 3.5)), step=0.1, key=f"wid_f2f_{curr_id}")
+            curr_proj["data"]["f2f"] = f2f_height
+            
+            basements = c_b.number_input("Basements / LG", min_value=0, value=int(get_area_val("base_in", 1)), step=1, key=f"wid_base_{curr_id}")
+            curr_proj["data"]["base_in"] = basements
+            
+            upper_floors = c_u.number_input("Upper floors", min_value=1, value=int(get_area_val("up_in", 5)), step=1, key=f"wid_up_{curr_id}")
+            curr_proj["data"]["up_in"] = upper_floors
+            
+            if st.button("Generate Default Stack", type="primary"):
+                new_data = [
+                    {"FL": "Roof Machine", "Space Type": "Roof", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 50.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 150.0, "Unit": 0.0, "Office": 0.0},
+                    {"FL": "Roof", "Space Type": "Roof", "Parkir": 0.0, "Roof/Deck": 200.0, "MEP Outdoor": 80.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 790.0, "Unit": 0.0, "Office": 0.0}
+                ]
+                for i in range(upper_floors, 1, -1):
+                    new_data.append({"FL": f"{i}F", "Space Type": "Unit", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 75.0, "Stair, MEP, Etc": 150.0, "Unit": 500.0, "Office": 0.0})
+                new_data.append({"FL": "1F", "Space Type": "Lobby", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 20.0, "Koridor/Lobby": 75.0, "Stair, MEP, Etc": 0.0, "Unit": 500.0, "Office": 0.0})
+                for i in range(1, basements + 1):
+                    fl_name = "LG" if i == 1 else f"B{i-1}"
+                    new_data.append({"FL": fl_name, "Space Type": "Carpark", "Parkir": 800.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 150.0, "Unit": 0.0, "Office": 0.0})
+                
+                # Update Anchor and clear editor memory
+                st.session_state[base_key] = new_data
+                if f"area_editor_{curr_id}" in st.session_state:
+                    del st.session_state[f"area_editor_{curr_id}"]
+                st.rerun()
 
-    grand_total_gba = 0
-    grand_total_gfa = 0
-    grand_total_sgfa = 0
-    grand_total_units = 0
+        st.markdown(f"##### {tower_name} — Area Breakdown Editor")
 
-    if int(num_plots) > 0:
-        plot_tabs = st.tabs([f"Plot {i+1}" for i in range(int(num_plots))])
+        # --- TABLE UTILITY CONTROLS ---
+        col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
+        with col_btn1:
+            if st.button("➕ Add floor (Top)", use_container_width=True):
+                # Pull current edited state, add row, make it the new Anchor
+                current_state = curr_proj["data"].get("area_table_data", [])
+                insert_idx = 1 if len(current_state) > 0 and current_state[0]["FL"] == "Roof" else 0
+                current_state.insert(insert_idx, {"FL": "New", "Space Type": "Unit", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit": 0.0, "Office": 0.0})
+                
+                st.session_state[base_key] = current_state
+                if f"area_editor_{curr_id}" in st.session_state:
+                    del st.session_state[f"area_editor_{curr_id}"]
+                st.rerun()  
 
-        for p_idx, p_tab in enumerate(plot_tabs):
-            with p_tab:
-                plot_gfa = 0
-                plot_sgfa = 0
-                plot_units = 0
+        # --- BUILD DATAFRAME FROM ANCHOR ---
+        
+        base_data = st.session_state.get(base_key, [])
 
-                num_groups = blocks_per_plot[p_idx]
+        # ✅ Normalize area table data
+        if not isinstance(base_data, list) or not base_data or not isinstance(base_data[0], dict):
+            base_data = [
+                {
+                    "FL": "1F",
+                    "Space Type": "Lobby",
+                    "Parkir": 0.0,
+                    "Roof/Deck": 0.0,
+                    "MEP Outdoor": 0.0,
+                    "Koridor/Lobby": 0.0,
+                    "Stair, MEP, Etc": 0.0,
+                    "Unit": 0.0,
+                    "Office": 0.0
+                }
+            ]
+            st.session_state[base_key] = base_data
+            curr_proj["data"]["area_table_data"] = base_data
 
-                if int(num_groups) > 0:
-                    block_tabs = st.tabs([f"Block Group {g+1}" for g in range(int(num_groups))])
+        df_area = pd.DataFrame(base_data)
 
-                    for g_idx, b_tab in enumerate(block_tabs):
-                        with b_tab:
-                            c1, c2, c3 = st.columns(3)
-                            group_name = c1.text_input("Group Name", value=f"Block Group {g_idx+1}", key=f"gn_{p_idx}_{g_idx}")
-                            num_blocks = c2.number_input("Number of Blocks", min_value=1, value=6, key=f"nb_{p_idx}_{g_idx}")
-                            num_floors = c3.number_input("Typical Floors", min_value=1, value=11, key=f"nf_{p_idx}_{g_idx}")
+        breakdown_cols = ["Parkir", "Roof/Deck", "MEP Outdoor", "Koridor/Lobby", "Stair, MEP, Etc", "Unit", "Office"]
+        
+        # FULL WIDTH EDITOR
+        edited_df = st.data_editor(
+            df_area,
+            num_rows="dynamic",
+            use_container_width=True,
+            key=f"area_editor_{curr_id}",
+            hide_index=True,
+            column_order=["FL", "Space Type"] + breakdown_cols,
+            column_config={
+                "Space Type": st.column_config.SelectboxColumn("Space Type", options=["Roof", "Unit", "Lobby", "Ramp", "Carpark", "Facility"], required=True)
+            }
+        )
 
-                            col_com1, col_com2 = st.columns(2)
-                            core_area = col_com1.number_input("Core Area per Floor (Lifts/Stairs)", value=105.5, key=f"core_{p_idx}_{g_idx}")
-                            corridor_area = col_com2.number_input("Corridor Area per Floor", value=88.8, key=f"corr_{p_idx}_{g_idx}")
+        # --- CALCULATIONS ---
+        edited_df["TOTAL"] = edited_df[breakdown_cols].sum(axis=1)
+        edited_df["GBA"] = edited_df["TOTAL"]
+        edited_df["GFA"] = edited_df["TOTAL"] - edited_df[["Parkir", "Roof/Deck", "MEP Outdoor"]].sum(axis=1)
+        edited_df["SGFA"] = edited_df[["Unit", "Office", "Koridor/Lobby"]].sum(axis=1)
+        edited_df["NFA"] = edited_df[["Unit", "Office"]].sum(axis=1)
+        
+        # Silently update project data for CSV export without disturbing the Anchor
+        curr_proj["data"]["area_table_data"] = edited_df[["FL", "Space Type"] + breakdown_cols].to_dict('records')
 
-                            st.markdown("**Typical Floor Unit Mix (Input)**")
-                            default_mix = pd.DataFrame([
-                                {"Unit Type": "2BR-1", "Net Area": 74.5, "Units/Floor": 2},
-                                {"Unit Type": "3BR", "Net Area": 95.5, "Units/Floor": 1},
-                                {"Unit Type": "3BR'", "Net Area": 96.1, "Units/Floor": 4},
-                            ])
-                            edited_mix = st.data_editor(default_mix, key=f"ed_{p_idx}_{g_idx}", num_rows="dynamic", use_container_width=True)
+        st.divider()
 
-                            edited_mix["Net/Fl (Total)"] = edited_mix["Net Area"] * edited_mix["Units/Floor"]
-                            total_net_per_floor = edited_mix["Net/Fl (Total)"].sum()
-                            total_units_per_floor = edited_mix["Units/Floor"].sum()
+        # [ ... Your PLOTLY code continues exactly the same from here ... ]
 
-                            sgfa_load_factor = (total_net_per_floor + corridor_area) / total_net_per_floor if total_net_per_floor > 0 else 1.0
-                            gfa_load_factor = (total_net_per_floor + corridor_area + core_area) / total_net_per_floor if total_net_per_floor > 0 else 1.0
+# ==========================================
+        # VISUALIZATION DASHBOARD SECTION (PLOTLY EDITION)
+        # ==========================================
+        col_viz_left, col_viz_right = st.columns([1.5, 1], gap="large")
 
-                            edited_mix["SGFA per Unit"] = (edited_mix["Net Area"] * sgfa_load_factor).round(2)
-                            edited_mix["SGFA/Fl (Total)"] = (edited_mix["SGFA per Unit"] * edited_mix["Units/Floor"]).round(2)
-                            edited_mix["GFA per Unit"] = (edited_mix["Net Area"] * gfa_load_factor).round(2)
-                            edited_mix["GFA/Fl (Total)"] = (edited_mix["GFA per Unit"] * edited_mix["Units/Floor"]).round(2)
+        # Crisp Web-Safe Architectural Colors
+        CAT_COLORS = {
+            "Unit": "#709DE1",            # Muted Blue
+            "Office": "#A9C4F0",          # Light Blue
+            "Koridor/Lobby": "#94C37D",   # Muted Green
+            "Stair, MEP, Etc": "#F4B16A", # Soft Orange
+            "Parkir": "#B7B7B7",          # Dark Gray
+            "Roof/Deck": "#D9D9D9",       # Light Gray
+            "MEP Outdoor": "#8C8C8C",     # Medium Gray
+            "Lobby_Override": "#C17AA0"   # Muted Purple
+        }
 
-                            display_cols = ["Unit Type", "Net/Fl (Total)", "SGFA per Unit", "SGFA/Fl (Total)", "GFA per Unit", "GFA/Fl (Total)", "Units/Floor"]
-                            display_df = edited_mix[display_cols].copy()
-                            display_df.rename(columns={"Units/Floor": "Units"}, inplace=True)
+        # --- LEFT: CONCEPTUAL SECTION (PLOTLY) ---
+        with col_viz_left:
+            st.markdown("##### BUILDING AREA VISUALIZATION")
+            
+            draw_df = edited_df.iloc[::-1].reset_index(drop=True)
+            floor_labels = draw_df['FL'].tolist()
+            
+            draw_order = ["Office", "Unit", "Koridor/Lobby", "Stair, MEP, Etc", "Parkir", "MEP Outdoor", "Roof/Deck"]
 
-                            sum_sgfa_fl = display_df["SGFA/Fl (Total)"].sum()
-                            sum_gfa_fl = display_df["GFA/Fl (Total)"].sum()
+            # Initialize data structures for Plotly
+            bases = {col: [] for col in draw_order}
+            widths = {col: [] for col in draw_order}
+            hover_texts = {col: [] for col in draw_order}
+            text_labels = {col: [] for col in draw_order}
+            unit_colors = [] # Special handling for Unit vs Lobby color
 
-                            group_net = total_net_per_floor * num_blocks * num_floors
-                            group_sgfa = sum_sgfa_fl * num_blocks * num_floors
-                            group_gfa = sum_gfa_fl * num_blocks * num_floors
-                            group_units = total_units_per_floor * num_blocks * num_floors
+            # Calculate the exact starting X coordinate for each block to center the floor
+            for idx, row in draw_df.iterrows():
+                gba = row["GBA"]
+                sp_type = str(row["Space Type"])
+                
+                # Center the floor mass
+                curr_x = -gba / 2
+                
+                # Check for Lobby override
+                if "Lobby" in sp_type:
+                    unit_colors.append(CAT_COLORS["Lobby_Override"])
+                else:
+                    unit_colors.append(CAT_COLORS["Unit"])
 
-                            summary_df = pd.DataFrame({
-                                "Per Floor Metric": ["Net Area", "SGFA", "GFA", "Units"],
-                                "Floor Total": [f"{total_net_per_floor:,.2f}", f"{sum_sgfa_fl:,.2f}", f"{sum_gfa_fl:,.2f}", f"{int(total_units_per_floor)}"],
-                                f"{group_name} ({num_blocks} Blk x {num_floors} Fl)": ["Total Net Area", "Total SGFA", "Total GFA", "Total Units"],
-                                "Group Total": [f"{group_net:,.2f}", f"{group_sgfa:,.2f}", f"{group_gfa:,.2f}", f"{int(group_units)}"]
-                            })
+                for col in draw_order:
+                    val = row.get(col, 0)
+                    if val > 0:
+                        widths[col].append(val)
+                        bases[col].append(curr_x)
+                        
+                        # Formatting hover and inside text
+                        display_name = "LOBBY" if (col == "Unit" and "Lobby" in sp_type) else col
+                        hover_texts[col].append(f"<b>{display_name}</b><br>{val:,.0f} m²")
+                        
+                        # Only show text inside if the block is relatively wide (> 10% of GBA)
+                        if val / gba > 0.1:
+                            short_name = "CORR" if col == "Koridor/Lobby" else ("MEP" if col in ["Stair, MEP, Etc", "MEP Outdoor"] else display_name)
+                            text_labels[col].append(f"{short_name}<br>{val:,.0f}m²")
+                        else:
+                            text_labels[col].append("")
+                            
+                        curr_x += val
+                    else:
+                        # Append 0/empty to keep arrays aligned with the Y-axis
+                        widths[col].append(0)
+                        bases[col].append(0)
+                        hover_texts[col].append("")
+                        text_labels[col].append("")
 
-                            with st.expander(f"View Detailed Calculation Tables for {group_name}", expanded=False):
-                                st.markdown("**Calculated Unit Breakdown**")
-                                st.dataframe(display_df, use_container_width=True, hide_index=True)
-                                st.markdown("**Area Totals Summary**")
-                                st.dataframe(summary_df, use_container_width=True, hide_index=True)
+            # Build the Plotly Figure
+            fig = go.Figure()
 
-                            plot_gfa += group_gfa
-                            plot_sgfa += group_sgfa
-                            plot_units += group_units
+            for col in draw_order:
+                # Apply the specific color array if it's the Unit column, otherwise use standard color
+                marker_color = unit_colors if col == "Unit" else CAT_COLORS.get(col, "#ffffff")
+                
+                fig.add_trace(go.Bar(
+                    y=floor_labels,
+                    x=widths[col],
+                    base=bases[col],
+                    name=col,
+                    orientation='h',
+                    marker=dict(
+                        color=marker_color,
+                        line=dict(color='#111111', width=1.5) # Crisp borders
+                    ),
+                    text=text_labels[col],
+                    textposition='inside',
+                    insidetextanchor='middle',
+                    hoverinfo='text',
+                    hovertext=hover_texts[col],
+                    textfont=dict(color='black', size=11, family="Arial")
+                ))
 
-                st.markdown("---")
-                st.subheader(f"Plot {p_idx+1} Non-Typical Areas")
+            # Layout Styling
+            fig.update_layout(
+                barmode='stack',
+                showlegend=False,
+                height=max(450, len(draw_df) * 45), # Dynamic height
+                margin=dict(l=10, r=10, t=10, b=10),
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                hovermode='closest',
+                xaxis=dict(
+                    showgrid=False, 
+                    zeroline=False, 
+                    showticklabels=False # Hide X axis numbers to keep architectural look
+                ),
+                yaxis=dict(
+                    showgrid=False,
+                    tickfont=dict(size=14, color='black', weight='bold')
+                )
+            )
 
-                default_nt = pd.DataFrame([
-                    {"Area Name": "Ground Floor (Do not fill if typical)", "Floors": 1, "Area/Floor (m2)": 0.0, "Include in GFA": False},
-                    {"Area Name": "Podium Area", "Floors": 1, "Area/Floor (m2)": 7548.0, "Include in GFA": False},
-                    {"Area Name": "MEP", "Floors": 1, "Area/Floor (m2)": 3471.0, "Include in GFA": False},
-                    {"Area Name": "Clubhouse", "Floors": 1, "Area/Floor (m2)": 0.0, "Include in GFA": True},
-                ])
+            # Add Ground Line
+            fig.add_hline(y=-0.5, line_width=4, line_color="black")
 
-                edited_nt = st.data_editor(default_nt, key=f"nt_{p_idx}", num_rows="dynamic", use_container_width=True)
-                edited_nt["Total Area (m2)"] = edited_nt["Floors"] * edited_nt["Area/Floor (m2)"]
-                total_nt_area = edited_nt["Total Area (m2)"].sum()
-                nt_gfa_area = edited_nt[edited_nt["Include in GFA"] == True]["Total Area (m2)"].sum()
-
-                st.markdown(f"**Non-Typical Totals: {total_nt_area:,.2f} m2 (Total GBA) | {nt_gfa_area:,.2f} m2 (Added to GFA)**")
-
-                plot_gba = plot_gfa + total_nt_area
-                plot_gfa = plot_gfa + nt_gfa_area
-
-                st.divider()
-
-                plot_totals_df = pd.DataFrame({
-                    "Plot Total GBA (m2)": [f"{plot_gba:,.2f}"],
-                    "Plot Total GFA (m2)": [f"{plot_gfa:,.2f}"],
-                    "Plot Total SGFA (m2)": [f"{plot_sgfa:,.2f}"],
-                    "Plot Total Units": [f"{int(plot_units)}"]
-                })
-
-                st.markdown(f"**PLOT {p_idx+1} GRAND TOTALS**")
-                st.dataframe(plot_totals_df, use_container_width=True, hide_index=True)
-
-                grand_total_gba += plot_gba
-                grand_total_gfa += plot_gfa
-                grand_total_sgfa += plot_sgfa
-                grand_total_units += plot_units
-
-    gba_placeholder.metric("Grand Total GBA", f"{grand_total_gba:,.2f} m2")
-    gfa_placeholder.metric("Grand Total GFA", f"{grand_total_gfa:,.2f} m2")
-    sgfa_placeholder.metric("Grand Total SGFA", f"{grand_total_sgfa:,.2f} m2")
-    units_placeholder.metric("Grand Total Units", f"{int(grand_total_units)} Units")
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
 
+# --- RIGHT: DATA SUMMARY & DISTRIBUTION (ARCHITECTURAL SPEC STYLE) ---
+        with col_viz_right:
+            st.markdown("##### PROJECT SUMMARY & ANALYSIS")
+            
+            # 1. Calculation Logic
+            total_gba = edited_df["GBA"].sum()
+            total_gfa = edited_df["GFA"].sum()
+            total_sgfa = edited_df["SGFA"].sum()
+            total_nfa = edited_df["NFA"].sum()
+            total_circ = edited_df["Koridor/Lobby"].sum()
+            total_serv = edited_df["Stair, MEP, Etc"].sum()
+            total_non_gfa = edited_df[["Parkir", "Roof/Deck", "MEP Outdoor"]].sum().sum()
+            
+            # Efficiency is NFA / GFA (common QS metric)
+            efficiency = (total_nfa / total_gfa * 100) if total_gfa > 0 else 0
+
+            # 2. Create the "Spec Sheet" using Matplotlib
+            # Slightly taller figure to accommodate the 5 rows comfortably
+            fig_sum, ax_sum = plt.subplots(figsize=(5, 3.2))
+            fig_sum.patch.set_facecolor('#ffffff')
+            ax_sum.set_facecolor('#ffffff')
+            
+            # Y-Positions for the 5 rows
+            rows = [0.80, 0.60, 0.40, 0.20, 0.00]
+            row_height = 0.18
+            
+            # Background boxes for metrics - Colors matching your Excel reference
+            ax_sum.add_patch(patches.Rectangle((0, rows[0]), 1, row_height, color='#d9ead3', zorder=1)) # Green: NFA/Efficiency
+            ax_sum.add_patch(patches.Rectangle((0, rows[1]), 1, row_height, color='#f3f3f3', zorder=1)) # Gray: SGFA
+            ax_sum.add_patch(patches.Rectangle((0, rows[2]), 1, row_height, color='#e6f2ff', zorder=1)) # Blue: GFA
+            ax_sum.add_patch(patches.Rectangle((0, rows[3]), 1, row_height, color='#e2e2e2', zorder=1)) # Gray: GBA
+            ax_sum.add_patch(patches.Rectangle((0, rows[4]), 1, row_height, color='#ffffff', zorder=1)) # White: Info
+
+            # Text Styling
+            text_params = {'ha': 'left', 'va': 'center', 'fontsize': 10, 'color': '#444', 'family': 'sans-serif'}
+            val_params = {'ha': 'right', 'va': 'center', 'fontsize': 11, 'weight': 'bold', 'color': '#000'}
+
+            # Row 1: NFA & Efficiency
+            ax_sum.text(0.05, rows[0] + row_height/2, f"NFA (Efficiency: {efficiency:.1f}%)", **text_params)
+            ax_sum.text(0.95, rows[0] + row_height/2, f"{total_nfa:,.0f} m²", **val_params)
+            
+            # Row 2: SGFA
+            ax_sum.text(0.05, rows[1] + row_height/2, "SGFA (Semi-Gross Floor Area)", **text_params)
+            ax_sum.text(0.95, rows[1] + row_height/2, f"{total_sgfa:,.0f} m²", **val_params)
+            
+            # Row 3: GFA
+            ax_sum.text(0.05, rows[2] + row_height/2, "GFA (Gross Floor Area)", **text_params)
+            ax_sum.text(0.95, rows[2] + row_height/2, f"{total_gfa:,.0f} m²", **val_params)
+            
+            # Row 4: GBA
+            ax_sum.text(0.05, rows[3] + row_height/2, "GBA (Gross Building Area)", **text_params)
+            ax_sum.text(0.95, rows[3] + row_height/2, f"{total_gba:,.0f} m²", **val_params)
+            
+            # Row 5: Building Info
+            ax_sum.text(0.05, rows[4] + row_height/2, f"DATA SUMMARY: {len(edited_df)} Total Floors", 
+                        ha='left', va='center', fontsize=9, color='#777', style='italic')
+
+            ax_sum.set_xlim(0, 1)
+            ax_sum.set_ylim(-0.05, 1.05)
+            ax_sum.axis('off')
+            st.pyplot(fig_sum)
+
+            st.markdown("##### AREA DISTRIBUTION (%)")
+
+            # 3. Distribution Bar Chart
+            fig2, ax2 = plt.subplots(figsize=(5, 3.5))
+            fig2.patch.set_facecolor('#ffffff')
+            
+            categories = ['NFA', 'Circ.', 'Services', 'Non-GFA']
+            values = [total_nfa, total_circ, total_serv, total_non_gfa]
+            colors = [CAT_COLORS["Unit"], CAT_COLORS["Koridor/Lobby"], CAT_COLORS["Stair, MEP, Etc"], CAT_COLORS["Roof/Deck"]]
+            percentages = [(v / total_gba * 100) if total_gba > 0 else 0 for v in values]
+
+            bars = ax2.bar(categories, percentages, color=colors, edgecolor='#111', linewidth=1.2, width=0.6)
+
+            for bar, pct in zip(bars, percentages):
+                height = bar.get_height()
+                ax2.text(bar.get_x() + bar.get_width()/2., height + 1, f'{pct:.1f}%', 
+                         ha='center', va='bottom', fontsize=10, weight='bold')
+
+            ax2.set_ylim(0, max(percentages) + 15 if max(percentages) > 0 else 100)
+            ax2.axis('off')
+            
+            # Add category labels manually to keep it clean
+            for i, cat in enumerate(categories):
+                ax2.text(i, -max(percentages)*0.1, cat, ha='center', fontsize=9, weight='bold', color='#444')
+
+            st.pyplot(fig2, use_container_width=True)
+
+    with tab2:
+        st.subheader("2. Top-Down Feasibility Estimator")
+        st.caption("Hitung cepat kebutuhan GBA dan GFA berdasarkan target unit penjualan dan efisiensi.")
+
+        col_t1, col_t2, col_t3 = st.columns(3)
+
+        with col_t1:
+            st.markdown("#### 1. Target Penjualan (NFA)")
+            target_units = st.number_input("Target Jumlah Unit", min_value=1, value=500, step=10, key="td_units")
+            avg_unit_size = st.number_input("Rata-rata Luas Unit (m²)", min_value=10.0, value=35.0, step=1.0, key="td_avg_size")
+            
+            # Math: Target NFA
+            est_nfa = target_units * avg_unit_size
+            st.info(f"**Total NFA:** {est_nfa:,.0f} m²")
+
+        with col_t2:
+            st.markdown("#### 2. Efisiensi Bangunan (GFA)")
+            target_efficiency = st.slider("Target Efisiensi Floorplate (%)", min_value=60, max_value=95, value=82, step=1, help="NFA dibagi GFA. Standar Apartemen ~82-85%.", key="td_eff")
+            
+            # Math: GFA based on efficiency
+            est_gfa = est_nfa / (target_efficiency / 100)
+            core_area = est_gfa - est_nfa
+            st.info(f"**Total GFA:** {est_gfa:,.0f} m²\n\n*(Core/Sirkulasi: {core_area:,.0f} m²)*")
+
+        with col_t3:
+            st.markdown("#### 3. Kebutuhan Parkir (GBA)")
+            lot_ratio = st.number_input("Rasio Parkir (Lot/Unit)", min_value=0.0, value=0.5, step=0.1, help="Misal 0.5 = 1 lot untuk 2 unit.", key="td_ratio")
+            m2_per_lot = st.number_input("Luas GBA per Lot (m²)", min_value=15.0, value=30.0, step=1.0, help="Termasuk ramp & jalan. Standar ~28-30m².", key="td_m2_lot")
+            
+            # Math: Parking & GBA
+            req_lots = target_units * lot_ratio
+            parking_gba = req_lots * m2_per_lot
+            est_gba = est_gfa + parking_gba
+            st.info(f"**Total GBA:** {est_gba:,.0f} m²\n\n*(Kebutuhan: {req_lots:,.0f} Lot)*")
+
+        st.markdown("---")
+        
+        # --- SUMMARY DASHBOARD ---
+        st.markdown("### Ringkasan Area Makro")
+        sc1, sc2, sc3, sc4 = st.columns(4)
+        sc1.metric("GBA (Gross Building Area)", f"{est_gba:,.0f} m²", help="Total area terbangun termasuk parkir.")
+        sc2.metric("GFA (Gross Floor Area)", f"{est_gfa:,.0f} m²", help="Total area tertutup (Unit + Core).")
+        sc3.metric("NFA (Net Floor Area)", f"{est_nfa:,.0f} m²", help="Total area yang bisa dijual/disewakan.")
+        sc4.metric("Kapasitas Parkir", f"{req_lots:,.0f} Mobil", help=f"Berdasarkan rasio {lot_ratio} lot per unit.")
+
+        # --- PROPORTIONAL VISUALIZATION ---
+        st.markdown("#### Proporsi Area Terbangun (GBA Breakdown)")
+        st.caption("Visualisasi ini menunjukkan berapa banyak area non-jual (Core & Parkir) yang harus dibangun untuk mendukung target NFA Anda.")
+        
+        # A clean horizontal stacked bar chart using matplotlib
+        fig, ax = plt.subplots(figsize=(10, 2.5))
+        
+        # Plotting [NFA] + [Core] + [Parking] = GBA
+        ax.barh(0, est_nfa, color='#FAD7A0', edgecolor='black', label=f'NFA (Sellable)')
+        ax.barh(0, core_area, left=est_nfa, color='#AED6F1', edgecolor='black', label=f'Core & Sirkulasi')
+        ax.barh(0, parking_gba, left=(est_nfa + core_area), color='#95A5A6', edgecolor='black', label=f'Area Parkir / Podium')
+        
+        # Adding text labels inside the bars
+        if est_nfa > (est_gba * 0.05): # Only show text if the bar is wide enough
+            ax.text(est_nfa/2, 0, f"NFA\n{est_nfa:,.0f} m²\n({(est_nfa/est_gba*100):.1f}%)", ha='center', va='center', fontsize=9, weight='bold')
+        if core_area > (est_gba * 0.05):
+            ax.text(est_nfa + core_area/2, 0, f"CORE\n{core_area:,.0f} m²\n({(core_area/est_gba*100):.1f}%)", ha='center', va='center', fontsize=9)
+        if parking_gba > (est_gba * 0.05):
+            ax.text(est_nfa + core_area + parking_gba/2, 0, f"PARKIR\n{parking_gba:,.0f} m²\n({(parking_gba/est_gba*100):.1f}%)", ha='center', va='center', fontsize=9, color='white', weight='bold')
+
+        # Clean up the chart
+        ax.set_yticks([])
+        ax.set_xlim(0, est_gba * 1.02)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.set_xlabel("Total Area Terbangun (m²)")
+        
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.3), ncol=3, frameon=False)
+        
+        st.pyplot(fig)
+
+            
 def update_price(metric_key, db_key):
     """Update flooring price based on spec radio selection."""
     c_id = st.session_state.current_proj_id
@@ -495,7 +602,71 @@ def update_price(metric_key, db_key):
 
 def show_cost_estimator():
     st.title("Cost Calculator")
-    st.markdown("---")
+
+    st.markdown("""
+        <style>
+            .metric-container {
+                position: relative;
+                display: inline-block;
+                width: 100%;
+            }
+            .custom-tooltip {
+                visibility: hidden;
+                width: 240px;
+                background-color: #FFFFFF;
+                color: #262730;
+                text-align: left;
+                border-radius: 8px;
+                padding: 12px;
+                position: absolute;
+                z-index: 1000;
+                bottom: 110%; 
+                left: 50%;
+                transform: translateX(-50%);
+                opacity: 0;
+                transition: opacity 0.3s;
+                font-size: 12px;
+                border: 1px solid #CDDC39;
+                box-shadow: 0px 4px 15px rgba(0,0,0,0.4);
+                line-height: 1.5;
+            }
+            .metric-container:hover .custom-tooltip {
+                visibility: visible;
+                opacity: 1;
+            }
+            /* Triangle arrow for tooltip */
+            .custom-tooltip::after {
+                content: "";
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                margin-left: -5px;
+                border-width: 5px;
+                border-style: solid;
+                border-color: #262730 transparent transparent transparent;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+
+    # --- NEW: REUSABLE CARD HELPER ---
+    def draw_hover_card(label, display_val, raw_val, color, formula):
+        box_base = f"margin-bottom: 12px; padding: 8px; border-radius: 5px; background-color: #FFFFFF; border: 1px solid #E0E0E0; border-left: 5px solid {color};"
+        label_style = "font-size: 12px; color: #666666; font-weight: bold;"
+        val_style = "font-size: 14px; font-weight: bold; color: #000000; margin-top: 4px;"
+        
+        st.markdown(f"""
+        <div class="metric-container">
+            <div style="{box_base}">
+                <div style="{label_style}">{label}</div>
+                <div style="{val_style}">{display_val}</div>
+                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {raw_val:,.0f}</div>
+            </div>
+            <div class="custom-tooltip">
+                <strong style="color:{color}; font-size:13px;">Calculation Logic:</strong><br>
+                {formula}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     curr_id = st.session_state.current_proj_id
     curr_proj = st.session_state.projects[curr_id]
@@ -519,30 +690,9 @@ def show_cost_estimator():
             return val
 
     # --- PROJECT SETUP ---
-    st.subheader("Data Proyek")
-    c1, c2, c3, c4, c5 = st.columns(5)
-
-    new_name = c1.text_input("Nama Proyek", value=curr_proj["name"])
-    types_list = ["Hotel", "Retail", "Apartment", "Parking", "Luxury Apartment", "Apartment2", "Hotel 3 Star", "Retail2", "Terrace Village", "Podium Village", "Parking2"]
-    type_index = types_list.index(curr_proj["type"]) if curr_proj["type"] in types_list else 0
-    new_type = c2.selectbox("Jenis Proyek", types_list, index=type_index)
-
-    if new_type != curr_proj["type"]:
-        st.session_state.projects[curr_id]["type"] = new_type
-        st.session_state.projects[curr_id]["data"] = {} # Clear old rates
-        st.rerun()
-
-    if new_name != curr_proj["name"]:
-        st.session_state.projects[curr_id]["name"] = new_name
-        
-        st.rerun()
-
-    pt_data = PROJECT_DATABASE[new_type]
-    curr_type_key = f"{curr_id}_{new_type}"
-
-
-
-    st.markdown("---")
+    curr_type = curr_proj["type"]
+    pt_data = PROJECT_DATABASE[curr_type]
+    curr_type_key = f"{curr_id}_{curr_type}"
 
     # --- TABS ---
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
@@ -698,11 +848,10 @@ def show_cost_estimator():
 
 
             # --- 3. DOWNLOAD BUTTONS ---
-            st.write("---")
             
             # Button for Current Project
             st.download_button(
-                label=f"📄 Download {curr_proj['name']}",
+                label=f"Download {curr_proj['name']} only",
                 data=csv_buffer,
                 file_name=f"Project_{curr_id}.csv",
                 mime="text/csv",
@@ -711,7 +860,7 @@ def show_cost_estimator():
 
             # Button for Global Database
             st.download_button(
-                label="📥 Download ALL Projects (Global)",
+                label="Download All Projects ",
                 data=csv_all_buffer,
                 file_name="ProCalc_Global_Database.csv",
                 mime="text/csv",
@@ -934,7 +1083,7 @@ def show_cost_estimator():
             c2.caption(f"""Hitungan: {pub_fac_m2:,.0f} m2 x Rp {fac_pub_rate:,.0f}  \n  Total Public Facilities: Rp {pub_fac_m2 * fac_pub_rate:,.0f}  \n  Terbilang: {n2w(pub_fac_m2 * fac_pub_rate)}""")
             fac_res_rate = c1.number_input("Resident Facilities (Rp)", value=get_val("u_fac_r", pt_data["fac_res"]), key=f"u_fac_r_{curr_type_key}")
             fac_proj_rate = c2.number_input("Project Facilities (Rp)", value=get_val("u_fac_pr", pt_data["fac_proj"]), key=f"u_fac_pr_{curr_type_key}")
-            c1.caption(f"""Hitungan: GFA: {gfa:,.0f} m2 x Rp {fac_res_rate:,.0f}  \n  Total Resident Facilities: Rp {gfa * fac_res_rate:,.0f}  \n  Terbilang: {n2w(gfa * fac_res_rate)}""")
+            c1.caption(f"""Hitungan: {res_fac_m2:,.0f} m2 x Rp {fac_res_rate:,.0f}  \n  Total Resident Facilities: Rp {res_fac_m2 * fac_res_rate:,.0f}  \n  Terbilang: {n2w(res_fac_m2 * fac_res_rate)}""")
             c2.caption(f"""Hitungan: {proj_fac_u:,.0f} Units x Rp {fac_proj_rate:,.0f}  \n  Total Project Facilities: Rp {proj_fac_u * fac_proj_rate:,.0f}  \n  Terbilang: {n2w(proj_fac_u * fac_proj_rate)}""")
 
     # --- TAB 4: SOFT COSTS ---
@@ -1096,12 +1245,10 @@ def show_cost_estimator():
     group_hard_cost = grand_total_hc
     group_total = total_soft_cost + grand_total_hc
 
-    # --- TAB 6: RESULTS ---
-
     with tab7:
-        tab1, tab2, tab3 = st.tabs([
+        tab1, tab2, tab3, tab4 = st.tabs([
         "Hasil",
-        "Tabel", "Chart",
+        "Tabel", "Chart", "Experimental"
         ])
         
         with tab1:
@@ -1237,7 +1384,6 @@ def show_cost_estimator():
             """, unsafe_allow_html=True)
         
     with tab2:
-        # 1. Initialize the toggle state if it doesn't exist
         if 'show_details' not in st.session_state:
             st.session_state.show_details = True
 
@@ -1247,50 +1393,73 @@ def show_cost_estimator():
             st.session_state.show_details = not st.session_state.show_details
             st.rerun()
 
-        # 3. Define the full dataset
-        raw_amounts = [
-            t_preliminary, t_earth, t_found, 
-            t_struc, group_arch, t_arch_base,
-            t_precast, t_window, t_double, 
-            t_w_door, t_g_door, t_s_door, 
-            t_lobby, t_gondola, t_unit_san, 
-            t_t_male, t_t_female, t_t_dis, 
-            t_mushola, t_kitchen, t_hw_w,
-            t_hw_s, t_ht, t_vinyl, 
-            t_marmer, t_carpet, t_railing, 
-            t_skylight, t_glass_work, smart_custom_costs,
-            group_ffe, t_ffe, t_misc, 
-            t_mep, t_utility,
-            t_external, group_misc, t_pub_fac, 
-            t_res_fac, t_proj_fac,
-            t_contingency,
-            t_consultancy, t_qs, 
-            t_pm, t_insurance
-        ]
+        # 3. Define the full dataset as a Dictionary
+        data_dict = {
+            # --- MAIN CONSTRUCTION ---
+            "1. Preliminary Works": t_preliminary,
+            "2. Earthwork": t_earth,
+            "3. Foundation": t_found,
+            "4. Structural Work": t_struc,
+            
+            # --- ARCHITECTURE ---
+            "5. Total Architecture": group_arch,
+            "5.1 Basic Architecture": t_arch_base,
+            "5.2 Facade - Precast": t_precast,
+            "5.3 Facade - Window Wall": t_window,
+            "5.4 Facade - Double Skin": t_double,
+            "5.5 Wooden Doors": t_w_door,
+            "5.6 Glass Doors": t_g_door,
+            "5.7 Steel Doors": t_s_door,
+            "5.8 Lobby Interior": t_lobby,
+            "5.9 Gondola": t_gondola,
+            "5.10 Typical Unit Sanitary": t_unit_san,
+            "5.11 Public Toilet Male": t_t_male,
+            "5.12 Public Toilet Female": t_t_female,
+            "5.13 Disabled Toilet": t_t_dis,
+            "5.14 Mushola": t_mushola,
+            "5.15 Kitchen Equipment": t_kitchen,
+            "5.16 Hardware Pintu Kayu": t_hw_w,
+            "5.17 Hardware Pintu Besi": t_hw_s,
+            "5.18 HT/Ceramic Tile": t_ht,
+            "5.19 Vinyl Flooring": t_vinyl,
+            "5.20 Marmer Flooring": t_marmer,
+            "5.21 Carpet Work": t_carpet,
+            "5.22 Railing Work": t_railing,
+            "5.23 Skylight Work": t_skylight,
+            "5.24 Glass Work": t_glass_work,
+            "5.25 Custom Item (Architecture)": smart_custom_costs,
 
-        original_descriptions = [
-            "1. Preliminary Works", "2. Earthwork", "3. Foundation", 
-            "4. Structural Work", "5. Total Architecture", "5.1 Basic Architecture",
-            "5.2 Facade - Precast", "5.3 Facade - Window Wall", "5.4 Facade - Double Skin", 
-            "5.5 Wooden Doors", "5.6 Glass Doors", "5.7 Steel Doors", 
-            "5.8 Lobby Interior", "5.9 Gondola",  "5.10 Typical Unit Sanitary", 
-            "5.11 Public Toilet Male", "5.12 Public Toilet Female", "5.13. Disabled Toilet", 
-            "5.14 Mushola", "5.15 Kitchen Equipment", "5.16 Hardware Pintu Kayu",
-            "5.17 Hardware Pintu Besi", "5.18 HT/Ceramic Tile", "5.19 Vinyl Flooring", 
-            "5.20 Marmer Flooring", "5.21 Carpet Work", "5.22 Railing Work", 
-            "5.23 Skylight Work", "5.24. Glass Work", "5.25 Custom Item (Architecture)",
-            "6. Total FF&E", "6.1 FF&E", "6.2 Misc. (Linen/Gym)", 
-            "7. MEP Works", "8. Utility Connection",
-            "9. External Works", "10. Miscellanous/Facility", "10.1. Public Facilities", 
-            "10.2. Resident Facilities", "10.3 Project Facilities",
-            "11. Contingencies", 
-            "1. Consultancy Fee", "2. Quantity Surveyor", 
-            "3. Project Management", "4. Insurance Coverage"
-        ]
+            # --- FF&E & SERVICES ---
+            "6. Total FF&E": group_ffe,
+            "6.1 FF&E": t_ffe,
+            "6.2 Misc. (Linen/Gym)": t_misc,
+            "7. MEP Works": t_mep,
+            "8. Utility Connection": t_utility,
+
+            # --- EXTERNAL & FACILITIES ---
+            "9. External Works": t_external,
+            "10. Miscellanous/Facility": group_misc,
+            "10.1 Public Facilities": t_pub_fac,
+            "10.2 Resident Facilities": t_res_fac,
+            "10.3 Project Facilities": t_proj_fac,
+
+            # --- CONTINGENCY ---
+            "11. Contingencies": t_contingency,
+
+            # --- SOFT COSTS / CONSULTANTS ---
+            "12. Consultancy Fee": t_consultancy,
+            "13. Quantity Surveyor": t_qs,
+            "14. Project Management": t_pm,
+            "15. Insurance Coverage": t_insurance
+        }
+
+        # 4. Extract into lists for your DataFrame automatically
+        original_descriptions = list(data_dict.keys())
+        raw_amounts = list(data_dict.values())
 
         # 4. Filter and Indent Logic
         filtered_data = []
-        major_numbers = [f"{i}. " for i in range(1, 12)]
+        major_numbers = [f"{i}. " for i in range(1, 16)]
 
         for desc, amt in zip(original_descriptions, raw_amounts):
             is_major = any(desc.startswith(num) for num in major_numbers)
@@ -1347,20 +1516,73 @@ def show_cost_estimator():
             chart_height = max(400, len(df_detailed) * 25)
 
             # 4. Create the Chart
+            hover = alt.selection_point(on='mouseover', nearest=True, fields=['Item'], empty=False)
+
             detailed_chart = alt.Chart(df_detailed).mark_bar().encode(
                 x=alt.X("Amount:Q", title="Cost (Rp)"),
                 y=alt.Y("Item:N", sort="-x", title=""),
-                # Color by Type (Hard vs Soft) makes it much easier to read!
-                color=alt.Color("Type:N", scale=alt.Scale(domain=['Hard Cost', 'Soft Cost'], range=['#1f77b4', '#ff7f0e'])),
+                opacity=alt.condition(hover, alt.value(1), alt.value(0.7)),
+                color=alt.Color("Type:N", scale=alt.Scale(domain=['Hard Cost', 'Soft Cost'], range=["#1f77b4", "#c2a136"])),
                 tooltip=["Item", "Type", alt.Tooltip("Amount:Q", format=",.2f")]
-            ).properties(height=chart_height)
+            ).properties(height=chart_height).add_params(hover)
 
             st.altair_chart(detailed_chart, use_container_width=True)
 
-    # --- SAVE ALL METRICS TO SESSION STATE ---
-    current_metrics = {
-        "proj_name": new_name, "proj_type": new_type,
-        "misc_switch": misc_switch,
+    with tab4:
+        with st.expander("Detail Hard Cost", expanded=False):
+            cs1, cs2, cs3, cs4, cs5, cs6 = st.columns(6)
+
+            with cs1:
+                draw_hover_card("Preliminary", n2w(group_prelim), group_prelim, "#CDDC39", 
+                                f"5% × Subtotal Construction (Rp {construction_subtotal:,.0f})")
+            
+            with cs2:
+                draw_hover_card("Earthwork", n2w(group_earth), group_earth, "#8BC34A", 
+                                f"GBA ({gba:,.0f} m2) × Rate (Rp {struc_earth:,.0f})")
+            
+            with cs3:
+                draw_hover_card("Utility", n2w(group_utility), group_utility, "#4CAF50", 
+                                f"GBA ({gba:,.0f} m2) × Rate (Rp {utility_rate:,.0f})")
+            
+            with cs4:
+                draw_hover_card("Foundation", n2w(group_found), group_found, "#689F38", 
+                                f"GBA ({gba:,.0f} m2) × Rate (Rp {struc_found:,.0f})")
+            
+            with cs5:
+                draw_hover_card("Structural", n2w(group_struc), group_struc, "#388E3C", 
+                                f"GBA ({gba:,.0f} m2) × Rate (Rp {struc_work:,.0f})")
+            
+            with cs6:
+                draw_hover_card("External Works", n2w(group_ext), group_ext, "#254E18", 
+                                f"Landscape ({land_m2:,.0f} m2) × Rate (Rp {ext_land_rate:,.0f})")
+
+            # --- ROW 2 ---
+            ct1, ct2, ct3, ct4, ct5, ct6 = st.columns(6)
+            
+            with ct2:
+                draw_hover_card("Architecture", n2w(group_arch), group_arch, "#9CCC65", 
+                                "Base Arch + Facade + Sanitary + Flooring + Custom Items")
+            
+            with ct3:
+                draw_hover_card("Miscellaneous", n2w(group_misc), group_misc, "#558B2F", 
+                                "Public Fac. + Resident Fac. + Project Fac.")
+            
+            with ct4:
+                draw_hover_card("FF & E", n2w(group_ffe), group_ffe, "#2E7D32", 
+                                f"({rooms:,.0f} Units × FF&E Rate: Rp {ffe_rate:,.0f})\n"
+                                f"+ Misc. Linen/Gym: (Rp {misc_rate*misc_switch:,.0f})")
+
+            with ct5:
+                draw_hover_card("MEP Works", n2w(group_mep), group_mep, "#33691E", 
+                                f"GBA ({gba:,.0f} m2) × Rate (Rp {mep_rate:,.0f})")
+
+            with ct6:
+                draw_hover_card("Contingency", n2w(group_conting), group_conting, "#1B5E20", 
+                                f"3% × (Construction + Prelim) (Rp {construction_subtotal + t_preliminary:,.0f})")
+
+# --- SAVE ALL METRICS TO SESSION STATE ---
+    # We use .update() so we NEVER delete the Area Calculator's data!
+    st.session_state.projects[curr_id]["data"].update({
         "ht_spec_type": get_val("ht_spec_type", "Type1"),
         "vin_spec_type": get_val("vin_spec_type", "Type1"),
         "mar_spec_type": get_val("mar_spec_type", "Type1"),
@@ -1390,727 +1612,165 @@ def show_cost_estimator():
         "u_fac_r": fac_res_rate, "u_fac_pr": fac_proj_rate,
         "sc_cons": consultancy_rate, "sc_qs_m": qs_months, "sc_qs_r": qs_rate,
         "sc_pm_m": pm_months, "sc_pm_r": pm_rate, "sc_ins": insurance_pct
-    }
-    # Preserve keys managed elsewhere (custom costs, header, assumptions)
-    for k in ("smart_custom_costs", "header_info", "assumptions"):
-        if k in st.session_state.projects[curr_id]["data"]:
-            current_metrics[k] = st.session_state.projects[curr_id]["data"][k]
-    st.session_state.projects[curr_id]["data"] = current_metrics
+    })
+
 
     with tab8:
-        st.markdown("This Page is Intentionally Left Blank")
-        
+            st.header("Detail Pembuktian & Logika Perhitungan")
 
-# def show_portfolio_summary():
-#     import io
-#     import xlsxwriter
-#     import re
-#     from datetime import date
+            # Group 1: Structural Audit
+            with st.expander("1. Struktur & Pondasi", expanded=True):
+                audit_struc = pd.DataFrame([
+                    {"Item": "Earthwork", "Formula": f"GBA ({gba:,.0f} m2) × Rate (Rp {struc_earth:,.0f})", "Total": t_earth},
+                    {"Item": "Foundation", "Formula": f"GBA ({gba:,.0f} m2) × Rate (Rp {struc_found:,.0f})", "Total": t_found},
+                    {"Item": "Structural Work", "Formula": f"GBA ({gba:,.0f} m2) × Rate (Rp {struc_work:,.0f})", "Total": t_struc},
+                ])
+                st.table(audit_struc.style.format({"Total": "Rp {:,.2f}"}))
 
-#     tab_summary, tab_detailed = st.tabs(["FAD", "Rekap"])
-    
-#     with tab_summary:
-#             st.subheader("Tabel FAD")
-#             active_id = st.session_state.current_proj_id
-#             today_str = date.today().strftime("%d-%m-%Y")
+            # Group 2: Architectural Base & Facade Audit
+            with st.expander("2. Arsitektur Dasar & Fasad"):
+                audit_arch = pd.DataFrame([
+                    {"Item": "Architecture Base", "Formula": f"GFA ({gfa:,.0f} m2) × Rate (Rp {arch_base:,.0f})", "Total": t_arch_base},
+                    {"Item": "Facade Precast", "Formula": f"Facade ({facade:,.0f} m2) × {facade_precast_pct}% × Rate (Rp {fac_precast_rate:,.0f})", "Total": t_precast},
+                    {"Item": "Facade Window Wall", "Formula": f"Facade ({facade:,.0f} m2) × {facade_window_pct}% × Rate (Rp {fac_window_rate:,.0f})", "Total": t_window},
+                    {"Item": "Facade Double Skin", "Formula": f"Facade ({facade:,.0f} m2) × {facade_double_pct}% × Rate (Rp {fac_double_rate:,.0f})", "Total": t_double},
+                ])
+                st.table(audit_arch.style.format({"Total": "Rp {:,.2f}"}))
 
-#             if "header_info" not in st.session_state.projects[active_id]["data"]:
-#                 st.session_state.projects[active_id]["data"]["header_info"] = {
-#                     "rev_no": "0", "updated": today_str, "created": today_str
-#                 }
+            # Group 3: Doors & Hardware
+            with st.expander("3. Pintu & Hardware"):
+                audit_door = pd.DataFrame([
+                    {"Item": "Wooden Door", "Formula": f"{wooden_door:,.0f} Unit × Rate (Rp {door_wood:,.0f})", "Total": t_w_door},
+                    {"Item": "Glass Door", "Formula": f"{glass_door:,.0f} Unit × Rate (Rp {door_glass:,.0f})", "Total": t_g_door},
+                    {"Item": "Steel Door", "Formula": f"{steel_door:,.0f} Unit × Rate (Rp {door_steel:,.0f})", "Total": t_s_door},
+                    {"Item": "Hardware Wooden Door", "Formula": f"{wooden_door:,.0f} Unit × Rate (Rp {hw_wood:,.0f})", "Total": t_hw_w},
+                    {"Item": "Hardware Steel Door", "Formula": f"{steel_door:,.0f} Unit × Rate (Rp {hw_steel:,.0f})", "Total": t_hw_s},
+                ])
+                st.table(audit_door.style.format({"Total": "Rp {:,.2f}"}))
 
-#             with st.expander("Edit Header & Assumptions", expanded=False):
-#                 h_col1, h_col2, h_col3 = st.columns(3)
-#                 rev_input = h_col1.text_input("Revision Number:", value=st.session_state.projects[active_id]["data"]["header_info"]["rev_no"], key=f"rev_{active_id}")
-#                 upd_input = h_col2.text_input("Updated Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["updated"], key=f"upd_{active_id}")
-#                 cre_input = h_col3.text_input("Created Date:", value=st.session_state.projects[active_id]["data"]["header_info"]["created"], key=f"cre_{active_id}")
-#                 st.session_state.projects[active_id]["data"]["header_info"] = {"rev_no": rev_input, "updated": upd_input, "created": cre_input}
+            # Group 4: Sanitary Audit
+            with st.expander("4. Sanitari"):
+                audit_san = pd.DataFrame([
+                    {"Item": "Typical Unit Sanitary", "Formula": f"{rooms:,.0f} Rooms × {san_qty_room} Unit/Room × Rate (Rp {san_room_rate:,.0f})", "Total": t_unit_san},
+                    {"Item": "Public Toilet Male", "Formula": f"{toilet_male:,.0f} Unit × Rate (Rp {san_pub_m:,.0f})", "Total": t_t_male},
+                    {"Item": "Public Toilet Female", "Formula": f"{toilet_female:,.0f} Unit × Rate (Rp {san_pub_f:,.0f})", "Total": t_t_female},
+                    {"Item": "Disabled Toilet", "Formula": f"{disabled_toil:,.0f} Unit × Rate (Rp {san_dis:,.0f})", "Total": t_t_dis},
+                    {"Item": "Mushola", "Formula": f"{mushola_unit:,.0f} Unit × Rate (Rp {san_mushola:,.0f})", "Total": t_mushola},
+                ])
+                st.table(audit_san.style.format({"Total": "Rp {:,.2f}"}))
 
-#                 st.divider()
-#                 current_assums = st.session_state.projects[active_id]["data"].get("assumptions", [
-#                     "Foundation System Standard Pilecaps.",
-#                     "No Basement.",
-#                     "Parking Provision Limited To On Street Level Parking",
-#                     "Floor To Floor Height At 3.3M",
-#                     "Facade Alumunium Window Wall - No Double Skin",
-#                     "External Façade Precast, No Double Skin For Parking Podium If Any.",
-#                     "Ground Lobby Finishes Completed With Artificial Stone & HT.",
-#                     "Typical Corridor | Floor Finishes : HT | Wall Finishes : Cement Sand Plaster C/W Emulsion Paint.",
-#                     "Aircon System | Apartement : AC Split",
-#                     "SBO Rebars @ Rp. 10.000/Kg",
-#                     "Excluded Smarthome",
-#                     "Lift : 2 Passenger Lift + 1 Services Lift / TOWER",
-#                     "Exclude Wardrobe",
-#                     "FFE : Kitchen Cabinet, Hob & Hood, Refrigerator & Washing Machine",
-#                     "Water Heater : Installation Only",
-#                     "Calculation Area Refer To DP's Calculation Dated 12.03.2026"
-#                 ])
+            # Group 5: Flooring Logic (Waste & Skirting Proof)
+            with st.expander("5. Lantai (Termasuk Waste & Skirting)"):
+                st.markdown(fr"""
+                **Rumus Pengali Lantai (f_mult):**  
+                $(1 + \text{{Waste}} \%) \times (1 + \text{{Skirting}} \%) = (1 + {fl_waste/100}) \times (1 + {fl_skirt/100}) = **{f_mult:.4f}**$
+                """)
+                audit_floor = pd.DataFrame([
+                    {"Item": "HT / Tile", "Formula": f"GFA ({gfa:,.0f} m2) × {fl_ht_pct}% × {f_mult:.4f} × Rate (Rp {fl_ht_rate:,.0f})", "Total": t_ht},
+                    {"Item": "Vinyl", "Formula": f"GFA ({gfa:,.0f} m2) × {fl_vinyl_pct}% × {f_mult:.4f} × Rate (Rp {fl_vinyl_rate:,.0f})", "Total": t_vinyl},
+                    {"Item": "Marmer", "Formula": f"GFA ({gfa:,.0f} m2) × {fl_marmer_pct}% × {f_mult:.4f} × Rate (Rp {fl_marmer_rate:,.0f})", "Total": t_marmer},
+                ])
+                st.table(audit_floor.style.format({"Total": "Rp {:,.2f}"}))
 
-#                 df_assum = pd.DataFrame(current_assums, columns=["Note"])
-#                 ed_assum = st.data_editor(df_assum, num_rows="dynamic", use_container_width=True, key=f"ed_sum_{active_id}")
+            # Group 6: Finishing & Interior Misc
+            with st.expander("6. Finishing, Interior & Lainnya"):
+                audit_fin = pd.DataFrame([
+                    {"Item": "Lobby Interior", "Formula": f"{lobby_interior:,.0f} m2 × Rate (Rp {lobby_rate:,.0f})", "Total": t_lobby},
+                    {"Item": "Carpet Work", "Formula": f"{carpet_m2:,.0f} m2 × Rate (Rp {carpet_rate:,.0f})", "Total": t_carpet},
+                    {"Item": "Glass Work", "Formula": f"{glass_m2:,.0f} m2 × Rate (Rp {glass_rate:,.0f})", "Total": t_glass_work},
+                    {"Item": "Skylight", "Formula": f"{skylight_area:,.0f} m2 × Rate (Rp {skylight_rate:,.0f})", "Total": t_skylight},
+                    {"Item": "Railing", "Formula": f"({rooms:,.0f} Rooms × {railing_qty} m'/room) × Rate (Rp {railing_rate:,.0f})", "Total": t_railing},
+                    {"Item": "Gondola", "Formula": f"{gondola_unit:,.0f} Unit × Rate (Rp {gondola_rate:,.0f})", "Total": t_gondola},
+                ])
+                st.table(audit_fin.style.format({"Total": "Rp {:,.2f}"}))
 
-#                 new_list = ed_assum["Note"].dropna().tolist()
-#                 if new_list != current_assums:
-#                     st.session_state.projects[active_id]["data"]["assumptions"] = new_list
+            # Group 7: MEP, Dapur & FF&E
+            with st.expander("7. MEP, Dapur & FF&E"):
+                audit_mep = pd.DataFrame([
+                    {"Item": "MEP Works", "Formula": f"GBA ({gba:,.0f} m2) × Rate (Rp {mep_rate:,.0f})", "Total": t_mep},
+                    {"Item": "Utility Connection", "Formula": f"GBA ({gba:,.0f} m2) × Rate (Rp {utility_rate:,.0f})", "Total": t_utility},
+                    {"Item": "FF&E", "Formula": f"{rooms:,.0f} Rooms × Rate (Rp {ffe_rate:,.0f})", "Total": t_ffe},
+                    {"Item": "Kitchen Equipment", "Formula": f"{rooms:,.0f} Rooms × Rate (Rp {kitchen_rate:,.0f})", "Total": t_kitchen},
+                    {"Item": "Misc (Linen/Gym)", "Formula": f"Switch ({misc_switch}) × Rate (Rp {misc_rate:,.0f})", "Total": t_misc},
+                ])
+                st.table(audit_mep.style.format({"Total": "Rp {:,.2f}"}))
 
-#             # --- MANUAL PROJECTS EDITOR ---
-#             st.markdown("---")
-#             st.subheader("Manual Additional Projects")
-#             st.caption("Add custom projects to the FAD summary below. Cost Ratios (Rp/m2) will be calculated automatically.")
-            
-#             if "manual_fad_projects" not in st.session_state:
-#                 st.session_state.manual_fad_projects = pd.DataFrame(columns=[
-#                     "Project Name", "GBA", "GFA", "SGFA", "Units", "Budget Estimate (Rp)"
-#                 ])
+            # Group 8: External & Facilities
+            with st.expander("8. Fasilitas & Area Eksternal"):
+                audit_ext = pd.DataFrame([
+                    {"Item": "External Works (Landscape)", "Formula": f"{land_m2:,.0f} m2 × Rate (Rp {ext_land_rate:,.0f})", "Total": t_external},
+                    {"Item": "Public Facilities", "Formula": f"{pub_fac_m2:,.0f} m2 × Rate (Rp {fac_pub_rate:,.0f})", "Total": t_pub_fac},
+                    {"Item": "Resident Facilities", "Formula": f"GFA ({gfa:,.0f} m2) × Rate (Rp {fac_res_rate:,.0f})", "Total": t_res_fac},
+                    {"Item": "Project Facilities", "Formula": f"{proj_fac_u:,.0f} Unit × Rate (Rp {fac_proj_rate:,.0f})", "Total": t_proj_fac},
+                ])
+                st.table(audit_ext.style.format({"Total": "Rp {:,.2f}"}))
 
-#             edited_manual_df = st.data_editor(
-#                 st.session_state.manual_fad_projects,
-#                 num_rows="dynamic",
-#                 use_container_width=True,
-#                 key="manual_fad_editor",
-#                 column_config={
-#                     "GBA": st.column_config.NumberColumn("GBA", min_value=0, format="%.0f"),
-#                     "GFA": st.column_config.NumberColumn("GFA", min_value=0, format="%.0f"),
-#                     "SGFA": st.column_config.NumberColumn("SGFA", min_value=0, format="%.0f"),
-#                     "Units": st.column_config.NumberColumn("Units", min_value=0, format="%.0f"),
-#                     "Budget Estimate (Rp)": st.column_config.NumberColumn("Budget Estimate (Rp)", min_value=0, format="%.0f")
-#                 }
-#             )
+            # Group 9: Markups (Prelim & Contingency)
+            with st.expander("9. Preliminaries & Contingency"):
+                audit_markup = pd.DataFrame([
+                    {"Item": "Preliminary Works", "Formula": f"Construction Subtotal (Rp {construction_subtotal:,.0f}) × 5%", "Total": t_preliminary},
+                    {"Item": "Contingencies", "Formula": f"(Subtotal + Prelim) (Rp {construction_subtotal + t_preliminary:,.0f}) × 3%", "Total": t_contingency},
+                ])
+                st.table(audit_markup.style.format({"Total": "Rp {:,.2f}"}))
 
-#             rev_label = f"R({rev_input})"
-#             h_upd = upd_input
-#             h_cre = cre_input
-#             dynamic_assumptions = current_assums
-
-#             def get_project_totals(proj_dict):
-#                 d = proj_dict.get("data", {})
-#                 pt_data = PROJECT_DATABASE.get(proj_dict["type"], PROJECT_DATABASE["Hotel"])
-#                 def v(key, default=0.0):
-#                     return d.get(key, pt_data.get(key, default))
-#                 gba = v("m_gba"); gfa = v("m_gfa"); sgfa = v("m_sgfa")
-#                 rooms = v("m_rooms"); facade = v("m_facade")
-#                 f_mult = fl_waste * fl_skirt
-#                 hc = (
-#                     (gba * v("u_earth")) + (gba * v("u_found")) + (gba * v("u_struc")) + (gfa * v("u_arch")) +
-#                     (facade * (v("r_fac_pre") / 100) * v("u_f_pre")) + (facade * (v("r_fac_win") / 100) * v("u_f_win")) +
-#                     (facade * (v("r_fac_doub") / 100) * v("u_f_doub")) + (v("m_door_w") * v("u_d_wood")) +
-#                     (v("m_door_g") * v("u_d_glass")) + (v("m_door_s") * v("u_d_steel")) +
-#                     (v("m_lobby") * v("u_lobby")) + (v("m_gondola") * v("u_gondola")) +
-#                     (rooms * v("r_san_qty") * v("u_s_room")) + (v("m_toil_m") * v("u_s_pub_m")) +
-#                     (v("m_toil_f") * v("u_s_pub_f")) + (v("m_toil_d") * v("u_s_dis")) +
-#                     (v("m_mushola") * v("u_s_mushola")) + (rooms * v("u_kit")) +
-#                     (v("m_door_w") * v("u_hw_wood")) + (v("m_door_s") * v("u_hw_steel")) +
-#                     (gfa * (v("r_fl_ht") / 100) * v("u_fl_ht") * f_mult) +
-#                     (gfa * (v("r_fl_vin") / 100) * v("u_fl_vin") * f_mult) +
-#                     (gfa * (v("r_fl_mar") / 100) * v("u_fl_mar") * f_mult) +
-#                     (v("m_carpet") * v("u_carpet")) + (v("m_glass") * v("u_glass")) +
-#                     (rooms * v("u_ffe")) + (v("u_misc") * d.get("misc_switch", 0)) +
-#                     (gba * v("u_mep")) + (gba * v("u_util")) +
-#                     (rooms * v("r_rail_qty") * v("u_rail")) + (v("m_skylight") * v("u_sky")) +
-#                     (v("m_land_m2") * v("u_ext")) + (v("m_fac_pub") * v("u_fac_p")) +
-#                     (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr")) + v("smart_custom_costs")
-#                 )
+            # Group 10: Soft Costs (Consultants & Insurance)
+            with st.expander("10. Soft Costs (Consultants, QS, PM, Insurance)"):
+                audit_soft = pd.DataFrame([
+                    {"Item": "Consultancy Fee", "Formula": f"GFA ({gfa:,.0f} m2) × Rate (Rp {consultancy_rate:,.0f})", "Total": t_consultancy},
+                    {"Item": "QS Services", "Formula": f"{qs_months} Months × Rate (Rp {qs_rate:,.0f})", "Total": t_qs},
+                    {"Item": "PM Services", "Formula": f"{pm_months} Months × Rate (Rp {pm_rate:,.0f})", "Total": t_pm},
+                    {"Item": "Insurance Coverage", "Formula": f"Total Hard Cost (Rp {grand_total_hc:,.0f}) × {insurance_pct}%", "Total": t_insurance},
+                ])
+                st.table(audit_soft.style.format({"Total": "Rp {:,.2f}"}))
                 
-#                 custom_costs = d.get("smart_custom_costs", [])
-#                 dep_map = {
-#                     "None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa,
-#                     "Land Area": v("m_land"), "Rooms": rooms, "Facade": facade, "Lobby": v("m_lobby")
-#                 }
-#                 for item in custom_costs:
-#                     hc += (float(item.get("Rate (Rp)", 0)) * float(item.get("Quantity", 1)) *
-#                         dep_map.get(item.get("Linked Dependency"), 1.0))
-#                 hc_total = hc + (hc * 0.05) + (hc * 0.03)
-#                 sc_total = ((gfa * v("sc_cons")) + (v("sc_qs_m") * v("sc_qs_r")) +
-#                             (v("sc_pm_m") * v("sc_pm_r")) + (hc * (v("sc_ins") / 100)))
-#                 return {"gba": gba, "gfa": gfa, "sgfa": sgfa, "units": rooms, "budget": hc_total + sc_total}
+            # Group 11: Custom Items Tracker
+            with st.expander("11. Item Tambahan (Custom)"):
+                if smart_custom_costs > 0:
+                    st.markdown(f"**Total Item Tambahan:** Rp {smart_custom_costs:,.2f}")
+                    for detail in breakdown_details:
+                        st.markdown(f"- {detail}")
+                else:
+                    st.info("Tidak ada item tambahan (custom) yang dimasukkan.")
 
-#             # --- DATA AGGREGATION (CALCULATED + MANUAL) ---
-#             combined_results = []
-#             idx = 1
-            
-#             # 1. Add Auto-Calculated Projects
-#             for p_id, p_data in st.session_state.projects.items():
-#                 m = get_project_totals(p_data)
-#                 combined_results.append({
-#                     "idx": idx, "name": p_data["name"].upper(),
-#                     "gba": m["gba"], "gfa": m["gfa"], "sgfa": m["sgfa"],
-#                     "units": m["units"], "budget": m["budget"]
-#                 })
-#                 idx += 1
-
-#             # 2. Add Manual Projects
-#             edited_manual_df = edited_manual_df.fillna(0) # <--- ADD THIS LINE
-#             for _, row in edited_manual_df.iterrows():
-#                 p_name = str(row.get("Project Name", f"MANUAL PROJECT {idx}"))
-#                 if p_name == "nan" or not p_name.strip(): p_name = f"MANUAL PROJECT {idx}"
-                
-#                 combined_results.append({
-#                     "idx": idx, "name": p_name.upper(),
-#                     "gba": float(row.get("GBA", 0) or 0),
-#                     "gfa": float(row.get("GFA", 0) or 0),
-#                     "sgfa": float(row.get("SGFA", 0) or 0),
-#                     "units": float(row.get("Units", 0) or 0),
-#                     "budget": float(row.get("Budget Estimate (Rp)", 0) or 0)
-#                 })
-#                 idx += 1
-
-#             # 3. Calculate Ratios & Totals
-#             table_rows_html = ""
-#             total_gba = total_gfa = total_sgfa = total_budget = 0
-
-#             for p in combined_results:
-#                 r_gba  = p["budget"] / p["gba"]  if p["gba"]  > 0 else 0
-#                 r_gfa  = p["budget"] / p["gfa"]  if p["gfa"]  > 0 else 0
-#                 r_sgfa = p["budget"] / p["sgfa"] if p["sgfa"] > 0 else 0
-
-#                 p["r_gba"] = r_gba
-#                 p["r_gfa"] = r_gfa
-#                 p["r_sgfa"] = r_sgfa
-
-#                 total_gba += p["gba"]
-#                 total_gfa += p["gfa"]
-#                 total_sgfa += p["sgfa"]
-#                 total_budget += p["budget"]
-
-#                 table_rows_html += (
-#                     f"<tr>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{p['idx']}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;text-align:left;'><b>{p['name']}</b></td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{p['gba']:,.0f}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{p['gfa']:,.0f}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{p['sgfa']:,.0f}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{p['units']:,.0f}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>Units</td>"
-#                     f"<td style='border:1px solid black;padding:5px;text-align:right;'><b>{p['budget']:,.0f}</b></td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{r_gba:,.0f}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{r_gfa:,.0f}</td>"
-#                     f"<td style='border:1px solid black;padding:5px;'>{r_sgfa:,.0f}</td>"
-#                     f"</tr>"
-#                 )
-
-#             t_r_gba  = total_budget / total_gba  if total_gba  > 0 else 0
-#             t_r_gfa  = total_budget / total_gfa  if total_gfa  > 0 else 0
-#             t_r_sgfa = total_budget / total_sgfa if total_sgfa > 0 else 0
-
-#             # --- EXCEL BUILDER ---
-#             buffer = io.BytesIO()
-#             workbook = xlsxwriter.Workbook(buffer, {"in_memory": True, "nan_inf_to_errors": True})
-#             worksheet = workbook.add_worksheet("Portfolio Summary")
-
-#             f_blue_L    = workbook.add_format({"bg_color": "#0062a8", "font_color": "white", "bold": True, "valign": "vcenter"})
-#             f_th        = workbook.add_format({"bg_color": "#f2f2f2", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "text_wrap": True})
-#             f_td_c      = workbook.add_format({"align": "center", "valign": "vcenter", "border": 1})
-#             f_td_L_b    = workbook.add_format({"align": "left", "valign": "vcenter", "border": 1, "bold": True})
-#             f_td_R_b    = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1, "bold": True, "num_format": "#,##0"})
-#             f_td_num    = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
-#             f_tot_L     = workbook.add_format({"bg_color": "#e0e0e0", "bold": True, "align": "center", "valign": "vcenter", "border": 1})
-#             f_tot_num   = workbook.add_format({"bg_color": "#e0e0e0", "bold": True, "align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
-#             f_tot_empty = workbook.add_format({"bg_color": "#e0e0e0", "border": 1})
-#             f_assum_h   = workbook.add_format({"bg_color": "#ffdf70", "bold": True, "border": 1, "valign": "vcenter"})
-#             f_assum_c   = workbook.add_format({"align": "center", "border": 1})
-#             f_assum_L   = workbook.add_format({"align": "left", "border": 1})
-
-#             worksheet.set_column("A:A", 5); worksheet.set_column("B:B", 38); worksheet.set_column("C:E", 15)
-#             worksheet.set_column("F:F", 10); worksheet.set_column("G:G", 8); worksheet.set_column("H:H", 22)
-#             worksheet.set_column("I:K", 15)
-
-#             for row in range(5):
-#                 worksheet.merge_range(row, 0, row, 10, "", f_blue_L)
-#             worksheet.write_string(0, 0, f"ASG GROUP PROPERTY DEVELOPMENT | VERSION : {rev_label}", f_blue_L)
-#             worksheet.write_string(1, 0, "QS & PROCUREMENT DIVISION", f_blue_L)
-#             worksheet.write_string(2, 0, "PROJECT PORTFOLIO | ALL ACTIVE PROJECTS", f_blue_L)
-#             worksheet.write_string(3, 0, f"REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA | UPDATED : {h_upd}", f_blue_L)
-#             worksheet.write_string(4, 0, f"BUDGET ESTIMATE {rev_label} | CREATED : {h_cre}", f_blue_L)
-
-#             worksheet.merge_range("A7:A8", "SN", f_th); worksheet.merge_range("B7:B8", "AREA", f_th)
-#             worksheet.merge_range("C7:E7", "BUILDING AREA (M2)", f_th)
-#             worksheet.write_string("C8", "GBA", f_th); worksheet.write_string("D8", "GFA", f_th); worksheet.write_string("E8", "SGFA", f_th)
-#             worksheet.merge_range("F7:G8", "UNIT", f_th); worksheet.merge_range("H7:H8", "BUDGET ESTIMATE\nRP", f_th)
-#             worksheet.merge_range("I7:K7", "COST RATIO RP/M2", f_th)
-#             worksheet.write_string("I8", "GBA", f_th); worksheet.write_string("J8", "GFA", f_th); worksheet.write_string("K8", "SGFA", f_th)
-
-#             row_idx = 8
-#             for p in combined_results:
-#                 worksheet.write_number(row_idx, 0, p["idx"], f_td_c)
-#                 worksheet.write_string(row_idx, 1, p["name"], f_td_L_b)
-#                 worksheet.write_number(row_idx, 2, p["gba"], f_td_num)
-#                 worksheet.write_number(row_idx, 3, p["gfa"], f_td_num)
-#                 worksheet.write_number(row_idx, 4, p["sgfa"], f_td_num)
-#                 worksheet.write_number(row_idx, 5, p["units"], f_td_c)
-#                 worksheet.write_string(row_idx, 6, "Units", f_td_c)
-#                 worksheet.write_number(row_idx, 7, p["budget"], f_td_R_b)
-#                 worksheet.write_number(row_idx, 8, p["r_gba"], f_td_num)
-#                 worksheet.write_number(row_idx, 9, p["r_gfa"], f_td_num)
-#                 worksheet.write_number(row_idx, 10, p["r_sgfa"], f_td_num)
-#                 row_idx += 1
-
-#             worksheet.merge_range(row_idx, 0, row_idx, 1, "TOTAL", f_tot_L)
-#             worksheet.write_number(row_idx, 2, total_gba, f_tot_num)
-#             worksheet.write_number(row_idx, 3, total_gfa, f_tot_num)
-#             worksheet.write_number(row_idx, 4, total_sgfa, f_tot_num)
-#             worksheet.write_string(row_idx, 5, "", f_tot_empty)
-#             worksheet.write_string(row_idx, 6, "", f_tot_empty)
-#             worksheet.write_number(row_idx, 7, total_budget, f_tot_num)
-#             worksheet.write_number(row_idx, 8, t_r_gba, f_tot_num)
-#             worksheet.write_number(row_idx, 9, t_r_gfa, f_tot_num)
-#             worksheet.write_number(row_idx, 10, t_r_sgfa, f_tot_num)
-
-#             row_idx += 2
-#             worksheet.write_string(row_idx, 0, "I.", f_assum_h)
-#             worksheet.merge_range(row_idx, 1, row_idx, 10, "ASSUMPTIONS", f_assum_h)
-#             for i, assum in enumerate(dynamic_assumptions, 1):
-#                 row_idx += 1
-#                 worksheet.write_number(row_idx, 0, i, f_assum_c)
-#                 text = str(assum)
-#                 date_match = re.search(r"(\d{2}[./-]\d{2}[./-]\d{4})", text)
-#                 if date_match:
-#                     worksheet.merge_range(row_idx, 1, row_idx, 10, "", f_assum_L)
-#                     parts = text.split(date_match.group(1))
-#                     rich_args = []
-#                     if parts[0]: rich_args.append(parts[0])
-#                     rich_args.extend([workbook.add_format({"font_color": "red"}), date_match.group(1)])
-#                     if len(parts) > 1 and parts[1]: rich_args.append(parts[1])
-#                     worksheet.write_rich_string(row_idx, 1, *rich_args, f_assum_L)
-#                 else:
-#                     worksheet.merge_range(row_idx, 1, row_idx, 10, text, f_assum_L)
-#             workbook.close()
-
-#             st.download_button(
-#                 label="Download FAD as .xlsx",
-#                 data=buffer.getvalue(),
-#                 file_name=f"ASG_Portfolio_{active_id}.xlsx",
-#                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-#                 use_container_width=True
-#             )
-
-#             # --- HTML TABLE RENDER ---
-#             assum_html_rows = ""
-#             for i, assum in enumerate(dynamic_assumptions, 1):
-#                 display_text = re.sub(r"(\d{2}[./-]\d{2}[./-]\d{4})", r"<span style='color:red;'>\1</span>", str(assum))
-#                 assum_html_rows += (
-#                     f"<tr><td style='text-align:center;border-right:1px solid #e0e0e0;padding:2px;'>{i}</td>"
-#                     f"<td style='padding:2px 5px;'>{display_text}</td></tr>"
-#                 )
-
-#             html_string = f"""
-#             <div style="font-family:Calibri,sans-serif;font-size:13px;color:black;background-color:white;padding:20px;border-radius:5px;">
-#                 <div style="background-color:#0062a8;color:white;padding:12px;font-weight:bold;line-height:1.6;font-size:14px;text-align:left;">
-#                     <div>ASG GROUP PROPERTY DEVELOPMENT <span style="margin-left:20px;">VERSION : {rev_label}</span></div>
-#                     <div>QS &amp; PROCUREMENT DIVISION</div>
-#                     <div>PROJECT PORTFOLIO | ALL ACTIVE PROJECTS</div>
-#                     <div>REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA <span style="margin-left:20px;">UPDATED : {h_upd}</span></div>
-#                     <div>BUDGET ESTIMATE {rev_label} <span style="margin-left:20px;">CREATED : {h_cre}</span></div>
-#                 </div>
-#                 <br>
-#                 <table style="width:100%;border-collapse:collapse;border:2px solid black;text-align:center;">
-#                     <tr style="background-color:#f2f2f2;font-weight:bold;">
-#                         <td rowspan="2" style="border:1px solid black;padding:5px;">SN</td>
-#                         <td rowspan="2" style="border:1px solid black;padding:5px;">AREA</td>
-#                         <td colspan="3" style="border:1px solid black;padding:5px;">BUILDING AREA (M2)</td>
-#                         <td colspan="2" rowspan="2" style="border:1px solid black;padding:5px;">UNIT</td>
-#                         <td rowspan="2" style="border:1px solid black;padding:5px;">BUDGET ESTIMATE<br>RP</td>
-#                         <td colspan="3" style="border:1px solid black;padding:5px;">COST RATIO RP/M2</td>
-#                     </tr>
-#                     <tr style="background-color:#f2f2f2;font-weight:bold;">
-#                         <td style="border:1px solid black;padding:5px;">GBA</td>
-#                         <td style="border:1px solid black;padding:5px;">GFA</td>
-#                         <td style="border:1px solid black;padding:5px;">SGFA</td>
-#                         <td style="border:1px solid black;padding:5px;">GBA</td>
-#                         <td style="border:1px solid black;padding:5px;">GFA</td>
-#                         <td style="border:1px solid black;padding:5px;">SGFA</td>
-#                     </tr>
-#                     {table_rows_html}
-#                     <tr style="background-color:#e0e0e0;font-weight:bold;">
-#                         <td colspan="2" style="border:1px solid black;padding:5px;">TOTAL</td>
-#                         <td style="border:1px solid black;padding:5px;">{total_gba:,.0f}</td>
-#                         <td style="border:1px solid black;padding:5px;">{total_gfa:,.0f}</td>
-#                         <td style="border:1px solid black;padding:5px;">{total_sgfa:,.0f}</td>
-#                         <td colspan="2" style="border:1px solid black;padding:5px;"></td>
-#                         <td style="border:1px solid black;padding:5px;text-align:right;">{total_budget:,.0f}</td>
-#                         <td style="border:1px solid black;padding:5px;">{t_r_gba:,.0f}</td>
-#                         <td style="border:1px solid black;padding:5px;">{t_r_gfa:,.0f}</td>
-#                         <td style="border:1px solid black;padding:5px;">{t_r_sgfa:,.0f}</td>
-#                     </tr>
-#                 </table>
-#                 <br>
-#                 <table style="width:100%;border-collapse:collapse;border:1px solid #dcdcdc;text-align:left;">
-#                     <tr style="background-color:#ffdf70;font-weight:bold;">
-#                         <td style="border:1px solid white;padding:3px 5px;width:30px;text-align:center;">I.</td>
-#                         <td style="border:1px solid white;padding:3px 5px;">ASSUMPTIONS</td>
-#                     </tr>
-#                     {assum_html_rows}
-#                 </table>
-#             </div>
-#             """
-#             st.markdown(html_string.replace("\n", ""), unsafe_allow_html=True)
-
-#     with tab_detailed:
-#             st.subheader("Tabel Rekapitulasi")
-
-#             # 1. SETUP: Prepare to collect data for ALL projects
-#             all_projects_data = []
-#             grand_total_all_projects = 0
-            
-#             # Area trackers for combined ratios
-#             total_gba_all = 0; total_gfa_all = 0; total_sgfa_all = 0
-            
-#             # Subtotal trackers for the first "TOTAL" column
-#             sum_hardcost = 0; sum_prelim = 0; sum_earth = 0; sum_found = 0; sum_struc = 0
-#             sum_arch = 0; sum_ffe = 0; sum_mep = 0; sum_util = 0; sum_ext = 0; sum_fac = 0
-#             sum_cont = 0; sum_softcost = 0; sum_cons = 0; sum_qs = 0; sum_pm = 0; sum_ins = 0
-
-#             # 2. CALCULATE EACH PROJECT
-#             for p_id, p_dict in st.session_state.projects.items():
-#                 d = p_dict.get("data", {})
-#                 pt_data = PROJECT_DATABASE.get(p_dict["type"], PROJECT_DATABASE["Hotel"])
-                
-#                 def v(key, default=0.0):
-#                     try:
-#                         return float(d.get(key, pt_data.get(key, default)))
-#                     except (ValueError, TypeError):
-#                         return 0.0
-
-#                 gba = v("m_gba"); gfa = v("m_gfa"); sgfa = v("m_sgfa")
-#                 facade = v("m_facade"); rooms = v("m_rooms")
-#                 f_mult = fl_waste * fl_skirt
-
-#                 # Hardcosts
-#                 v_earth = gba * v("u_earth")
-#                 v_found = gba * v("u_found")
-#                 v_struc = gba * v("u_struc")
-#                 v_arch = (
-#                     (gfa * v("u_arch")) + (facade * (v("r_fac_pre") / 100) * v("u_f_pre")) + 
-#                     (facade * (v("r_fac_win") / 100) * v("u_f_win")) + (facade * (v("r_fac_doub") / 100) * v("u_f_doub")) + 
-#                     (v("m_door_w") * v("u_d_wood")) + (v("m_door_g") * v("u_d_glass")) + (v("m_door_s") * v("u_d_steel")) + 
-#                     (v("m_lobby") * v("u_lobby")) + (v("m_gondola") * v("u_gondola")) + (rooms * v("r_san_qty") * v("u_s_room")) + 
-#                     (v("m_toil_m") * v("u_s_pub_m")) + (v("m_toil_f") * v("u_s_pub_f")) + (v("m_toil_d") * v("u_s_dis")) + 
-#                     (v("m_mushola") * v("u_s_mushola")) + (v("m_door_w") * v("u_hw_wood")) + (v("m_door_s") * v("u_hw_steel")) + 
-#                     (gfa * (v("r_fl_ht") / 100) * v("u_fl_ht") * f_mult) + (gfa * (v("r_fl_vin") / 100) * v("u_fl_vin") * f_mult) + 
-#                     (gfa * (v("r_fl_mar") / 100) * v("u_fl_mar") * f_mult) + (v("m_carpet") * v("u_carpet")) + 
-#                     (v("m_glass") * v("u_glass")) + (rooms * v("r_rail_qty") * v("u_rail")) + (v("m_skylight") * v("u_sky")) + (v("smart_custom_costs"))
-#                 )
-#                 v_ffe = (rooms * v("u_ffe")) + (rooms * v("u_kit")) + (v("u_misc") * d.get("misc_switch", 0))
-#                 v_mep = gba * v("u_mep")
-#                 v_util = gba * v("u_util")
-#                 v_ext = v("m_land_m2") * v("u_ext")
-#                 v_fac = (v("m_fac_pub") * v("u_fac_p")) + (v("m_fac_res") * v("u_fac_r")) + (v("m_fac_proj") * v("u_fac_pr"))
-                
-#                 # Custom
-#                 c_costs = d.get("smart_custom_costs", [])
-#                 dep_map = {"None (Flat Rate)": 1.0, "GBA": gba, "GFA": gfa, "SGFA": sgfa, "Land Area": v("m_land"), "Rooms": rooms, "Facade": facade, "Lobby": v("m_lobby")}
-#                 v_custom = sum([(float(item.get("Rate (Rp)", 0)) * float(item.get("Quantity", 1)) * dep_map.get(item.get("Linked Dependency"), 1.0)) for item in c_costs])
-
-#                 hc_sub = v_earth + v_found + v_struc + v_arch + v_ffe + v_mep + v_util + v_ext + v_fac + v_custom
-#                 v_prelim = (hc_sub) * 0.05
-#                 v_cont = (hc_sub) * 0.03
-#                 hc_tot = hc_sub + v_prelim + v_cont
-
-#                 # Softcosts
-#                 v_cons = gfa * v("sc_cons")
-#                 v_qs = v("sc_qs_m") * v("sc_qs_r")
-#                 v_pm = v("sc_pm_m") * v("sc_pm_r")
-#                 v_ins = (hc_sub) * (v("sc_ins") / 100)
-#                 sc_tot = v_cons + v_qs + v_pm + v_ins
-                
-#                 p_grand = hc_tot + sc_tot
-
-#                 # Store for this project
-#                 proj_data = {
-#                     "name": p_dict["name"], "gba": gba, "gfa": gfa, "sgfa": sgfa, "grand": p_grand,
-#                     "vals": {
-#                         "hc": hc_tot, "prelim": v_prelim, "earth": v_earth, "found": v_found, "struc": v_struc,
-#                         "arch": v_arch, "ffe": v_ffe, "mep": v_mep, "util": v_util, "ext": v_ext, "fac": v_fac,
-#                         "cont": v_cont, "sc": sc_tot, "cons": v_cons, "qs": v_qs, "pm": v_pm, "ins": v_ins
-#                     }
-#                 }
-#                 all_projects_data.append(proj_data)
-
-#                 # Add to grand totals
-#                 total_gba_all += gba
-#                 total_gfa_all += gfa
-#                 total_sgfa_all += sgfa
-                
-#                 sum_hardcost += hc_tot; sum_prelim += v_prelim; sum_earth += v_earth; sum_found += v_found
-#                 sum_struc += v_struc; sum_arch += v_arch; sum_ffe += v_ffe; sum_mep += v_mep
-#                 sum_util += v_util; sum_ext += v_ext; sum_fac += v_fac; sum_cont += v_cont
-#                 sum_softcost += sc_tot; sum_cons += v_cons; sum_qs += v_qs; sum_pm += v_pm; sum_ins += v_ins
-#                 grand_total_all_projects += p_grand
-
-#             # 3. BUILD DYNAMIC HTML HEADERS
-#             color_palette = ["#ccffe6", "#ffe6e6", "#e6e6ff", "#ffffe6", "#ffe6ff"] # Colors for different projects
-            
-#             # Header Row 1 (Project Names)
-#             header_col_names = f'<td colspan="4" style="border:1px solid black; padding:4px; background-color: #e6f2ff;">TOTAL <span style="margin:0 15px;">Cost Ratio (Rp/m2)</span></td>'
-            
-#             # Header Row 2 (Cost Ratio Titles)
-#             header_ratios = f'<td colspan="4" style="border:1px solid black; padding:4px; background-color: #e6f2ff; color: red;">ALL PROJECTS</td>'
-            
-#             # Header Row 3 (GBA/GFA/SGFA labels)
-#             header_sublabels = f"""
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">TOTAL (Rp)</td>
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">GBA</td>
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">GFA</td>
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">SGFA</td>
-#             """
-            
-#             # Header Row 4 (Overall Area Totals)
-#             header_empty = f"""
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">-</td>
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">{total_gba_all:,.0f}</td>
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">{total_gfa_all:,.0f}</td>
-#                 <td style="border:1px solid black; padding:4px; background-color: #e6f2ff;">{total_sgfa_all:,.0f}</td>
-#             """
-
-#             for i, p in enumerate(all_projects_data):
-#                 bg_col = color_palette[i % len(color_palette)]
-                
-#                 header_col_names += f'<td colspan="4" style="border:1px solid black; padding:4px; background-color: {bg_col};">ESTIMATE <span style="margin:0 15px;">Cost Ratio (Rp/m2)</span></td>'
-#                 header_ratios += f'<td colspan="4" style="border:1px solid black; padding:4px; background-color: {bg_col}; color: red;">{p["name"].upper()}</td>'
-#                 header_sublabels += f"""
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">TOTAL (Rp)</td>
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">GBA</td>
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">GFA</td>
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">SGFA</td>
-#                 """
-#                 header_empty += f"""
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">-</td>
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">{p["gba"]:,.0f}</td>
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">{p["gfa"]:,.0f}</td>
-#                     <td style="border:1px solid black; padding:4px; background-color: {bg_col};">{p["sgfa"]:,.0f}</td>
-#                 """
-
-#             # 4. ROW DEFINITIONS
-#             row_map = [
-#                 {"sn": "I", "desc": "HARDCOST", "coa": "118-14-000", "key": "hc", "sum": sum_hardcost, "is_main": True},
-#                 {"sn": "1", "desc": "PRELIMINARIES WORKS", "coa": "118-14-100", "key": "prelim", "sum": sum_prelim, "is_main": False},
-#                 {"sn": "2", "desc": "EARTHWORKS", "coa": "118-14-200", "key": "earth", "sum": sum_earth, "is_main": False},
-#                 {"sn": "3", "desc": "FOUNDATIONS", "coa": "118-14-300", "key": "found", "sum": sum_found, "is_main": False},
-#                 {"sn": "4", "desc": "STRUCTURAL WORKS", "coa": "118-14-500", "key": "struc", "sum": sum_struc, "is_main": False},
-#                 {"sn": "5", "desc": "ARCHITECTURAL WORKS", "coa": "118-14-600", "key": "arch", "sum": sum_arch, "is_main": False},
-#                 {"sn": "6", "desc": "FF & E", "coa": "118-14-700", "key": "ffe", "sum": sum_ffe, "is_main": False},
-#                 {"sn": "7", "desc": "M.E.P WORKS", "coa": "118-14-800", "key": "mep", "sum": sum_mep, "is_main": False},
-#                 {"sn": "8", "desc": "UTILITY CONNECTION", "coa": "118-13-900", "key": "util", "sum": sum_util, "is_main": False},
-#                 {"sn": "9", "desc": "EXTERNAL WORKS", "coa": "118-14-930", "key": "ext", "sum": sum_ext, "is_main": False},
-#                 {"sn": "10", "desc": "FACILITY", "coa": "118-14-960", "key": "fac", "sum": sum_fac, "is_main": False},
-#                 {"sn": "11", "desc": "CONTINGENCIES", "coa": "", "key": "cont", "sum": sum_cont, "is_main": False},
-#                 {"sn": "II", "desc": "SOFTCOST", "coa": "118-13-000", "key": "sc", "sum": sum_softcost, "is_main": True},
-#                 {"sn": "1", "desc": "CONSULTANCY SERVICES FEE", "coa": "118-13-202", "key": "cons", "sum": sum_cons, "is_main": False},
-#                 {"sn": "2", "desc": "QS SERVICES", "coa": "118-13-201", "key": "qs", "sum": sum_qs, "is_main": False},
-#                 {"sn": "3", "desc": "PROJECT MANAGEMENT SERVICES", "coa": "118-13-203", "key": "pm", "sum": sum_pm, "is_main": False},
-#                 {"sn": "4", "desc": "INSURANCE COVERAGE", "coa": "118-13-300", "key": "ins", "sum": sum_ins, "is_main": False},
-#                 {"sn": "IV", "desc": "TOTAL, EXCLD PPN", "coa": "", "key": "grand", "sum": grand_total_all_projects, "is_main": True, "is_grand_total": True}
-#             ]
-
-#             # 5. BUILD DATA ROWS DYNAMICALLY
-#             html_rows = ""
-#             for row in row_map:
-#                 bg_color = "#e6f2e6" if row.get("is_main") else "white"
-#                 font_w = "bold" if row.get("is_main") else "normal"
-#                 blue_bg = "background-color:#3b82f6;color:white;" if row.get("is_grand_total") else ""
-                
-#                 pct = (row["sum"] / grand_total_all_projects * 100) if grand_total_all_projects > 0 else 0
-                
-#                 # Overall Portfolio Ratios
-#                 tot_r_gba = (row["sum"] / total_gba_all) if total_gba_all > 0 else 0
-#                 tot_r_gfa = (row["sum"] / total_gfa_all) if total_gfa_all > 0 else 0
-#                 tot_r_sgfa = (row["sum"] / total_sgfa_all) if total_sgfa_all > 0 else 0
-
-#                 # Start row with left-side static labels and the Grand Total section
-#                 row_html = f"""
-#                 <tr style="background-color:{bg_color}; font-weight:{font_w}; {blue_bg}">
-#                     <td style="border:1px solid black; padding:4px; text-align:center;">{row['sn']}</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:left;">{row['desc']}</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:center;">{row['coa']}</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:center;">{pct:.2f}%</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:right;">{row['sum']:,.0f}</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:right;">{tot_r_gba:,.0f}</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:right;">{tot_r_gfa:,.0f}</td>
-#                     <td style="border:1px solid black; padding:4px; text-align:right;">{tot_r_sgfa:,.0f}</td>
-#                 """
-                
-#                 # Append data dynamically for each project
-#                 for p in all_projects_data:
-#                     val = p['grand'] if row['key'] == 'grand' else p['vals'][row['key']]
-#                     r_gba = (val / p['gba']) if p['gba'] > 0 else 0
-#                     r_gfa = (val / p['gfa']) if p['gfa'] > 0 else 0
-#                     r_sgfa = (val / p['sgfa']) if p['sgfa'] > 0 else 0
-                    
-#                     row_html += f"""
-#                         <td style="border:1px solid black; padding:4px; text-align:right;">{val:,.0f}</td>
-#                         <td style="border:1px solid black; padding:4px; text-align:right;">{r_gba:,.0f}</td>
-#                         <td style="border:1px solid black; padding:4px; text-align:right;">{r_gfa:,.0f}</td>
-#                         <td style="border:1px solid black; padding:4px; text-align:right;">{r_sgfa:,.0f}</td>
-#                     """
-                
-#                 row_html += "</tr>"
-#                 html_rows += row_html
-
-#             # 6. RENDER FINAL TABLE
-#             detailed_html = f"""
-#             <div style="font-family: Arial, sans-serif; font-size: 11px; color: black; background-color: white; overflow-x: auto; margin-bottom: 20px;">
-#                 <table style="width: 100%; border-collapse: collapse; border: 2px solid black; text-align: center; white-space: nowrap;">
-#                     <thead>
-#                         <tr style="background-color: #f2f2f2; font-weight: bold;">
-#                             <td rowspan="3" style="border:1px solid black; padding:4px; width:30px;">SN</td>
-#                             <td rowspan="3" style="border:1px solid black; padding:4px; width:200px;">DESCRIPTION</td>
-#                             <td rowspan="3" style="border:1px solid black; padding:4px;">COA</td>
-#                             <td rowspan="3" style="border:1px solid black; padding:4px;">%</td>
-#                             {header_col_names}
-#                         </tr>
-#                         <tr style="font-weight: bold;">
-#                             {header_ratios}
-#                         </tr>
-#                         <tr style="background-color: #f2f2f2; font-weight: bold;">
-#                             {header_sublabels}
-#                         </tr>
-#                         <tr style="background-color: #f2f2f2; font-weight: bold;">
-#                             <td colspan="4" style="border:1px solid black; padding:4px;"></td>
-#                             {header_empty}
-#                         </tr>
-#                     </thead>
-#                     <tbody>
-#                         {html_rows}
-#                     </tbody>
-#                 </table>
-#             </div>
-#             """
-#             st.markdown(detailed_html.replace("\n", ""), unsafe_allow_html=True)
-
-#             # --- EXCEL DOWNLOAD LOGIC ---
-#             h_info = st.session_state.projects[active_id]["data"].get("header_info", {})
-#             rev_label = f"R({h_info.get('rev_no', '0')})"
-#             h_upd = h_info.get("updated", "")
-#             h_cre = h_info.get("created", "")
-
-#             buffer_det = io.BytesIO()
-#             wb = xlsxwriter.Workbook(buffer_det, {"in_memory": True})
-#             ws = wb.add_worksheet("Detailed Estimate")
-
-#             # Formats
-#             f_blue = wb.add_format({"bg_color": "#0062a8", "font_color": "white", "bold": True, "valign": "vcenter"})
-#             f_th = wb.add_format({"bg_color": "#f2f2f2", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "text_wrap": True})
-#             f_th_tot = wb.add_format({"bg_color": "#e6f2ff", "bold": True, "align": "center", "valign": "vcenter", "border": 1})
-#             f_th_tot_red = wb.add_format({"bg_color": "#e6f2ff", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "font_color": "red"})
-            
-#             f_c = wb.add_format({"align": "center", "valign": "vcenter", "border": 1})
-#             f_L = wb.add_format({"align": "left", "valign": "vcenter", "border": 1})
-#             f_pct = wb.add_format({"align": "center", "valign": "vcenter", "border": 1, "num_format": "0.00%"})
-#             f_num = wb.add_format({"align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
-
-#             f_mc = wb.add_format({"bg_color": "#e6f2e6", "bold": True, "align": "center", "valign": "vcenter", "border": 1})
-#             f_mL = wb.add_format({"bg_color": "#e6f2e6", "bold": True, "align": "left", "valign": "vcenter", "border": 1})
-#             f_mpct = wb.add_format({"bg_color": "#e6f2e6", "bold": True, "align": "center", "valign": "vcenter", "border": 1, "num_format": "0.00%"})
-#             f_mnum = wb.add_format({"bg_color": "#e6f2e6", "bold": True, "align": "right", "valign": "vcenter", "border": 1, "num_format": "#,##0"})
-
-#             f_gc = wb.add_format({"bg_color": "#3b82f6", "font_color": "white", "bold": True, "align": "center", "border": 1})
-#             f_gL = wb.add_format({"bg_color": "#3b82f6", "font_color": "white", "bold": True, "align": "left", "border": 1})
-#             f_gpct = wb.add_format({"bg_color": "#3b82f6", "font_color": "white", "bold": True, "align": "center", "border": 1, "num_format": "0.00%"})
-#             f_gnum = wb.add_format({"bg_color": "#3b82f6", "font_color": "white", "bold": True, "align": "right", "border": 1, "num_format": "#,##0"})
-
-#             ws.set_column("A:A", 5); ws.set_column("B:B", 35); ws.set_column("C:C", 12); ws.set_column("D:D", 8)
-            
-#             # Header Block
-#             for r in range(5): ws.merge_range(r, 0, r, 7 + (len(all_projects_data)*4), "", f_blue)
-#             ws.write_string(0, 0, f"ASG GROUP PROPERTY DEVELOPMENT | VERSION : {rev_label}", f_blue)
-#             ws.write_string(1, 0, "QS & PROCUREMENT DIVISION", f_blue)
-#             ws.write_string(2, 0, "DETAILED ESTIMATE | ALL ACTIVE PROJECTS", f_blue)
-#             ws.write_string(3, 0, f"REF. DATA {rev_label} | CONCEPT PDF COMPARISON STUDY BY DPA | UPDATED : {h_upd}", f_blue)
-#             ws.write_string(4, 0, f"BUDGET ESTIMATE {rev_label} | CREATED : {h_cre}", f_blue)
-
-#             # Table Headers
-#             ws.merge_range("A7:A9", "SN", f_th); ws.merge_range("B7:B9", "DESCRIPTION", f_th)
-#             ws.merge_range("C7:C9", "COA", f_th); ws.merge_range("D7:D9", "%", f_th)
-
-#             # Dynamic Header Columns
-#             col_idx = 4
-#             ws.merge_range(6, col_idx, 6, col_idx+3, "ESTIMATE Cost Ratio (Rp/m2)", f_th_tot)
-#             ws.merge_range(7, col_idx, 7, col_idx+3, "TOTAL ALL PROJECTS", f_th_tot_red)
-#             ws.write(8, col_idx, "TOTAL (Rp)", f_th_tot); ws.write(8, col_idx+1, "GBA", f_th_tot)
-#             ws.write(8, col_idx+2, "GFA", f_th_tot); ws.write(8, col_idx+3, "SGFA", f_th_tot)
-            
-#             # Write Total Area row
-#             ws.write_row(9, 0, ["", "", "", ""], f_th)
-#             ws.write(9, col_idx, "-", f_th_tot); ws.write(9, col_idx+1, total_gba_all, f_th_tot)
-#             ws.write(9, col_idx+2, total_gfa_all, f_th_tot); ws.write(9, col_idx+3, total_sgfa_all, f_th_tot)
-#             col_idx += 4
-
-#             for i, p in enumerate(all_projects_data):
-#                 color_hex = color_palette[i % len(color_palette)]
-#                 f_proj_th = wb.add_format({"bg_color": color_hex, "bold": True, "align": "center", "valign": "vcenter", "border": 1})
-#                 f_proj_th_red = wb.add_format({"bg_color": color_hex, "bold": True, "align": "center", "valign": "vcenter", "border": 1, "font_color": "red"})
-                
-#                 ws.set_column(col_idx, col_idx+3, 14)
-#                 ws.merge_range(6, col_idx, 6, col_idx+3, "ESTIMATE Cost Ratio (Rp/m2)", f_proj_th)
-#                 ws.merge_range(7, col_idx, 7, col_idx+3, p["name"].upper(), f_proj_th_red)
-#                 ws.write(8, col_idx, "TOTAL (Rp)", f_proj_th); ws.write(8, col_idx+1, "GBA", f_proj_th)
-#                 ws.write(8, col_idx+2, "GFA", f_proj_th); ws.write(8, col_idx+3, "SGFA", f_proj_th)
-                
-#                 ws.write(9, col_idx, "-", f_proj_th); ws.write(9, col_idx+1, p["gba"], f_proj_th)
-#                 ws.write(9, col_idx+2, p["gfa"], f_proj_th); ws.write(9, col_idx+3, p["sgfa"], f_proj_th)
-#                 col_idx += 4
-
-#             # Write Data
-#             row_idx = 10
-#             for row in row_map:
-#                 if row.get("is_grand_total"): fmt_c, fmt_str, fmt_pct, fmt_num = f_gc, f_gL, f_gpct, f_gnum
-#                 elif row.get("is_main"): fmt_c, fmt_str, fmt_pct, fmt_num = f_mc, f_mL, f_mpct, f_mnum
-#                 else: fmt_c, fmt_str, fmt_pct, fmt_num = f_c, f_L, f_pct, f_num
-
-#                 pct_val = (row["sum"] / grand_total_all_projects) if grand_total_all_projects > 0 else 0
-
-#                 ws.write(row_idx, 0, row['sn'], fmt_c)
-#                 ws.write(row_idx, 1, row['desc'], fmt_str)
-#                 ws.write(row_idx, 2, row['coa'], fmt_c)
-#                 ws.write(row_idx, 3, pct_val, fmt_pct)
-                
-#                 # Grand totals and their ratios
-#                 tot_r_gba = (row["sum"] / total_gba_all) if total_gba_all > 0 else 0
-#                 tot_r_gfa = (row["sum"] / total_gfa_all) if total_gfa_all > 0 else 0
-#                 tot_r_sgfa = (row["sum"] / total_sgfa_all) if total_sgfa_all > 0 else 0
-                
-#                 ws.write(row_idx, 4, row['sum'], fmt_num)
-#                 ws.write(row_idx, 5, tot_r_gba, fmt_num); ws.write(row_idx, 6, tot_r_gfa, fmt_num); ws.write(row_idx, 7, tot_r_sgfa, fmt_num)
-
-#                 col_idx = 8
-#                 for p in all_projects_data:
-#                     val = p['grand'] if row['key'] == 'grand' else p['vals'][row['key']]
-#                     r_gba = (val / p['gba']) if p['gba'] > 0 else 0
-#                     r_gfa = (val / p['gfa']) if p['gfa'] > 0 else 0
-#                     r_sgfa = (val / p['sgfa']) if p['sgfa'] > 0 else 0
-
-#                     ws.write(row_idx, col_idx, val, fmt_num)
-#                     ws.write(row_idx, col_idx+1, r_gba, fmt_num)
-#                     ws.write(row_idx, col_idx+2, r_gfa, fmt_num)
-#                     ws.write(row_idx, col_idx+3, r_sgfa, fmt_num)
-#                     col_idx += 4
-
-#                 row_idx += 1
-
-#             wb.close()
-
-#             st.download_button(
-#                 label="Download Rekap as .xlsx",
-#                 data=buffer_det.getvalue(),
-#                 file_name="ASG_Detailed_Estimate_All_Projects.xlsx",
-#                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-#                 use_container_width=True
-#             )
-
-# --- 5. SIDEBAR NAVIGATION ---
+# ==========================================
+# SIDEBAR & GLOBAL NAVIGATION
+# ==========================================
 st.sidebar.title("Main Navigation")
 
 page_choice = st.sidebar.radio(
     "Pilih Pekerjaan:",
-    ["Cost Calculator", "Area Calculator"]
+    ["Cost Calculator", "Area Calculator", "Database"]
 )
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Daftar Proyek")
 
 proj_ids = list(st.session_state.projects.keys())
 proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
 current_index = proj_ids.index(st.session_state.current_proj_id) if st.session_state.current_proj_id in proj_ids else 0
 
+curr_id = st.session_state.current_proj_id
+curr_proj = st.session_state.projects[curr_id]
+
+new_name = st.sidebar.text_input("Nama Proyek", value=curr_proj["name"], key=f"sb_name_{curr_id}")
+
+types_list = ["Hotel", "Retail", "Apartment", "Parking", "Luxury Apartment", "Apartment2", "Hotel 3 Star", "Retail2", "Terrace Villa", "Podium Villa", "Parking2"]
+type_index = types_list.index(curr_proj["type"]) if curr_proj["type"] in types_list else 0
+new_type = st.sidebar.selectbox("Jenis Proyek", types_list, index=type_index, key=f"sb_type_{curr_id}")
+
+needs_rerun = False
+if new_name != curr_proj["name"]:
+    st.session_state.projects[curr_id]["name"] = new_name
+    needs_rerun = True
+
+if new_type != curr_proj["type"]:
+    st.session_state.projects[curr_id]["type"] = new_type
+    st.session_state.projects[curr_id]["data"] = {} # Clear old rates on type change
+    needs_rerun = True
+
+if needs_rerun:
+    st.rerun()
+
+st.sidebar.subheader("Daftar Proyek")
 st.sidebar.radio(
     "Active Project:",
     options=proj_labels,
@@ -2119,8 +1779,6 @@ st.sidebar.radio(
     on_change=cb_switch_project,
     label_visibility="collapsed"
 )
-
-import streamlit as st
 
 c1, c2 = st.sidebar.columns(2)
 
@@ -2131,26 +1789,31 @@ with c2:
     can_delete = len(st.session_state.projects) > 1
     st.button("Hapus", disabled=not can_delete, on_click=cb_delete_project, type="secondary", help="Delete Active Project", use_container_width=True)
 
-
+# --- NEW: GLOBAL PROJECT EDITOR IN SIDEBAR ---
 st.sidebar.markdown("---")
 
-# --- 6. PAGE ROUTING ---
+
+# --- PAGE ROUTING ---
 if page_choice == "Area Calculator":
     show_area_calculator()
-# elif page_choice == "Summary":
-#     show_portfolio_summary()
+elif page_choice == "Database":
+    show_project_database()
 else:
     show_cost_estimator()
 
-# --- END OF SCRIPT ---
-# BUG 2 FIX: Guard the save operation with the storage_loaded flag
+# --- BACKUP SYSTEM ---
 if "projects" in st.session_state and st.session_state.get("storage_loaded", False):
-    # CAVEAT 3 FIX: Wrap the payload so we remember the active project and counter
     backup_payload = {
+        "app_version": APP_VERSION,
         "projects_dict": st.session_state.projects,
         "current_proj_id": st.session_state.current_proj_id,
         "proj_counter": st.session_state.proj_counter
     }
-    local_storage.setItem("asg_calculator_backup", backup_payload)
 
-st.sidebar.caption("v1.1.0 | © 2026 QS & Procurement - ASG")
+    # Local storage disabled
+    pass
+
+st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
+
+if st.session_state.get("storage_loaded", False):
+    save_data()
