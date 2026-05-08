@@ -13,6 +13,27 @@ import tempfile
 #streamlit run app.py
 APP_VERSION = "1.1.0"
 
+DB_FILE = "autosave.json"
+
+def load_data():
+    """Tries to load the JSON file from the local directory."""
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            # If the file is corrupted, return None so the app can start fresh
+            return None
+    return None
+
+def save_data(data):
+    """Saves the project data to the JSON file."""
+    try:
+        with open(DB_FILE, "w") as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        pass # Silent fail for prototype
+
 def save_data_safely(data, filename="autosave.json"):
     # 1. Get the directory of the target file
     dir_name = os.path.dirname(os.path.abspath(filename))
