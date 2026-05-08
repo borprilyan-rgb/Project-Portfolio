@@ -13,6 +13,29 @@ import tempfile
 #streamlit run app.py
 APP_VERSION = "1.1.0"
 
+def save_data_safely(data, filename="autosave.json"):
+    # 1. Get the directory of the target file
+    dir_name = os.path.dirname(os.path.abspath(filename))
+    
+    # 2. Create a temporary file in the same directory
+    with tempfile.NamedTemporaryFile('w', dir=dir_name, delete=False) as tf:
+        json.dump(data, tf, indent=4)
+        tempname = tf.name
+    
+    # 3. Atomically replace the old file with the new one
+    # This is a 'success or nothing' operation
+    os.replace(tempname, filename)
+
+# Use this in your final save execution
+if st.session_state.get("storage_loaded", False):
+    payload = {
+        "app_version": APP_VERSION,
+        "projects": st.session_state.projects,
+        "current_proj_id": st.session_state.current_proj_id,
+        "proj_counter": st.session_state.proj_counter
+    }
+    save_data_safely(payload)
+
 local_storage = None
 
 def n2w(amount):
