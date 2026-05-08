@@ -1007,10 +1007,27 @@ def show_cost_estimator():
                                 if not key or pd.isna(val): continue 
 
                                 # 1. Ensure the project exists in Session State
+                                if "import_pid_map" not in locals():
+                                    import_pid_map = {}
+
+                                # Get the raw ID from CSV
+                                raw_pid = str(row.get("Project_ID", curr_id)).strip()
+
+                                # Check if we've already decided on a name for this raw_pid during this loop
+                                if raw_pid not in import_pid_map:
+                                    target_pid = raw_pid
+                                    # If the original exists, create a unique new ID for this whole import session
+                                    if target_pid in st.session_state.projects:
+                                        target_pid = f"{target_pid}_imported_{file_key[:4]}" # unique to this file
+                                    import_pid_map[raw_pid] = target_pid
+
+                                # Now use the mapped ID for the rest of the logic
+                                pid = import_pid_map[raw_pid]
+
                                 if pid not in st.session_state.projects:
                                     st.session_state.projects[pid] = {
                                         "name": f"Imported Project {pid}",
-                                        "type": "Type1",
+                                        "type": "Hotel", # Default
                                         "data": {}
                                     }
                                 
