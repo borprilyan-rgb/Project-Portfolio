@@ -7,3 +7,4 @@ xlsxwriter
 num2words
 supabase
 matplotlib
+openpyxl
