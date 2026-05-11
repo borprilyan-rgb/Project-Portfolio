@@ -19,7 +19,7 @@ import json as _json
 import os
 import tempfile
 
-#
+#uv run streamlit run app.py
 APP_VERSION = "1.1.0"
 
 MASTER_DELETE_PW = "Jkt12345?"
@@ -2123,7 +2123,7 @@ def generate_exact_portfolio_excel(port_meta, port_data, port_assumptions):
     white_font = Font(color="FFFFFF", bold=True, name='Calibri', size=11)
     bold_font = Font(bold=True, name='Calibri', size=10)
     reg_font = Font(bold=False, name='Calibri', size=10)
-    small_font = Font(name='Calibri', size=9) # For sub-items
+    small_font = Font(name='Calibri', size=9)
     
     black_border = Border(left=Side(style='thin'), right=Side(style='thin'), 
                           top=Side(style='thin'), bottom=Side(style='thin'))
@@ -2243,8 +2243,190 @@ def generate_exact_portfolio_excel(port_meta, port_data, port_assumptions):
     wb.save(output)
     return output.getvalue()
 
+def generate_recap_excel(port_meta, projects):
+    output = io.BytesIO()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Recap Cost"
+
+    # --- Helper: Math Engine for Recap ---
+    def get_recap_values(pdata):
+        d = pdata.get("data", {})
+        curr_type = pdata.get("type", "Hotel")
+        pt_data = PROJECT_DATABASE.get(curr_type, {})
+        
+        def get_val(key, default=0.0):
+            val = d.get(key, default)
+            try: return float(val)
+            except: return val
+            
+        gba = get_val("m_gba", 0); gfa = get_val("m_gfa", 0)
+        rooms = get_val("m_rooms", 0); land = get_val("m_land_m2", 0)
+        
+        t_earth = gba * get_val("u_earth", pt_data.get("struc_earth", 0))
+        t_found = gba * get_val("u_found", pt_data.get("struc_found", 0))
+        t_struc = gba * get_val("u_struc", pt_data.get("struc_work", 0))
+        t_mep = gba * get_val("u_mep", pt_data.get("mep", 0))
+        t_util = gba * get_val("u_util", pt_data.get("utility", 0))
+        t_ffe = rooms * get_val("u_ffe", pt_data.get("ffe", 0))
+        t_ext = land * get_val("u_ext", pt_data.get("ext_land", 0))
+        t_fac = get_val("m_fac_pub", 0) * get_val("u_fac_p", pt_data.get("fac_pub", 0))
+        
+        arch_base = get_val("u_arch", pt_data.get("arch_base", 0))
+        t_arch = (gfa * arch_base)
+        custom_costs = 0
+        for item in d.get("smart_custom_costs", []):
+            if isinstance(item, dict):
+                try: custom_costs += float(item.get("Rate (Rp)", 0)) * float(item.get("Quantity", 1))
+                except: pass
+        t_arch += custom_costs
+        
+        subtotal = sum([t_earth, t_found, t_struc, t_arch, t_ffe, t_mep, t_util, t_ext, t_fac])
+        t_prelim = subtotal * 0.05
+        t_cont = (subtotal + t_prelim) * 0.03
+        hc = subtotal + t_prelim + t_cont
+        
+        t_cons = gfa * get_val("sc_cons", pt_data.get("cons", 0))
+        t_qs = get_val("sc_qs_m", 0) * get_val("sc_qs_r", 0)
+        t_pm = get_val("sc_pm_m", 0) * get_val("sc_pm_r", 0)
+        t_ins = hc * (get_val("sc_ins", 0.12) / 100.0)
+        sc = t_cons + t_qs + t_pm + t_ins
+        
+        return {
+            "EARTHWORKS": t_earth, "FOUNDATIONS": t_found, "STRUCTURAL WORKS": t_struc,
+            "ARCHITECTURAL WORKS": t_arch, "FF & E": t_ffe, "M.E.P WORKS": t_mep,
+            "UTILITY CONNECTION": t_util, "EXTERNAL WORKS": t_ext, "FACILITY": t_fac,
+            "PRELIMINARIES WORKS": t_prelim, "CONTINGENCIES": t_cont, "HARDCOST": hc,
+            "CONSULTANCY SERVICES FEE": t_cons, "QS SERVICES": t_qs, 
+            "PROJECT MANAGEMENT SERVICES": t_pm, "INSURANCE COVERAGE": t_ins,
+            "SOFTCOST": sc, "TOTAL, EXCLD PPN": hc + sc
+        }
+
+    # --- Generate Global Totals ---
+    tot_cache = {}
+    global_cost = {}
+    tot_gba = tot_gfa = tot_sgfa = 0
+    for pid, pdata in projects.items():
+        vals = get_recap_values(pdata)
+        tot_cache[pid] = vals
+        for k, v in vals.items(): global_cost[k] = global_cost.get(k, 0) + v
+        d = pdata.get("data", {})
+        tot_gba += float(d.get("m_gba", 0)); tot_gfa += float(d.get("m_gfa", 0)); tot_sgfa += float(d.get("m_sgfa", 0))
+
+    # --- 1. Styling Definitions ---
+    blue_fill = PatternFill(start_color="0070C0", end_color="0070C0", fill_type="solid")
+    white_font, bold_font, reg_font = Font(color="FFFFFF", bold=True, size=10), Font(bold=True, size=9), Font(size=9)
+    black_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    center_align, left_align = Alignment(horizontal='center', vertical='center', wrap_text=True), Alignment(horizontal='left', vertical='center')
+
+    # --- 2. Blue Metadata Header ---
+    headers = [["ASG GROUP PROPERTY DEVELOPMENT", f"VERSION : {port_meta.get('version', '')}"], ["QS & PROCUREMENT DIVISION", f"UPDATED : {port_meta.get('updated', '')}"], [port_meta.get('title', ''), f"CREATED : {port_meta.get('created', '')}"], [port_meta.get('ref', ''), ""]]
+    for r_idx, (text_left, text_right) in enumerate(headers, 1):
+        for c in range(1, 100): ws.cell(row=r_idx, column=c).fill = blue_fill
+        ws.cell(row=r_idx, column=1, value=text_left).font = white_font
+        ws.cell(row=r_idx, column=15, value=text_right).font = white_font
+        ws.cell(row=r_idx, column=15).alignment = Alignment(horizontal='right', vertical='center')
+
+    # --- 3. Static Table Headers ---
+    static_cols = [("SN", 1), ("DESCRIPTION", 2), ("COA", 3), ("%", 4)]
+    for name, col_idx in static_cols:
+        ws.merge_cells(start_row=6, start_column=col_idx, end_row=9, end_column=col_idx)
+        c = ws.cell(row=6, column=col_idx, value=name)
+        c.alignment, c.font, c.fill = center_align, bold_font, PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+        for r in range(6, 10): ws.cell(row=r, column=col_idx).border = black_border
+
+    # --- 4. Dynamic Project Headers ---
+    bg_colors = ["EAEAEA", "FCE4D6", "F2DCDB", "E1D5E7", "DDEBF7", "E2EFDA", "D9E1F2", "F4B084", "FFF2CC"]
+    project_list = [("TOTAL", {"name": "TOTAL"})] + list(projects.items())
+    current_col = 5
+    
+    for i, (pid, pdata) in enumerate(project_list):
+        group_fill = PatternFill(start_color=bg_colors[i % len(bg_colors)], end_color=bg_colors[i % len(bg_colors)], fill_type="solid")
+        ws.merge_cells(start_row=6, start_column=current_col, end_row=6, end_column=current_col+4)
+        c = ws.cell(row=6, column=current_col, value=pdata.get('name', 'PROJECT').upper())
+        c.alignment, c.font, c.fill = center_align, bold_font, group_fill
+        
+        ws.cell(row=7, column=current_col, value="ESTIMATE").alignment = center_align
+        ws.merge_cells(start_row=7, start_column=current_col+1, end_row=7, end_column=current_col+4)
+        ws.cell(row=7, column=current_col+1, value="Cost Ratio (Rp/m2)").alignment = center_align
+        
+        for j, lbl in enumerate(["TOTAL", "GBA", "GFA", "SGFA", "NFA"]):
+            ws.cell(row=8, column=current_col+j, value=lbl).alignment = center_align
+            
+        if pid == "TOTAL":
+            gba, gfa, sgfa, nfa = tot_gba, tot_gfa, tot_sgfa, tot_gfa * 0.82
+        else:
+            d = pdata.get("data", {})
+            gba, gfa, sgfa = float(d.get("m_gba", 0)), float(d.get("m_gfa", 0)), float(d.get("m_sgfa", 0))
+            nfa = gfa * 0.82
+        
+        gba_f = gba if gba > 0 else 1; gfa_f = gfa if gfa > 0 else 1; sgfa_f = sgfa if sgfa > 0 else 1; nfa_f = nfa if nfa > 0 else 1
+            
+        for j, val in enumerate(["Rp", gba, gfa, sgfa, nfa]):
+            c = ws.cell(row=9, column=current_col+j, value=val)
+            c.alignment = center_align
+            if j > 0: c.number_format = '#,##0'
+
+        for r in range(6, 10):
+            for c_idx in range(current_col, current_col+5):
+                ws.cell(row=r, column=c_idx).fill = group_fill
+                ws.cell(row=r, column=c_idx).border = black_border
+        current_col += 5
+
+    # --- 5. Data Rows Map ---
+    row_mapping = [
+        ("I", "HARDCOST", "118-14-000", True), ("1", "PRELIMINARIES WORKS", "118-14-100", False), ("2", "EARTHWORKS", "118-14-200", False),
+        ("3", "FOUNDATIONS", "118-14-300", False), ("4", "STRUCTURAL WORKS", "118-14-500", False), ("5", "ARCHITECTURAL WORKS", "118-14-600", False),
+        ("6", "FF & E", "118-14-700", False), ("7", "M.E.P WORKS", "118-14-800", False), ("8", "UTILITY CONNECTION", "118-13-900", False),
+        ("9", "EXTERNAL WORKS", "118-14-930", False), ("10", "FACILITY", "118-14-960", False), ("11", "CONTINGENCIES", "", False),
+        ("II", "SOFTCOST", "118-13-000", True), ("1", "CONSULTANCY SERVICES FEE", "118-13-202", False), ("2", "QS SERVICES", "118-13-201", False),
+        ("3", "PROJECT MANAGEMENT SERVICES", "118-13-203", False), ("4", "INSURANCE COVERAGE", "118-13-300", False), ("IV", "TOTAL, EXCLD PPN", "", True)
+    ]
+
+    r_idx = 10
+    for sn, desc, coa, is_bold in row_mapping:
+        ws.cell(row=r_idx, column=1, value=sn).alignment = center_align
+        ws.cell(row=r_idx, column=2, value=desc).alignment = left_align
+        ws.cell(row=r_idx, column=3, value=coa).alignment = center_align
+        ws.cell(row=r_idx, column=4, value="100%" if is_bold else "0%").alignment = center_align
+        for c in range(1, 5):
+            ws.cell(row=r_idx, column=c).border = black_border
+            ws.cell(row=r_idx, column=c).font = bold_font if is_bold else reg_font
+
+        col_offset = 5
+        for pid, pdata in project_list:
+            # 💡 THIS IS THE FIX: Getting the real value!
+            base_val = global_cost.get(desc, 0) if pid == "TOTAL" else tot_cache[pid].get(desc, 0)
+            
+            if pid == "TOTAL":
+                gba_f = tot_gba if tot_gba > 0 else 1; gfa_f = tot_gfa if tot_gfa > 0 else 1
+                sgfa_f = tot_sgfa if tot_sgfa > 0 else 1; nfa_f = (tot_gfa*0.82) if tot_gfa > 0 else 1
+            else:
+                d = pdata.get("data", {})
+                gba_f = float(d.get("m_gba", 1) if d.get("m_gba", 0) > 0 else 1)
+                gfa_f = float(d.get("m_gfa", 1) if d.get("m_gfa", 0) > 0 else 1)
+                sgfa_f = float(d.get("m_sgfa", 1) if d.get("m_sgfa", 0) > 0 else 1)
+                nfa_f = gfa_f * 0.82
+            
+            for j, val in enumerate([base_val, base_val/gba_f, base_val/gfa_f, base_val/sgfa_f, base_val/nfa_f]):
+                c = ws.cell(row=r_idx, column=col_offset+j, value=val)
+                c.number_format = '#,##0'
+                c.border = black_border
+                c.font = bold_font if is_bold else reg_font
+                if is_bold: c.fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+            col_offset += 5
+        r_idx += 1
+
+    ws.column_dimensions['A'].width = 5
+    ws.column_dimensions['B'].width = 35
+    ws.column_dimensions['C'].width = 15
+    for c in range(5, col_offset): ws.column_dimensions[get_column_letter(c)].width = 16
+    ws.freeze_panes = 'E10'
+    wb.save(output)
+    return output.getvalue()
+
 def show_portfolio_summary():
-    st.title("Master Project Portfolio")
+    st.title("Summary")
     
     # ==========================================
     # 1. INITIALIZE EDITABLE SESSION STATE
@@ -2285,7 +2467,7 @@ def show_portfolio_summary():
     # ==========================================
     # 2. TABS SETUP
     # ==========================================
-    tab1, tab2 = st.tabs(["Tab 1: Configuration", "Tab 2: Master Output (Excel Format)"])
+    tab1, tab2, tab3 = st.tabs(["Tab 1: Pengaturan", "Tab 2: FAD", "Tab 3: Rekap"])
 
     # --- TAB 1: EDITABLE NATIVE COMPONENTS ---
     with tab1:
@@ -2315,7 +2497,6 @@ def show_portfolio_summary():
         st.session_state.port_assumptions = edited_assumptions
 
     # --- TAB 2: EXACT FORMAT MIRROR (HTML/CSS) ---
-# --- TAB 2: MASTER OUTPUT ---
     with tab2:
         # 1. DATA PREPARATION (Define raw_data BEFORE anything else)
         raw_data = []
@@ -2354,7 +2535,7 @@ def show_portfolio_summary():
         col_btn1, col_btn2, _ = st.columns([1.5, 1.5, 3])
         
         with col_btn1:
-            if st.button("🔄 Sync & Recalculate", use_container_width=True):
+            if st.button("Sync", use_container_width=True):
                 force_recalculate_all_projects()
                 st.rerun()
                 
@@ -2367,7 +2548,7 @@ def show_portfolio_summary():
             )
             
             st.download_button(
-                label="📥 Download Exact Excel",
+                label="Download Excel",
                 data=excel_output,
                 file_name="ASG_Portfolio_Summary.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2508,6 +2689,151 @@ def show_portfolio_summary():
         
         st.markdown(full_html, unsafe_allow_html=True)
 
+# --- TAB 3: WIDE RECAP COST ---
+# --- TAB 3: WIDE RECAP COST ---
+    with tab3:
+        st.subheader("Comprehensive Recap Matrix (Cost & Ratios)")
+        
+        col_btn, col_info = st.columns([1.5, 4.5])
+        with col_btn:
+            recap_excel_data = generate_recap_excel(
+                st.session_state.port_meta, 
+                st.session_state.projects
+            )
+            st.download_button(
+                label="📊 Download Wide Recap Excel",
+                data=recap_excel_data,
+                file_name="ASG_Recap_Cost_Wide.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                type="primary"
+            )
+        with col_info:
+            st.info("The table below is a live preview. Use the horizontal scrollbar to view all projects side-by-side.")
+
+        st.markdown("---")
+
+        # --- GENERATE HTML PREVIEW ---
+        bg_colors = ["#EAEAEA", "#FCE4D6", "#F2DCDB", "#E1D5E7", "#DDEBF7", "#E2EFDA", "#D9E1F2", "#F4B084", "#FFF2CC"]
+        project_list = [("TOTAL", {"name": "TOTAL"})] + list(st.session_state.projects.items())
+        
+        # 1. Pre-calculate all values for the HTML Table
+        def html_get_recap_values(pdata):
+            d = pdata.get("data", {})
+            curr_type = pdata.get("type", "Hotel")
+            pt_data = PROJECT_DATABASE.get(curr_type, {})
+            def get_val(key, default=0.0):
+                try: return float(d.get(key, default))
+                except: return float(default)
+                
+            gba = get_val("m_gba", 0); gfa = get_val("m_gfa", 0)
+            rooms = get_val("m_rooms", 0); land = get_val("m_land_m2", 0)
+            
+            t_earth = gba * get_val("u_earth", pt_data.get("struc_earth", 0))
+            t_found = gba * get_val("u_found", pt_data.get("struc_found", 0))
+            t_struc = gba * get_val("u_struc", pt_data.get("struc_work", 0))
+            t_mep = gba * get_val("u_mep", pt_data.get("mep", 0))
+            t_util = gba * get_val("u_util", pt_data.get("utility", 0))
+            t_ffe = rooms * get_val("u_ffe", pt_data.get("ffe", 0))
+            t_ext = land * get_val("u_ext", pt_data.get("ext_land", 0))
+            t_fac = get_val("m_fac_pub", 0) * get_val("u_fac_p", pt_data.get("fac_pub", 0))
+            
+            t_arch = (gfa * get_val("u_arch", pt_data.get("arch_base", 0)))
+            custom_costs = sum(float(i.get("Rate (Rp)", 0)) * float(i.get("Quantity", 1)) for i in d.get("smart_custom_costs", []) if isinstance(i, dict))
+            t_arch += custom_costs
+            
+            subtotal = sum([t_earth, t_found, t_struc, t_arch, t_ffe, t_mep, t_util, t_ext, t_fac])
+            t_prelim = subtotal * 0.05
+            t_cont = (subtotal + t_prelim) * 0.03
+            hc = subtotal + t_prelim + t_cont
+            
+            t_cons = gfa * get_val("sc_cons", pt_data.get("cons", 0))
+            t_qs = get_val("sc_qs_m", 0) * get_val("sc_qs_r", 0)
+            t_pm = get_val("sc_pm_m", 0) * get_val("sc_pm_r", 0)
+            t_ins = hc * (get_val("sc_ins", 0.12) / 100.0)
+            sc = t_cons + t_qs + t_pm + t_ins
+            return {"EARTHWORKS": t_earth, "FOUNDATIONS": t_found, "STRUCTURAL WORKS": t_struc, "ARCHITECTURAL WORKS": t_arch, "FF & E": t_ffe, "M.E.P WORKS": t_mep, "UTILITY CONNECTION": t_util, "EXTERNAL WORKS": t_ext, "FACILITY": t_fac, "PRELIMINARIES WORKS": t_prelim, "CONTINGENCIES": t_cont, "HARDCOST": hc, "CONSULTANCY SERVICES FEE": t_cons, "QS SERVICES": t_qs, "PROJECT MANAGEMENT SERVICES": t_pm, "INSURANCE COVERAGE": t_ins, "SOFTCOST": sc, "TOTAL, EXCLD PPN": hc + sc}
+
+        tot_cache = {}; global_cost = {}; tot_gba = tot_gfa = tot_sgfa = 0
+        for pid, pdata in st.session_state.projects.items():
+            vals = html_get_recap_values(pdata)
+            tot_cache[pid] = vals
+            for k, v in vals.items(): global_cost[k] = global_cost.get(k, 0) + v
+            d = pdata.get("data", {})
+            tot_gba += float(d.get("m_gba", 0)); tot_gfa += float(d.get("m_gfa", 0)); tot_sgfa += float(d.get("m_sgfa", 0))
+
+        # 2. CSS for the horizontal scroll and sticky headers
+        html_str = """
+        <style>
+        .recap-wrapper { width: 100%; overflow-x: auto; font-family: Calibri, sans-serif; font-size: 11px; }
+        .recap-table { border-collapse: collapse; white-space: nowrap; }
+        .recap-table th, .recap-table td { border: 1px solid #000; padding: 4px 6px; text-align: right; }
+        .recap-table th { text-align: center; font-weight: bold; }
+        .sticky-col { position: sticky; left: 0; background-color: #F2F2F2; z-index: 2; border-right: 2px solid #000; }
+        .sticky-col2 { position: sticky; left: 35px; background-color: #F2F2F2; z-index: 2; text-align: left !important; }
+        .sticky-col3 { position: sticky; left: 235px; background-color: #F2F2F2; z-index: 2; text-align: center; }
+        .bold-row { font-weight: bold; background-color: #F9F9F9; }
+        </style>
+        <div class="recap-wrapper"><table class="recap-table">
+        """
+
+        html_str += "<tr><th rowspan='4' class='sticky-col'>SN</th><th rowspan='4' class='sticky-col2' style='min-width:200px;'>DESCRIPTION</th><th rowspan='4' class='sticky-col3'>COA</th><th rowspan='4' style='background-color:#F2F2F2;'>%</th>"
+        for i, (pid, pdata) in enumerate(project_list):
+            color = bg_colors[i % len(bg_colors)]
+            html_str += f"<th colspan='5' style='background-color:{color}; color:#000;'>{pdata.get('name', 'PROJECT').upper()}</th>"
+        html_str += "</tr><tr>"
+        for i in range(len(project_list)):
+            color = bg_colors[i % len(bg_colors)]
+            html_str += f"<th style='background-color:{color};'>ESTIMATE</th><th colspan='4' style='background-color:{color};'>Cost Ratio (Rp/m2)</th>"
+        html_str += "</tr><tr>"
+        for i in range(len(project_list)):
+            color = bg_colors[i % len(bg_colors)]
+            html_str += f"<th style='background-color:{color};'>TOTAL</th><th style='background-color:{color};'>GBA</th><th style='background-color:{color};'>GFA</th><th style='background-color:{color};'>SGFA</th><th style='background-color:{color};'>NFA</th>"
+        html_str += "</tr><tr>"
+        for i, (pid, pdata) in enumerate(project_list):
+            color = bg_colors[i % len(bg_colors)]
+            if pid == "TOTAL":
+                gba, gfa, sgfa, nfa = tot_gba, tot_gfa, tot_sgfa, tot_gfa * 0.82
+            else:
+                d = pdata.get("data", {})
+                gba, gfa, sgfa = float(d.get("m_gba", 0)), float(d.get("m_gfa", 0)), float(d.get("m_sgfa", 0))
+                nfa = gfa * 0.82
+            html_str += f"<th style='background-color:{color};'>Rp</th><th style='background-color:{color};'>{gba:,.0f}</th><th style='background-color:{color};'>{gfa:,.0f}</th><th style='background-color:{color};'>{sgfa:,.0f}</th><th style='background-color:{color};'>{nfa:,.0f}</th>"
+        html_str += "</tr>"
+
+        row_mapping = [
+            ("I", "HARDCOST", "118-14-000", True), ("1", "PRELIMINARIES WORKS", "118-14-100", False), ("2", "EARTHWORKS", "118-14-200", False),
+            ("3", "FOUNDATIONS", "118-14-300", False), ("4", "STRUCTURAL WORKS", "118-14-500", False), ("5", "ARCHITECTURAL WORKS", "118-14-600", False),
+            ("6", "FF & E", "118-14-700", False), ("7", "M.E.P WORKS", "118-14-800", False), ("8", "UTILITY CONNECTION", "118-13-900", False),
+            ("9", "EXTERNAL WORKS", "118-14-930", False), ("10", "FACILITY", "118-14-960", False), ("11", "CONTINGENCIES", "", False),
+            ("II", "SOFTCOST", "118-13-000", True), ("1", "CONSULTANCY SERVICES FEE", "118-13-202", False), ("2", "QS SERVICES", "118-13-201", False),
+            ("3", "PROJECT MANAGEMENT SERVICES", "118-13-203", False), ("4", "INSURANCE COVERAGE", "118-13-300", False), ("IV", "TOTAL, EXCLD PPN", "", True)
+        ]
+
+        for sn, desc, coa, is_bold in row_mapping:
+            tr_class = " class='bold-row'" if is_bold else ""
+            html_str += f"<tr{tr_class}><td class='sticky-col' style='text-align:center;'>{sn}</td><td class='sticky-col2'>{desc}</td><td class='sticky-col3'>{coa}</td><td>{'100%' if is_bold else ''}</td>"
+            
+            for pid, pdata in project_list:
+                # 💡 THIS IS THE FIX: Pulling the calculated value!
+                val = global_cost.get(desc, 0) if pid == "TOTAL" else tot_cache[pid].get(desc, 0)
+                
+                if pid == "TOTAL":
+                    gba_f = tot_gba if tot_gba > 0 else 1; gfa_f = tot_gfa if tot_gfa > 0 else 1
+                    sgfa_f = tot_sgfa if tot_sgfa > 0 else 1; nfa_f = (tot_gfa*0.82) if tot_gfa > 0 else 1
+                else:
+                    d = pdata.get("data", {})
+                    gba_f = float(d.get("m_gba", 1) if d.get("m_gba", 0) > 0 else 1)
+                    gfa_f = float(d.get("m_gfa", 1) if d.get("m_gfa", 0) > 0 else 1)
+                    sgfa_f = float(d.get("m_sgfa", 1) if d.get("m_sgfa", 0) > 0 else 1)
+                    nfa_f = gfa_f * 0.82
+                
+                html_str += f"<td>{val:,.0f}</td><td>{val/gba_f:,.0f}</td><td>{val/gfa_f:,.0f}</td><td>{val/sgfa_f:,.0f}</td><td>{val/nfa_f:,.0f}</td>"
+            html_str += "</tr>"
+
+        html_str += "</table></div>"
+        st.markdown(html_str, unsafe_allow_html=True)
+        
 # ==========================================
 # SIDEBAR & GLOBAL NAVIGATION
 # ==========================================
