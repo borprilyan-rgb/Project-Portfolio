@@ -8,6 +8,12 @@ import num2words as n2w
 import ast
 import numpy as np
 import textwrap
+import io
+import openpyxl
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
+from openpyxl.utils import get_column_letter
+
 
 import json as _json
 import os
@@ -191,8 +197,6 @@ def load_data():
     except Exception as e:
         print(f"Cloud Load Error: {e}")
     return None
-
-local_storage = None
 
 def n2w(amount):
     try:
@@ -1670,9 +1674,9 @@ def show_cost_estimator():
     group_total = total_soft_cost + grand_total_hc
 
     with tab7:
-        tab1, tab2, tab3, tab4 = st.tabs([
+        tab1, tab2, tab3 = st.tabs([
         "Hasil",
-        "Tabel", "Chart", "Experimental"
+        "Tabel", "Chart"
         ])
         
         with tab1:
@@ -1807,202 +1811,150 @@ def show_cost_estimator():
                 </div>
             """, unsafe_allow_html=True)
         
-    with tab2:
-        if 'show_details' not in st.session_state:
-            st.session_state.show_details = True
+        with tab2:
+            if 'show_details' not in st.session_state:
+                st.session_state.show_details = True
 
-        # 2. Add the Toggle Button
-        label = "Hide Details" if st.session_state.show_details else "Show Details"
-        if st.button(label):
-            st.session_state.show_details = not st.session_state.show_details
-            st.rerun()
+            # 2. Add the Toggle Button
+            label = "Hide Details" if st.session_state.show_details else "Show Details"
+            if st.button(label):
+                st.session_state.show_details = not st.session_state.show_details
+                st.rerun()
 
-        # 3. Define the full dataset as a Dictionary
-        data_dict = {
-            # --- MAIN CONSTRUCTION ---
-            "1. Preliminary Works": t_preliminary,
-            "2. Earthwork": t_earth,
-            "3. Foundation": t_found,
-            "4. Structural Work": t_struc,
-            
-            # --- ARCHITECTURE ---
-            "5. Total Architecture": group_arch,
-            "5.1 Basic Architecture": t_arch_base,
-            "5.2 Facade - Precast": t_precast,
-            "5.3 Facade - Window Wall": t_window,
-            "5.4 Facade - Double Skin": t_double,
-            "5.5 Wooden Doors": t_w_door,
-            "5.6 Glass Doors": t_g_door,
-            "5.7 Steel Doors": t_s_door,
-            "5.8 Lobby Interior": t_lobby,
-            "5.9 Gondola": t_gondola,
-            "5.10 Typical Unit Sanitary": t_unit_san,
-            "5.11 Public Toilet Male": t_t_male,
-            "5.12 Public Toilet Female": t_t_female,
-            "5.13 Disabled Toilet": t_t_dis,
-            "5.14 Mushola": t_mushola,
-            "5.15 Kitchen Equipment": t_kitchen,
-            "5.16 Hardware Pintu Kayu": t_hw_w,
-            "5.17 Hardware Pintu Besi": t_hw_s,
-            "5.18 HT/Ceramic Tile": t_ht,
-            "5.19 Vinyl Flooring": t_vinyl,
-            "5.20 Marmer Flooring": t_marmer,
-            "5.21 Carpet Work": t_carpet,
-            "5.22 Railing Work": t_railing,
-            "5.23 Skylight Work": t_skylight,
-            "5.24 Glass Work": t_glass_work,
-            "5.25 Custom Item (Architecture)": smart_custom_costs,
+            # 3. Define the full dataset as a Dictionary
+            data_dict = {
+                # --- MAIN CONSTRUCTION ---
+                "1. Preliminary Works": t_preliminary,
+                "2. Earthwork": t_earth,
+                "3. Foundation": t_found,
+                "4. Structural Work": t_struc,
+                
+                # --- ARCHITECTURE ---
+                "5. Total Architecture": group_arch,
+                "5.1 Basic Architecture": t_arch_base,
+                "5.2 Facade - Precast": t_precast,
+                "5.3 Facade - Window Wall": t_window,
+                "5.4 Facade - Double Skin": t_double,
+                "5.5 Wooden Doors": t_w_door,
+                "5.6 Glass Doors": t_g_door,
+                "5.7 Steel Doors": t_s_door,
+                "5.8 Lobby Interior": t_lobby,
+                "5.9 Gondola": t_gondola,
+                "5.10 Typical Unit Sanitary": t_unit_san,
+                "5.11 Public Toilet Male": t_t_male,
+                "5.12 Public Toilet Female": t_t_female,
+                "5.13 Disabled Toilet": t_t_dis,
+                "5.14 Mushola": t_mushola,
+                "5.15 Kitchen Equipment": t_kitchen,
+                "5.16 Hardware Pintu Kayu": t_hw_w,
+                "5.17 Hardware Pintu Besi": t_hw_s,
+                "5.18 HT/Ceramic Tile": t_ht,
+                "5.19 Vinyl Flooring": t_vinyl,
+                "5.20 Marmer Flooring": t_marmer,
+                "5.21 Carpet Work": t_carpet,
+                "5.22 Railing Work": t_railing,
+                "5.23 Skylight Work": t_skylight,
+                "5.24 Glass Work": t_glass_work,
+                "5.25 Custom Item (Architecture)": smart_custom_costs,
 
-            # --- FF&E & SERVICES ---
-            "6. Total FF&E": group_ffe,
-            "6.1 FF&E": t_ffe,
-            "6.2 Misc. (Linen/Gym)": t_misc,
-            "7. MEP Works": t_mep,
-            "8. Utility Connection": t_utility,
+                # --- FF&E & SERVICES ---
+                "6. Total FF&E": group_ffe,
+                "6.1 FF&E": t_ffe,
+                "6.2 Misc. (Linen/Gym)": t_misc,
+                "7. MEP Works": t_mep,
+                "8. Utility Connection": t_utility,
 
-            # --- EXTERNAL & FACILITIES ---
-            "9. External Works": t_external,
-            "10. Miscellanous/Facility": group_misc,
-            "10.1 Public Facilities": t_pub_fac,
-            "10.2 Resident Facilities": t_res_fac,
-            "10.3 Project Facilities": t_proj_fac,
+                # --- EXTERNAL & FACILITIES ---
+                "9. External Works": t_external,
+                "10. Miscellanous/Facility": group_misc,
+                "10.1 Public Facilities": t_pub_fac,
+                "10.2 Resident Facilities": t_res_fac,
+                "10.3 Project Facilities": t_proj_fac,
 
-            # --- CONTINGENCY ---
-            "11. Contingencies": t_contingency,
+                # --- CONTINGENCY ---
+                "11. Contingencies": t_contingency,
 
-            # --- SOFT COSTS / CONSULTANTS ---
-            "12. Consultancy Fee": t_consultancy,
-            "13. Quantity Surveyor": t_qs,
-            "14. Project Management": t_pm,
-            "15. Insurance Coverage": t_insurance
-        }
-
-        # 4. Extract into lists for your DataFrame automatically
-        original_descriptions = list(data_dict.keys())
-        raw_amounts = list(data_dict.values())
-
-        # 4. Filter and Indent Logic
-        filtered_data = []
-        major_numbers = [f"{i}. " for i in range(1, 16)]
-
-        for desc, amt in zip(original_descriptions, raw_amounts):
-            is_major = any(desc.startswith(num) for num in major_numbers)
-            
-            if st.session_state.show_details:
-                # If showing details, indent sub-items
-                display_desc = desc if is_major else f"    {desc}"
-                filtered_data.append({"Description": display_desc, "Amount": amt})
-            else:
-                # If hiding details, only append major items
-                if is_major:
-                    filtered_data.append({"Description": desc, "Amount": amt})
-
-        # 5. Create DataFrame
-        df = pd.DataFrame(filtered_data)
-        df["Amount"] = df["Amount"].apply(lambda x: f"Rp {x:,.2f}")
-
-        # 6. Styling Logic (Bold Major Items)
-        def style_major_rows(row):
-            clean_desc = row["Description"].strip()
-            is_major = any(clean_desc.startswith(num) for num in major_numbers)
-            return ['font-weight: bold' if is_major else '' for _ in row]
-
-        # 7. Display
-        styled_df = df.style.apply(style_major_rows, axis=1)
-        st.dataframe(styled_df, use_container_width=True, hide_index=True)
-    
-        with tab3:
-            st.subheader("Total Project Cost Breakdown")
-
-            # 1. Define the dictionary first
-            detailed_items = {
-                "Item": [
-                    "Preliminary", "Earthwork", "Foundation", "Structural", 
-                    "Architecture Work", "FF&E", "MEP Works", "Utility",
-                    "External/Landscape", "Misc/Facility", "Contingency",
-                    "Soft Cost/Consultancy & Insurance"
-                ],
-                "Amount": [
-                    group_prelim, group_earth, group_found, group_struc, 
-                    group_arch, group_ffe, group_mep, group_utility, 
-                    group_ext, group_misc,
-                    group_conting, group_soft_cost
-                ],
-                # Adding 'Type' helps with color coding the chart
-                "Type": ["Hard Cost"]*11 + ["Soft Cost"]*1 
+                # --- SOFT COSTS / CONSULTANTS ---
+                "12. Consultancy Fee": t_consultancy,
+                "13. Quantity Surveyor": t_qs,
+                "14. Project Management": t_pm,
+                "15. Insurance Coverage": t_insurance
             }
 
-            # 2. Convert to DataFrame and FILTER OUT zeros
-            df_detailed = pd.DataFrame(detailed_items)
-            df_detailed = df_detailed[df_detailed["Amount"] > 0] 
+            # 4. Extract into lists for your DataFrame automatically
+            original_descriptions = list(data_dict.keys())
+            raw_amounts = list(data_dict.values())
 
-            # 3. Dynamic height calculation
-            chart_height = max(400, len(df_detailed) * 25)
+            # 4. Filter and Indent Logic
+            filtered_data = []
+            major_numbers = [f"{i}. " for i in range(1, 16)]
 
-            # 4. Create the Chart
-            hover = alt.selection_point(on='mouseover', nearest=True, fields=['Item'], empty=False)
+            for desc, amt in zip(original_descriptions, raw_amounts):
+                is_major = any(desc.startswith(num) for num in major_numbers)
+                
+                if st.session_state.show_details:
+                    # If showing details, indent sub-items
+                    display_desc = desc if is_major else f"    {desc}"
+                    filtered_data.append({"Description": display_desc, "Amount": amt})
+                else:
+                    # If hiding details, only append major items
+                    if is_major:
+                        filtered_data.append({"Description": desc, "Amount": amt})
 
-            detailed_chart = alt.Chart(df_detailed).mark_bar().encode(
-                x=alt.X("Amount:Q", title="Cost (Rp)"),
-                y=alt.Y("Item:N", sort="-x", title=""),
-                opacity=alt.condition(hover, alt.value(1), alt.value(0.7)),
-                color=alt.Color("Type:N", scale=alt.Scale(domain=['Hard Cost', 'Soft Cost'], range=["#1f77b4", "#c2a136"])),
-                tooltip=["Item", "Type", alt.Tooltip("Amount:Q", format=",.2f")]
-            ).properties(height=chart_height).add_params(hover)
+            # 5. Create DataFrame
+            df = pd.DataFrame(filtered_data)
+            df["Amount"] = df["Amount"].apply(lambda x: f"Rp {x:,.2f}")
 
-            st.altair_chart(detailed_chart, use_container_width=True)
+            # 6. Styling Logic (Bold Major Items)
+            def style_major_rows(row):
+                clean_desc = row["Description"].strip()
+                is_major = any(clean_desc.startswith(num) for num in major_numbers)
+                return ['font-weight: bold' if is_major else '' for _ in row]
 
-    with tab4:
-        with st.expander("Detail Hard Cost", expanded=False):
-            cs1, cs2, cs3, cs4, cs5, cs6 = st.columns(6)
+            # 7. Display
+            styled_df = df.style.apply(style_major_rows, axis=1)
+            st.dataframe(styled_df, use_container_width=True, hide_index=True)
+        
+        with tab3:
+                st.subheader("Total Project Cost Breakdown")
 
-            with cs1:
-                draw_hover_card("Preliminary", n2w(group_prelim), group_prelim, "#CDDC39", 
-                                f"5% × Subtotal Construction (Rp {construction_subtotal:,.0f})")
-            
-            with cs2:
-                draw_hover_card("Earthwork", n2w(group_earth), group_earth, "#8BC34A", 
-                                f"GBA ({gba:,.0f} m2) × Rate (Rp {struc_earth:,.0f})")
-            
-            with cs3:
-                draw_hover_card("Utility", n2w(group_utility), group_utility, "#4CAF50", 
-                                f"GBA ({gba:,.0f} m2) × Rate (Rp {utility_rate:,.0f})")
-            
-            with cs4:
-                draw_hover_card("Foundation", n2w(group_found), group_found, "#689F38", 
-                                f"GBA ({gba:,.0f} m2) × Rate (Rp {struc_found:,.0f})")
-            
-            with cs5:
-                draw_hover_card("Structural", n2w(group_struc), group_struc, "#388E3C", 
-                                f"GBA ({gba:,.0f} m2) × Rate (Rp {struc_work:,.0f})")
-            
-            with cs6:
-                draw_hover_card("External Works", n2w(group_ext), group_ext, "#254E18", 
-                                f"Landscape ({land_m2:,.0f} m2) × Rate (Rp {ext_land_rate:,.0f})")
+                # 1. Define the dictionary first
+                detailed_items = {
+                    "Item": [
+                        "Preliminary", "Earthwork", "Foundation", "Structural", 
+                        "Architecture Work", "FF&E", "MEP Works", "Utility",
+                        "External/Landscape", "Misc/Facility", "Contingency",
+                        "Soft Cost/Consultancy & Insurance"
+                    ],
+                    "Amount": [
+                        group_prelim, group_earth, group_found, group_struc, 
+                        group_arch, group_ffe, group_mep, group_utility, 
+                        group_ext, group_misc,
+                        group_conting, group_soft_cost
+                    ],
+                    # Adding 'Type' helps with color coding the chart
+                    "Type": ["Hard Cost"]*11 + ["Soft Cost"]*1 
+                }
 
-            # --- ROW 2 ---
-            ct1, ct2, ct3, ct4, ct5, ct6 = st.columns(6)
-            
-            with ct2:
-                draw_hover_card("Architecture", n2w(group_arch), group_arch, "#9CCC65", 
-                                "Base Arch + Facade + Sanitary + Flooring + Custom Items")
-            
-            with ct3:
-                draw_hover_card("Miscellaneous", n2w(group_misc), group_misc, "#558B2F", 
-                                "Public Fac. + Resident Fac. + Project Fac.")
-            
-            with ct4:
-                draw_hover_card("FF & E", n2w(group_ffe), group_ffe, "#2E7D32", 
-                                f"({rooms:,.0f} Units × FF&E Rate: Rp {ffe_rate:,.0f})\n"
-                                f"+ Misc. Linen/Gym: (Rp {misc_rate*misc_switch:,.0f})")
+                # 2. Convert to DataFrame and FILTER OUT zeros
+                df_detailed = pd.DataFrame(detailed_items)
+                df_detailed = df_detailed[df_detailed["Amount"] > 0] 
 
-            with ct5:
-                draw_hover_card("MEP Works", n2w(group_mep), group_mep, "#33691E", 
-                                f"GBA ({gba:,.0f} m2) × Rate (Rp {mep_rate:,.0f})")
+                # 3. Dynamic height calculation
+                chart_height = max(400, len(df_detailed) * 25)
 
-            with ct6:
-                draw_hover_card("Contingency", n2w(group_conting), group_conting, "#1B5E20", 
-                                f"3% × (Construction + Prelim) (Rp {construction_subtotal + t_preliminary:,.0f})")
+                # 4. Create the Chart
+                hover = alt.selection_point(on='mouseover', nearest=True, fields=['Item'], empty=False)
+
+                detailed_chart = alt.Chart(df_detailed).mark_bar().encode(
+                    x=alt.X("Amount:Q", title="Cost (Rp)"),
+                    y=alt.Y("Item:N", sort="-x", title=""),
+                    opacity=alt.condition(hover, alt.value(1), alt.value(0.7)),
+                    color=alt.Color("Type:N", scale=alt.Scale(domain=['Hard Cost', 'Soft Cost'], range=["#1f77b4", "#c2a136"])),
+                    tooltip=["Item", "Type", alt.Tooltip("Amount:Q", format=",.2f")]
+                ).properties(height=chart_height).add_params(hover)
+
+                st.altair_chart(detailed_chart, use_container_width=True)
 
 # --- SAVE ALL METRICS TO SESSION STATE ---
     # We use .update() so we NEVER delete the Area Calculator's data!
@@ -2157,12 +2109,139 @@ def show_cost_estimator():
                 else:
                     st.info("Tidak ada item tambahan (custom) yang dimasukkan.")
 
-import streamlit as st
-import pandas as pd
+def generate_exact_portfolio_excel(port_meta, port_data, port_assumptions):
+    output = io.BytesIO()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Portfolio Summary"
 
-import streamlit as st
-import pandas as pd
-import textwrap
+    # --- 1. Styling Definitions ---
+    blue_fill = PatternFill(start_color="005A9C", end_color="005A9C", fill_type="solid")
+    gray_fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+    yellow_fill = PatternFill(start_color="FFD966", end_color="FFD966", fill_type="solid")
+    
+    white_font = Font(color="FFFFFF", bold=True, name='Calibri', size=11)
+    bold_font = Font(bold=True, name='Calibri', size=10)
+    reg_font = Font(bold=False, name='Calibri', size=10)
+    small_font = Font(name='Calibri', size=9) # For sub-items
+    
+    black_border = Border(left=Side(style='thin'), right=Side(style='thin'), 
+                          top=Side(style='thin'), bottom=Side(style='thin'))
+    
+    center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    left_align = Alignment(horizontal='left', vertical='center', wrap_text=True)
+    right_align = Alignment(horizontal='right', vertical='center')
+
+    # --- 2. Blue Header Section ---
+    headers = [
+        ["ASG GROUP PROPERTY DEVELOPMENT", f"VERSION : {port_meta.get('version', '')}"],
+        ["QS & PROCUREMENT DIVISION", f"UPDATED : {port_meta.get('updated', '')}"],
+        [port_meta.get('title', ''), f"CREATED : {port_meta.get('created', '')}"],
+        [port_meta.get('ref', ''), ""]
+    ]
+
+    for r_idx, (text_left, text_right) in enumerate(headers, 1):
+        for c_idx in range(1, 12):
+            c = ws.cell(row=r_idx, column=c_idx)
+            c.fill = blue_fill
+            c.font = white_font
+            if c_idx == 1: c.value = text_left
+            if c_idx == 11: 
+                c.value = text_right
+                c.alignment = Alignment(horizontal='right')
+        ws.merge_cells(start_row=r_idx, start_column=1, end_row=r_idx, end_column=10)
+
+    # --- 3. Table Header (Rows 6 & 7) ---
+    ws.merge_cells(start_row=6, start_column=1, end_row=7, end_column=1) # SN
+    ws.merge_cells(start_row=6, start_column=2, end_row=7, end_column=2) # AREA
+    ws.merge_cells(start_row=6, start_column=3, end_row=6, end_column=5) # BLDG AREA
+    ws.merge_cells(start_row=6, start_column=6, end_row=6, end_column=7) # UNIT
+    ws.merge_cells(start_row=6, start_column=8, end_row=7, end_column=8) # BUDGET
+    ws.merge_cells(start_row=6, start_column=9, end_row=6, end_column=11) # COST RATIO
+
+    header_labels = {
+        (6, 1): "SN", (6, 2): "AREA", (6, 3): "BUILDING AREA (M2)", 
+        (6, 6): "UNIT", (6, 8): "BUDGET ESTIMATE\nRP", (6, 9): "COST RATIO RP/M2",
+        (7, 3): "GBA", (7, 4): "GFA", (7, 5): "SGFA", (7, 9): "GBA", (7, 10): "GFA", (7, 11): "SGFA"
+    }
+
+    for (r, c), text in header_labels.items():
+        cell = ws.cell(row=r, column=c, value=text)
+        cell.alignment = center_align
+        cell.font = bold_font
+        cell.fill = gray_fill
+
+    for r in range(6, 8):
+        for c in range(1, 12):
+            ws.cell(row=r, column=c).border = black_border
+
+    # --- 4. Data Rows ---
+    current_row = 8
+    for p_row in port_data:
+        is_total = p_row.get("AREA") == "TOTAL"
+        is_parking = "PARKING" in str(p_row.get("AREA", "")).upper()
+        
+        # Set SN and Area
+        ws.cell(row=current_row, column=1, value=p_row.get("SN", "")).alignment = center_align
+        
+        area_cell = ws.cell(row=current_row, column=2, value=p_row.get("AREA", ""))
+        area_cell.alignment = Alignment(horizontal='left', vertical='top' if is_parking else 'center', wrap_text=True)
+        
+        # Set Values
+        cols = ["GBA", "GFA", "SGFA", "QTY", "UNIT", "BUDGET", "R_GBA", "R_GFA", "R_SGFA"]
+        for i, key in enumerate(cols, 3):
+            val = p_row.get(key, "")
+            cell = ws.cell(row=current_row, column=i, value=val)
+            cell.alignment = Alignment(vertical='top' if is_parking else 'center', horizontal='right' if i != 7 else 'center')
+            
+            if key in ["GBA", "GFA", "SGFA"]: cell.number_format = "#,##0.00"
+            if key in ["BUDGET", "R_GBA", "R_GFA", "R_SGFA"]: cell.number_format = "#,##0"
+
+        # Apply Row Styles
+        for c in range(1, 12):
+            ws.cell(row=current_row, column=c).border = black_border
+            ws.cell(row=current_row, column=c).font = bold_font if (p_row.get("SN") or is_total) else reg_font
+            if is_total: ws.cell(row=current_row, column=c).fill = gray_fill
+
+        if is_total:
+            ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=2)
+            ws.cell(row=current_row, column=6, value="TOTAL").alignment = center_align
+
+        # Adjust height for multi-line rows (Parking)
+        if is_parking:
+            ws.row_dimensions[current_row].height = 100 
+
+        current_row += 1
+
+    # --- 5. Assumptions Section ---
+    current_row += 1
+    ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=11)
+    cell_assump = ws.cell(row=current_row, column=1, value="I.  ASSUMPTIONS")
+    cell_assump.font = bold_font
+    for c in range(1, 12):
+        ws.cell(row=current_row, column=c).fill = yellow_fill
+        ws.cell(row=current_row, column=c).border = black_border
+
+    current_row += 1
+    for _, a_row in port_assumptions.iterrows():
+        ws.cell(row=current_row, column=1, value=a_row.get("No.", "")).alignment = center_align
+        
+        desc_cell = ws.cell(row=current_row, column=2, value=a_row.get("Assumption Description", ""))
+        desc_cell.alignment = Alignment(wrap_text=True)
+        ws.merge_cells(start_row=current_row, start_column=2, end_row=current_row, end_column=11)
+        
+        for c in range(1, 12):
+            ws.cell(row=current_row, column=c).border = black_border
+        current_row += 1
+
+    # Column Widths
+    ws.column_dimensions['A'].width = 5
+    ws.column_dimensions['B'].width = 35
+    for c in ['C', 'D', 'E', 'H', 'I', 'J', 'K']:
+        ws.column_dimensions[c].width = 16
+
+    wb.save(output)
+    return output.getvalue()
 
 def show_portfolio_summary():
     st.title("Master Project Portfolio")
@@ -2236,35 +2315,92 @@ def show_portfolio_summary():
         st.session_state.port_assumptions = edited_assumptions
 
     # --- TAB 2: EXACT FORMAT MIRROR (HTML/CSS) ---
-# --- TAB 2: EXACT FORMAT MIRROR (HTML/CSS) ---
+# --- TAB 2: MASTER OUTPUT ---
     with tab2:
-        col_btn, col_txt = st.columns([1, 4])
-        with col_btn:
-            if st.button("🔄 Sync & Recalculate All", use_container_width=True):
-                force_recalculate_all_projects()
-                st.rerun() # Reloads the page to show the fresh numbers
-                
-        with col_txt:
+        # 1. DATA PREPARATION (Define raw_data BEFORE anything else)
+        raw_data = []
+        tot_gba = tot_gfa = tot_sgfa = tot_budget = 0
         
-            st.markdown("---")
+        # Loop through projects to build the data list
+        for sn, (pid, pdata) in enumerate(st.session_state.projects.items(), 1):
+            # Recalculate fresh numbers
+            gba, gfa, sgfa, budget, qty = calculate_project_totals(pdata, pdata.get("type", "Hotel"))
+            
+            raw_data.append({
+                "SN": sn,
+                "AREA": pdata.get("name", f"Project {sn}"),
+                "GBA": gba, "GFA": gfa, "SGFA": sgfa,
+                "QTY": qty, 
+                "UNIT": "Units" if "Hotel" not in pdata.get("type", "") else "RoomKey",
+                "BUDGET": budget,
+                "R_GBA": budget / gba if gba > 0 else 0,
+                "R_GFA": budget / gfa if gfa > 0 else 0,
+                "R_SGFA": budget / sgfa if sgfa > 0 else 0
+            })
+            tot_gba += gba; tot_gfa += gfa; tot_sgfa += sgfa; tot_budget += budget
 
+        # Add the TOTAL row
+        raw_data.append({
+            "SN": "", "AREA": "TOTAL",
+            "GBA": tot_gba, "GFA": tot_gfa, "SGFA": tot_sgfa,
+            "QTY": None, "UNIT": "TOTAL",
+            "BUDGET": tot_budget,
+            "R_GBA": tot_budget / tot_gba if tot_gba > 0 else 0,
+            "R_GFA": tot_budget / tot_gfa if tot_gfa > 0 else 0,
+            "R_SGFA": tot_budget / tot_sgfa if tot_sgfa > 0 else 0
+        })
+
+        # 2. UI CONTROLS (Now they can safely see raw_data)
+        col_btn1, col_btn2, _ = st.columns([1.5, 1.5, 3])
+        
+        with col_btn1:
+            if st.button("🔄 Sync & Recalculate", use_container_width=True):
+                force_recalculate_all_projects()
+                st.rerun()
+                
+        with col_btn2:
+            # This will now work because raw_data was defined in Step 1
+            excel_output = generate_exact_portfolio_excel(
+                st.session_state.port_meta, 
+                raw_data, 
+                st.session_state.port_assumptions
+            )
+            
+            st.download_button(
+                label="📥 Download Exact Excel",
+                data=excel_output,
+                file_name="ASG_Portfolio_Summary.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                type="primary"
+            )
+
+        st.markdown("---")
+                
         # 1. CSS Styles (Flush left to avoid markdown code blocks)
         css_styles = """<style>
-.asg-container { font-family: Calibri, sans-serif; font-size: 13px; color: #000; }
+.asg-container { 
+    font-family: Calibri, sans-serif; 
+    font-size: 13px; 
+    color: #000000 !important; 
+    background-color: #FFFFFF !important; 
+    padding: 15px;
+    border-radius: 5px;
+}
 .asg-header {
-    background-color: #0070C0; color: white; padding: 6px 12px; 
+    background-color: #0070C0 !important; color: #FFFFFF !important; padding: 6px 12px; 
     font-weight: bold; font-size: 13px; display: flex; justify-content: space-between;
     line-height: 1.4; margin-bottom: 15px;
 }
-.asg-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-.asg-table th, .asg-table td { border: 2px solid #000; padding: 5px 8px; text-align: right; vertical-align: middle; }
-.asg-table th { background-color: #F2F2F2; text-align: center; font-weight: bold; }
+.asg-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background-color: #FFFFFF !important; }
+.asg-table th, .asg-table td { border: 2px solid #000000 !important; padding: 5px 8px; text-align: right; vertical-align: middle; color: #000000 !important; }
+.asg-table th { background-color: #F2F2F2 !important; text-align: center; font-weight: bold; color: #000000 !important; }
 .asg-table td.left { text-align: left; font-weight: bold; }
 .asg-table td.center { text-align: center; font-weight: bold; }
 .asg-table .bold-row td { font-weight: bold; }
-.asg-assumptions { width: 100%; border-collapse: collapse; font-size: 12px; }
-.asg-assumptions td { border: 1px solid #D9D9D9; padding: 4px 8px; }
-.asg-assumptions .yellow-header { background-color: #FFD966; font-weight: bold; text-align: left; }
+.asg-assumptions { width: 100%; border-collapse: collapse; font-size: 12px; background-color: #FFFFFF !important; }
+.asg-assumptions td { border: 1px solid #D9D9D9 !important; padding: 4px 8px; color: #000000 !important; }
+.asg-assumptions .yellow-header { background-color: #FFD966 !important; font-weight: bold; text-align: left; color: #000000 !important; }
 </style>"""
 
         # 2. Dynamic Header Block
@@ -2428,10 +2564,10 @@ with c1:
     st.button("Tambah", on_click=cb_add_project, type="primary", use_container_width=True)
     
 with c2:
-    unlock_delete = st.sidebar.toggle("Unlock Delete Buttons", help="Requires Master Password")
+    unlock_delete = st.sidebar.toggle("Admin Privilege")
 
     if unlock_delete:
-        pw_input = st.sidebar.text_input("Enter Admin Password", type="password")
+        pw_input = st.sidebar.text_input("Enter Password", type="password")
         
         if pw_input == MASTER_DELETE_PW:
             st.sidebar.success("Access Granted")
