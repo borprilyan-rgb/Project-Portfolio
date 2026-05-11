@@ -456,7 +456,7 @@ PROJECT_DATABASE = {
 
 st.set_page_config(page_title="Project Portfolio", layout="wide")
 
-#region# 2. Callback Functions
+#region
 def cb_add_project():
     st.session_state.proj_counter += 1
     new_id = f"proj_{st.session_state.proj_counter}"
@@ -1673,6 +1673,66 @@ def show_cost_estimator():
     group_hard_cost = grand_total_hc
     group_total = total_soft_cost + grand_total_hc
 
+    # --- STEP 1: CALCULATE FIXED/UNIT-BASED ITEMS (quick_calc) ---
+    # These are items that do NOT depend on GBA/GFA/SGFA
+    quick_calc_items = {
+        "Doors & Hardware": t_w_door + t_g_door + t_s_door + t_hw_w + t_hw_s,
+        "Sanitary (Units)": t_unit_san + t_t_male + t_t_female + t_t_dis + t_mushola,
+        "Interior & Misc": t_lobby + t_gondola + t_carpet + t_glass_work + t_railing + t_skylight,
+        "FF&E & Kitchen": t_ffe + t_kitchen + t_misc,
+        "Facilities (Units)": t_proj_fac,
+        "Custom Items": smart_custom_costs,
+        "Soft Costs (Fixed)": t_qs + t_pm # Fixed duration costs
+    }
+
+    quick_calc_total = sum(quick_calc_items.values())
+
+    # --- STEP 2: CALCULATE SCALE-BASED ITEMS (GBA/GFA/SGFA) ---
+    scale_based_total = (
+        t_earth + t_found + t_struc +      # GBA based
+        t_arch_base + t_ht + t_vinyl +     # GFA based
+        t_marmer + t_mep + t_utility +     # GBA/GFA based
+        t_precast + t_window + t_double +  # Facade based (linked to GFA)
+        t_external + t_pub_fac + t_res_fac + # Area based
+        t_consultancy + t_insurance        # Percentage/Area based
+    )
+
+    # 1. Total all Scale-Based Items (those using GBA, GFA, SGFA, etc.)
+    # This represents your "Hard Cost Base"
+    scale_based_total = sum([
+        t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double,
+        t_ht, t_vinyl, t_marmer, t_mep, t_utility, t_external, 
+        t_pub_fac, t_res_fac, t_consultancy
+    ])
+
+    # 2. Get the Quick Calc Percentage from User Input
+    # Place this inside your UI (e.g., in Tab 7 or a sidebar)
+    quick_calc_pct = st.number_input("Quick Calc Overhead (%)", value=7.0, step=0.5, key="qc_pct_input")
+
+    # 3. Calculate the Added Value and the New Total
+    qc_added_value = scale_based_total * (quick_calc_pct / 100)
+    quick_calc_total_loaded = scale_based_total + qc_added_value
+
+    # --- STEP 1: Identify Scale-Based vs. Unit-Based ---
+    # Scale-Based: Items that use GBA, GFA, SGFA, Facade, or Land Area
+    scale_items = [
+        ("Structural (GBA)", t_earth + t_found + t_struc),
+        ("Architecture Base (GFA)", t_arch_base),
+        ("Facade Works (Area)", t_precast + t_window + t_double),
+        ("Finishing (GFA x f_mult)", t_ht + t_vinyl + t_marmer),
+        ("MEP & Utility (GBA)", t_mep + t_utility),
+        ("External & Facilities (Area)", t_external + t_pub_fac + t_res_fac),
+        ("Consultancy (GFA)", t_consultancy)
+    ]
+
+    # Total for Scale-Based only
+    scale_subtotal = sum(item[1] for item in scale_items)
+
+    # --- STEP 2: Calculate Quick Calc Load ---
+    # Assuming 'quick_calc_pct' is your percentage input
+    qc_load_value = scale_subtotal * (quick_calc_pct / 100)
+    final_audit_total = scale_subtotal + qc_load_value
+
     with tab7:
         tab1, tab2, tab3 = st.tabs([
         "Hasil",
@@ -1811,6 +1871,89 @@ def show_cost_estimator():
                 </div>
             """, unsafe_allow_html=True)
         
+            st.markdown("---")
+            st.header("Detail Pembuktian & Logika Perhitungan")
+
+            # --- 2. FILTERING AREA-ONLY VARIABLES (GBA/GFA/m2) ---
+            # We strip out unit/time-based costs (Rooms, Doors, Toilets, Months) to form the base.
+
+            # Hardcost Area-Only
+            qc_earth = t_earth
+            qc_found = t_found
+            qc_struc = t_struc
+            # Architecture Area-Only (Base, Facade, Flooring, Carpet, Glass, Skylight)
+            qc_arch = (t_arch_base + t_precast + t_window + t_double + 
+                    t_ht + t_vinyl + t_marmer + t_carpet + t_glass_work + t_skylight)
+            qc_ffe = 0  # Originally Rooms (Unit) -> Absorbed by Quick Calc %
+            qc_mep = t_mep
+            qc_utility = t_utility
+            qc_ext = t_external
+            qc_fac = t_pub_fac + t_res_fac # Excludes proj_fac_u (Unit)
+
+            # Subtotals
+            qc_hc_subtotal = qc_earth + qc_found + qc_struc + qc_arch + qc_ffe + qc_mep + qc_utility + qc_ext + qc_fac
+            qc_prelim = qc_hc_subtotal * 0.05
+            qc_contingency = (qc_hc_subtotal + qc_prelim) * 0.03
+            qc_hardcost = qc_hc_subtotal + qc_prelim + qc_contingency
+
+            # Softcost Area-Only
+            qc_consultancy = t_consultancy # GFA based
+            qc_qs = 0 # Originally Months (Time) -> Absorbed by Quick Calc %
+            qc_pm = 0 # Originally Months (Time) -> Absorbed by Quick Calc %
+            qc_insurance = qc_hardcost * (insurance_pct / 100.0) # Scales with Area Hardcost
+
+            qc_softcost = qc_consultancy + qc_qs + qc_pm + qc_insurance
+            qc_grand_base = qc_hardcost + qc_softcost
+
+            # --- 3. GENERATING THE EXACT 15-ITEM AUDIT TABLE ---
+            with st.expander("⚡ Quick Calc Audit (Standard 15-Item QS Breakdown)", expanded=True):
+                
+                audit_data = [
+                    {"Category": "HARDCOST", "Item": "PRELIMINARIES WORKS", "Base Amount (Area Only)": qc_prelim},
+                    {"Category": "HARDCOST", "Item": "EARTHWORKS", "Base Amount (Area Only)": qc_earth},
+                    {"Category": "HARDCOST", "Item": "FOUNDATIONS", "Base Amount (Area Only)": qc_found},
+                    {"Category": "HARDCOST", "Item": "STRUCTURAL WORKS", "Base Amount (Area Only)": qc_struc},
+                    {"Category": "HARDCOST", "Item": "ARCHITECTURAL WORKS", "Base Amount (Area Only)": qc_arch},
+                    {"Category": "HARDCOST", "Item": "FF & E", "Base Amount (Area Only)": qc_ffe}, # Will show 0
+                    {"Category": "HARDCOST", "Item": "M.E.P WORKS", "Base Amount (Area Only)": qc_mep},
+                    {"Category": "HARDCOST", "Item": "UTILITY CONNECTION", "Base Amount (Area Only)": qc_utility},
+                    {"Category": "HARDCOST", "Item": "EXTERNAL WORKS", "Base Amount (Area Only)": qc_ext},
+                    {"Category": "HARDCOST", "Item": "FACILITY", "Base Amount (Area Only)": qc_fac}, 
+                    {"Category": "HARDCOST", "Item": "CONTINGENCIES", "Base Amount (Area Only)": qc_contingency},
+                    
+                    {"Category": "SOFTCOST", "Item": "CONSULTANCY SERVICES FEE", "Base Amount (Area Only)": qc_consultancy},
+                    {"Category": "SOFTCOST", "Item": "QS SERVICES", "Base Amount (Area Only)": qc_qs}, # Will show 0
+                    {"Category": "SOFTCOST", "Item": "PROJECT MANAGEMENT SERVICES", "Base Amount (Area Only)": qc_pm}, # Will show 0
+                    {"Category": "SOFTCOST", "Item": "INSURANCE COVERAGE", "Base Amount (Area Only)": qc_insurance},
+                ]
+
+                df_qc_audit = pd.DataFrame(audit_data)
+                
+                st.dataframe(
+                    df_qc_audit.style.format({"Base Amount (Area Only)": "Rp {:,.2f}"}), 
+                    use_container_width=True, 
+                    hide_index=True
+                )
+
+                st.caption("*Catatan: Item dengan nilai Rp 0.00 (seperti FF&E, QS, PM) sebelumnya dihitung menggunakan satuan Unit/Bulan. Dalam metode ini, item tersebut digantikan oleh persentase Quick Calc di bawah ini.*")
+
+                # --- 4. THE 1000 + 7% = 1070 CALCULATION ---
+                qc_added_value = qc_grand_base * (quick_calc_pct / 100.0)
+                qc_final_project_cost = qc_grand_base + qc_added_value
+
+                st.markdown("---")
+                c1, c2 = st.columns(2)
+                
+                with c1:
+                    st.write(f"**Total Area-Based Base:**")
+                    st.markdown(f"<span style='color:#CDDC39;'>**Quick Calc Factor ({quick_calc_pct}%):**</span>", unsafe_allow_html=True)
+                    st.write(f"### FINAL QUICK CALC COST:")
+                    
+                with c2:
+                    st.write(f"**Rp {qc_grand_base:,.2f}**")
+                    st.markdown(f"<span style='color:#CDDC39;'>**+ Rp {qc_added_value:,.2f}**</span>", unsafe_allow_html=True)
+                    st.write(f"### Rp {qc_final_project_cost:,.2f}")
+
         with tab2:
             if 'show_details' not in st.session_state:
                 st.session_state.show_details = True
@@ -2108,7 +2251,7 @@ def show_cost_estimator():
                         st.markdown(f"- {detail}")
                 else:
                     st.info("Tidak ada item tambahan (custom) yang dimasukkan.")
-
+#region summary
 def generate_exact_portfolio_excel(port_meta, port_data, port_assumptions):
     output = io.BytesIO()
     wb = Workbook()
@@ -2816,9 +2959,9 @@ def show_portfolio_summary():
         .recap-table th, .recap-table td { border: 1px solid #000; padding: 4px 6px; text-align: right; }
         .recap-table th { text-align: center; font-weight: bold; }
         .sticky-col { position: sticky; left: 0; background-color: #F2F2F2; z-index: 2; border-right: 2px solid #000; }
-        .sticky-col2 { position: sticky; left: 25px; background-color: #F2F2F2; z-index: 2; text-align: left !important; }
-        .sticky-col3 { position: sticky; left: 225px; background-color: #F2F2F2; z-index: 2; text-align: center; }
-        .sticky-col4 { position: sticky; left: 290px; background-color: #F2F2F2; z-index: 2; text-align: center; border-right: 2px solid #000; }
+        .sticky-col2 { position: sticky; left: 35px; background-color: #F2F2F2; z-index: 2; text-align: left !important; }
+        .sticky-col3 { position: sticky; left: 235px; background-color: #F2F2F2; z-index: 2; text-align: center; }
+        .sticky-col4 { position: sticky; left: 335px; background-color: #F2F2F2; z-index: 2; text-align: center; border-right: 2px solid #000; }
         .bold-row { font-weight: bold; background-color: #F9F9F9; }
         </style>
         <div class="recap-wrapper"><table class="recap-table">
@@ -2888,6 +3031,7 @@ def show_portfolio_summary():
 
         html_str += "</table></div>"
         st.markdown(html_str, unsafe_allow_html=True)
+#endregion
 
 # ==========================================
 # SIDEBAR & GLOBAL NAVIGATION
@@ -2998,6 +3142,3 @@ if "projects" in st.session_state and st.session_state.get("storage_loaded", Fal
     pass
 
 st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
-
-if st.session_state.get("storage_loaded", False):
-    st.sidebar.success("Data loaded successfully!")
