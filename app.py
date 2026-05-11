@@ -2249,69 +2249,130 @@ def generate_recap_excel(port_meta, projects):
     ws = wb.active
     ws.title = "Recap Cost"
 
-    # --- Helper: Math Engine for Recap ---
+    # --- EXACT MATH ENGINE ---
     def get_recap_values(pdata):
         d = pdata.get("data", {})
         curr_type = pdata.get("type", "Hotel")
         pt_data = PROJECT_DATABASE.get(curr_type, {})
         
-        def get_val(key, default=0.0):
-            val = d.get(key, default)
-            try: return float(val)
-            except: return val
-            
-        gba = get_val("m_gba", 0); gfa = get_val("m_gfa", 0)
-        rooms = get_val("m_rooms", 0); land = get_val("m_land_m2", 0)
-        
-        t_earth = gba * get_val("u_earth", pt_data.get("struc_earth", 0))
-        t_found = gba * get_val("u_found", pt_data.get("struc_found", 0))
-        t_struc = gba * get_val("u_struc", pt_data.get("struc_work", 0))
-        t_mep = gba * get_val("u_mep", pt_data.get("mep", 0))
-        t_util = gba * get_val("u_util", pt_data.get("utility", 0))
-        t_ffe = rooms * get_val("u_ffe", pt_data.get("ffe", 0))
-        t_ext = land * get_val("u_ext", pt_data.get("ext_land", 0))
-        t_fac = get_val("m_fac_pub", 0) * get_val("u_fac_p", pt_data.get("fac_pub", 0))
-        
-        arch_base = get_val("u_arch", pt_data.get("arch_base", 0))
-        t_arch = (gfa * arch_base)
-        custom_costs = 0
-        for item in d.get("smart_custom_costs", []):
-            if isinstance(item, dict):
-                try: custom_costs += float(item.get("Rate (Rp)", 0)) * float(item.get("Quantity", 1))
+        def get_val(key, default_db_key, default_val=0.0):
+            val = d.get(key)
+            if val is not None and val != "":
+                try: return float(val)
                 except: pass
-        t_arch += custom_costs
-        
-        subtotal = sum([t_earth, t_found, t_struc, t_arch, t_ffe, t_mep, t_util, t_ext, t_fac])
-        t_prelim = subtotal * 0.05
-        t_cont = (subtotal + t_prelim) * 0.03
-        hc = subtotal + t_prelim + t_cont
-        
-        t_cons = gfa * get_val("sc_cons", pt_data.get("cons", 0))
-        t_qs = get_val("sc_qs_m", 0) * get_val("sc_qs_r", 0)
-        t_pm = get_val("sc_pm_m", 0) * get_val("sc_pm_r", 0)
-        t_ins = hc * (get_val("sc_ins", 0.12) / 100.0)
-        sc = t_cons + t_qs + t_pm + t_ins
+            if default_db_key and default_db_key in pt_data:
+                try: return float(pt_data[default_db_key])
+                except: pass
+            return float(default_val)
+            
+        gba = get_val("m_gba", None, 0); gfa = get_val("m_gfa", None, 0)
+        struc_earth = get_val("u_earth", "struc_earth", 0)
+        struc_found = get_val("u_found", "struc_found", 0)
+        struc_work = get_val("u_struc", "struc_work", 0)
+        arch_base = get_val("u_arch", "arch_base", 0)
+        facade = get_val("m_facade", None, 0)
+        facade_precast_pct = get_val("r_fac_pre", "facade_precast_pct", 0)
+        facade_precast_rate = get_val("u_f_pre", "facade_precast_rate", 0)
+        facade_window_pct = get_val("r_fac_win", "facade_window_pct", 0)
+        facade_window_rate = get_val("u_f_win", "facade_window_rate", 0)
+        facade_double_pct = get_val("r_fac_doub", "facade_double_pct", 0)
+        facade_double_rate = get_val("u_f_doub", "facade_double_rate", 0)
+        wooden_door = get_val("m_door_w", None, 0); door_wood = get_val("u_d_wood", "door_wood", 0)
+        glass_door = get_val("m_door_g", None, 0); door_glass = get_val("u_d_glass", "door_glass", 0)
+        steel_door = get_val("m_door_s", None, 0); door_steel = get_val("u_d_steel", "door_steel", 0)
+        lobby_interior = get_val("m_lobby", None, 0); lobby_rate = get_val("u_lobby", "lobby", 0)
+        gondola_unit = get_val("m_gondola", None, 0); gondola_rate = get_val("u_gondola", "gondola", 0)
+        rooms = get_val("m_rooms", None, 0)
+        san_qty_room = get_val("r_san_qty", "san_room_qty", 0); san_room_rate = get_val("u_s_room", "san_room_rate", 0)
+        toilet_male = get_val("m_toil_m", None, 0); san_pub_m = get_val("u_s_pub_m", "san_pub_m", 0)
+        toilet_female = get_val("m_toil_f", None, 0); san_pub_f = get_val("u_s_pub_f", "san_pub_f", 0)
+        disabled_toil = get_val("m_toil_d", None, 0); san_dis = get_val("u_s_dis", "san_dis", 0)
+        mushola_unit = get_val("m_mushola", None, 0); san_mushola = get_val("u_s_mushola", "san_mushola", 0)
+        kitchen_rate = get_val("u_kit", "kitchen", 0)
+        hw_wood = get_val("u_hw_wood", "hw_wood", 0); hw_steel = get_val("u_hw_steel", "hw_steel", 0)
+        fl_waste = get_val("w_floor", "fl_waste", 10); fl_skirt = get_val("s_floor", "fl_skirt", 20)
+        fl_ht_pct = get_val("r_fl_ht", "fl_ht_pct", 0); fl_ht_rate = get_val("u_fl_ht", None, 0) 
+        fl_vinyl_pct = get_val("r_fl_vin", "fl_vinyl_pct", 0); fl_vinyl_rate = get_val("u_fl_vin", None, 0)
+        fl_marmer_pct = get_val("r_fl_mar", "fl_marmer_pct", 0); fl_marmer_rate = get_val("u_fl_mar", None, 0)
+        carpet_m2 = get_val("m_carpet", None, 0); carpet_rate = get_val("u_carpet", "carpet", 0)
+        glass_m2 = get_val("m_glass", None, 0); glass_rate = get_val("u_glass", "glass", 0)
+        ffe_rate = get_val("u_ffe", "ffe", 0); misc_rate = get_val("u_misc", "misc", 0); misc_switch = get_val("misc_switch", None, 0)
+        mep_rate = get_val("u_mep", "mep", 0); utility_rate = get_val("u_util", "utility", 0)
+        railing_qty = get_val("r_rail_qty", "railing_qty", 0); railing_rate = get_val("u_rail", "railing_rate", 0)
+        skylight_area = get_val("m_skylight", None, 0); skylight_rate = get_val("u_sky", "skylight_rate", 0)
+        land_m2 = get_val("m_land_m2", None, 0); ext_land_rate = get_val("u_ext", "ext_land", 0)
+        pub_fac_m2 = get_val("m_fac_pub", None, 0); fac_pub_rate = get_val("u_fac_p", "fac_pub", 0)
+        res_fac_m2 = get_val("m_fac_res", None, 0); fac_res_rate = get_val("u_fac_r", "fac_res", 0)
+        proj_fac_u = get_val("m_fac_proj", None, 0); fac_proj_rate = get_val("u_fac_pr", "fac_proj", 0)
+        consultancy_rate = get_val("sc_cons", "cons", 0); qs_months = get_val("sc_qs_m", None, 0); qs_rate = get_val("sc_qs_r", None, 0)
+        pm_months = get_val("sc_pm_m", None, 0); pm_rate = get_val("sc_pm_r", None, 0); insurance_pct = get_val("sc_ins", None, 0.12)
+        smart_custom_costs = sum(float(i.get("Rate (Rp)", 0)) * float(i.get("Quantity", 1)) for i in d.get("smart_custom_costs", []) if isinstance(i, dict))
+
+        t_earth = gba * struc_earth; t_found = gba * struc_found; t_struc = gba * struc_work; t_arch_base = gfa * arch_base
+        t_precast = facade * (facade_precast_pct / 100) * facade_precast_rate; t_window = facade * (facade_window_pct / 100) * facade_window_rate
+        t_double = facade * (facade_double_pct / 100) * facade_double_rate; t_w_door = wooden_door * door_wood
+        t_g_door = glass_door * door_glass; t_s_door = steel_door * door_steel; t_lobby = lobby_interior * lobby_rate
+        t_gondola = gondola_unit * gondola_rate; t_unit_san = rooms * san_qty_room * san_room_rate
+        t_t_male = toilet_male * san_pub_m; t_t_female = toilet_female * san_pub_f; t_t_dis = disabled_toil * san_dis
+        t_mushola = mushola_unit * san_mushola; t_kitchen = rooms * kitchen_rate; t_hw_w = wooden_door * hw_wood
+        t_hw_s = steel_door * hw_steel; f_mult = (1 + (fl_waste/100)) * (1 + (fl_skirt/100))
+        t_ht = gfa * (fl_ht_pct / 100) * fl_ht_rate * f_mult; t_vinyl = gfa * (fl_vinyl_pct / 100) * fl_vinyl_rate * f_mult
+        t_marmer = gfa * (fl_marmer_pct / 100) * fl_marmer_rate * f_mult; t_carpet = carpet_m2 * carpet_rate
+        t_glass_work = glass_m2 * glass_rate; t_ffe = rooms * ffe_rate; t_misc = misc_rate * misc_switch
+        t_mep = gba * mep_rate; t_utility = gba * utility_rate; t_railing = (rooms * railing_qty) * railing_rate
+        t_skylight = skylight_area * skylight_rate; t_external = land_m2 * ext_land_rate
+        t_pub_fac = pub_fac_m2 * fac_pub_rate; t_res_fac = res_fac_m2 * fac_res_rate; t_proj_fac = proj_fac_u * fac_proj_rate
+
+        construction_subtotal = sum([
+            t_earth, t_found, t_struc, t_arch_base, t_precast, t_window, t_double, t_w_door, t_g_door, t_s_door, 
+            t_lobby, t_gondola, t_unit_san, t_t_male, t_t_female, t_t_dis, t_mushola, t_kitchen, t_hw_w, t_hw_s, 
+            t_ht, t_vinyl, t_marmer, t_carpet, t_glass_work, t_ffe, t_misc, t_mep, t_utility, t_railing, t_skylight, 
+            t_external, t_pub_fac, t_res_fac, t_proj_fac, smart_custom_costs
+        ])
+
+        t_preliminary = construction_subtotal * 0.05
+        t_contingency = (construction_subtotal + t_preliminary) * 0.03
+        grand_total_hc = construction_subtotal + t_preliminary + t_contingency
+
+        t_consultancy = gfa * consultancy_rate
+        t_qs = qs_months * qs_rate
+        t_pm = pm_months * pm_rate
+        t_insurance = grand_total_hc * (insurance_pct / 100.0)
+
+        total_soft_cost = t_consultancy + t_qs + t_pm + t_insurance
+        grand_total_project = grand_total_hc + total_soft_cost
+
+        group_arch = (t_arch_base + t_lobby + t_carpet + t_gondola + t_glass_work + t_kitchen + t_railing + t_skylight + 
+                      (t_precast + t_window + t_double) + (t_unit_san + t_t_male + t_t_female + t_t_dis + t_mushola) + 
+                      (t_ht + t_vinyl + t_marmer) + (t_w_door + t_g_door + t_s_door + t_hw_w + t_hw_s) + smart_custom_costs)
         
         return {
             "EARTHWORKS": t_earth, "FOUNDATIONS": t_found, "STRUCTURAL WORKS": t_struc,
-            "ARCHITECTURAL WORKS": t_arch, "FF & E": t_ffe, "M.E.P WORKS": t_mep,
-            "UTILITY CONNECTION": t_util, "EXTERNAL WORKS": t_ext, "FACILITY": t_fac,
-            "PRELIMINARIES WORKS": t_prelim, "CONTINGENCIES": t_cont, "HARDCOST": hc,
-            "CONSULTANCY SERVICES FEE": t_cons, "QS SERVICES": t_qs, 
-            "PROJECT MANAGEMENT SERVICES": t_pm, "INSURANCE COVERAGE": t_ins,
-            "SOFTCOST": sc, "TOTAL, EXCLD PPN": hc + sc
+            "ARCHITECTURAL WORKS": group_arch, "FF & E": t_ffe + t_misc, "M.E.P WORKS": t_mep,
+            "UTILITY CONNECTION": t_utility, "EXTERNAL WORKS": t_external, "FACILITY": t_pub_fac + t_res_fac + t_proj_fac,
+            "PRELIMINARIES WORKS": t_preliminary, "CONTINGENCIES": t_contingency, "HARDCOST": grand_total_hc,
+            "CONSULTANCY SERVICES FEE": t_consultancy, "QS SERVICES": t_qs, 
+            "PROJECT MANAGEMENT SERVICES": t_pm, "INSURANCE COVERAGE": t_insurance,
+            "SOFTCOST": total_soft_cost, "TOTAL, EXCLD PPN": grand_total_project
         }
+    
+    if "recap_math_engine" not in st.session_state:
+        st.session_state.recap_math_engine = get_recap_values
 
     # --- Generate Global Totals ---
-    tot_cache = {}
-    global_cost = {}
-    tot_gba = tot_gfa = tot_sgfa = 0
+    tot_cache = {}; global_cost = {}; tot_gba = tot_gfa = tot_sgfa = 0
     for pid, pdata in projects.items():
         vals = get_recap_values(pdata)
         tot_cache[pid] = vals
         for k, v in vals.items(): global_cost[k] = global_cost.get(k, 0) + v
         d = pdata.get("data", {})
         tot_gba += float(d.get("m_gba", 0)); tot_gfa += float(d.get("m_gfa", 0)); tot_sgfa += float(d.get("m_sgfa", 0))
+
+    # Calculate global % divisors
+    global_hc = global_cost.get("HARDCOST", 0)
+    global_sc = global_cost.get("SOFTCOST", 0)
+    safe_hc = global_hc if global_hc > 0 else 1
+    safe_sc = global_sc if global_sc > 0 else 1
 
     # --- 1. Styling Definitions ---
     blue_fill = PatternFill(start_color="0070C0", end_color="0070C0", fill_type="solid")
@@ -2373,30 +2434,45 @@ def generate_recap_excel(port_meta, projects):
                 ws.cell(row=r, column=c_idx).border = black_border
         current_col += 5
 
-    # --- 5. Data Rows Map ---
+    # --- 5. Data Rows Map (With Categories for %) ---
     row_mapping = [
-        ("I", "HARDCOST", "118-14-000", True), ("1", "PRELIMINARIES WORKS", "118-14-100", False), ("2", "EARTHWORKS", "118-14-200", False),
-        ("3", "FOUNDATIONS", "118-14-300", False), ("4", "STRUCTURAL WORKS", "118-14-500", False), ("5", "ARCHITECTURAL WORKS", "118-14-600", False),
-        ("6", "FF & E", "118-14-700", False), ("7", "M.E.P WORKS", "118-14-800", False), ("8", "UTILITY CONNECTION", "118-13-900", False),
-        ("9", "EXTERNAL WORKS", "118-14-930", False), ("10", "FACILITY", "118-14-960", False), ("11", "CONTINGENCIES", "", False),
-        ("II", "SOFTCOST", "118-13-000", True), ("1", "CONSULTANCY SERVICES FEE", "118-13-202", False), ("2", "QS SERVICES", "118-13-201", False),
-        ("3", "PROJECT MANAGEMENT SERVICES", "118-13-203", False), ("4", "INSURANCE COVERAGE", "118-13-300", False), ("IV", "TOTAL, EXCLD PPN", "", True)
+        ("I", "HARDCOST", "118-14-000", True, "HC"), ("1", "PRELIMINARIES WORKS", "118-14-100", False, "HC"), 
+        ("2", "EARTHWORKS", "118-14-200", False, "HC"), ("3", "FOUNDATIONS", "118-14-300", False, "HC"), 
+        ("4", "STRUCTURAL WORKS", "118-14-500", False, "HC"), ("5", "ARCHITECTURAL WORKS", "118-14-600", False, "HC"),
+        ("6", "FF & E", "118-14-700", False, "HC"), ("7", "M.E.P WORKS", "118-14-800", False, "HC"), 
+        ("8", "UTILITY CONNECTION", "118-13-900", False, "HC"), ("9", "EXTERNAL WORKS", "118-14-930", False, "HC"), 
+        ("10", "FACILITY", "118-14-960", False, "HC"), ("11", "CONTINGENCIES", "", False, "HC"),
+        ("II", "SOFTCOST", "118-13-000", True, "SC_TOTAL"), ("1", "CONSULTANCY SERVICES FEE", "118-13-202", False, "SC"), 
+        ("2", "QS SERVICES", "118-13-201", False, "SC"), ("3", "PROJECT MANAGEMENT SERVICES", "118-13-203", False, "SC"), 
+        ("4", "INSURANCE COVERAGE", "118-13-300", False, "SC"), ("IV", "TOTAL, EXCLD PPN", "", True, "TOTAL")
     ]
 
     r_idx = 10
-    for sn, desc, coa, is_bold in row_mapping:
+    for sn, desc, coa, is_bold, cat in row_mapping:
+        # Calculate % based on Global Totals and Category
+        global_val = global_cost.get(desc, 0)
+        if cat == "HC": pct = global_val / safe_hc
+        elif cat == "SC": pct = global_val / safe_sc
+        elif cat == "SC_TOTAL": pct = global_val / safe_hc # Softcost total vs Hardcost
+        elif cat == "TOTAL": pct = global_val / safe_hc # Grand total vs Hardcost
+        else: pct = 0
+
         ws.cell(row=r_idx, column=1, value=sn).alignment = center_align
         ws.cell(row=r_idx, column=2, value=desc).alignment = left_align
         ws.cell(row=r_idx, column=3, value=coa).alignment = center_align
-        ws.cell(row=r_idx, column=4, value="100%" if is_bold else "0%").alignment = center_align
+        
+        # Write Percentage
+        pct_cell = ws.cell(row=r_idx, column=4, value=pct)
+        pct_cell.alignment = center_align
+        pct_cell.number_format = '0.00%'
+
         for c in range(1, 5):
             ws.cell(row=r_idx, column=c).border = black_border
             ws.cell(row=r_idx, column=c).font = bold_font if is_bold else reg_font
 
         col_offset = 5
         for pid, pdata in project_list:
-            # 💡 THIS IS THE FIX: Getting the real value!
-            base_val = global_cost.get(desc, 0) if pid == "TOTAL" else tot_cache[pid].get(desc, 0)
+            val = global_cost.get(desc, 0) if pid == "TOTAL" else tot_cache[pid].get(desc, 0)
             
             if pid == "TOTAL":
                 gba_f = tot_gba if tot_gba > 0 else 1; gfa_f = tot_gfa if tot_gfa > 0 else 1
@@ -2408,8 +2484,8 @@ def generate_recap_excel(port_meta, projects):
                 sgfa_f = float(d.get("m_sgfa", 1) if d.get("m_sgfa", 0) > 0 else 1)
                 nfa_f = gfa_f * 0.82
             
-            for j, val in enumerate([base_val, base_val/gba_f, base_val/gfa_f, base_val/sgfa_f, base_val/nfa_f]):
-                c = ws.cell(row=r_idx, column=col_offset+j, value=val)
+            for j, v in enumerate([val, val/gba_f, val/gfa_f, val/sgfa_f, val/nfa_f]):
+                c = ws.cell(row=r_idx, column=col_offset+j, value=v)
                 c.number_format = '#,##0'
                 c.border = black_border
                 c.font = bold_font if is_bold else reg_font
@@ -2420,6 +2496,7 @@ def generate_recap_excel(port_meta, projects):
     ws.column_dimensions['A'].width = 5
     ws.column_dimensions['B'].width = 35
     ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 10
     for c in range(5, col_offset): ws.column_dimensions[get_column_letter(c)].width = 16
     ws.freeze_panes = 'E10'
     wb.save(output)
@@ -2690,9 +2767,13 @@ def show_portfolio_summary():
         st.markdown(full_html, unsafe_allow_html=True)
 
 # --- TAB 3: WIDE RECAP COST ---
-# --- TAB 3: WIDE RECAP COST ---
     with tab3:
         st.subheader("Comprehensive Recap Matrix (Cost & Ratios)")
+        
+        if "recap_math_engine" not in st.session_state:
+            _ = generate_recap_excel(st.session_state.port_meta, st.session_state.projects)
+            
+        math_engine = st.session_state.recap_math_engine
         
         col_btn, col_info = st.columns([1.5, 4.5])
         with col_btn:
@@ -2716,53 +2797,18 @@ def show_portfolio_summary():
         # --- GENERATE HTML PREVIEW ---
         bg_colors = ["#EAEAEA", "#FCE4D6", "#F2DCDB", "#E1D5E7", "#DDEBF7", "#E2EFDA", "#D9E1F2", "#F4B084", "#FFF2CC"]
         project_list = [("TOTAL", {"name": "TOTAL"})] + list(st.session_state.projects.items())
-        
-        # 1. Pre-calculate all values for the HTML Table
-        def html_get_recap_values(pdata):
-            d = pdata.get("data", {})
-            curr_type = pdata.get("type", "Hotel")
-            pt_data = PROJECT_DATABASE.get(curr_type, {})
-            def get_val(key, default=0.0):
-                try: return float(d.get(key, default))
-                except: return float(default)
-                
-            gba = get_val("m_gba", 0); gfa = get_val("m_gfa", 0)
-            rooms = get_val("m_rooms", 0); land = get_val("m_land_m2", 0)
-            
-            t_earth = gba * get_val("u_earth", pt_data.get("struc_earth", 0))
-            t_found = gba * get_val("u_found", pt_data.get("struc_found", 0))
-            t_struc = gba * get_val("u_struc", pt_data.get("struc_work", 0))
-            t_mep = gba * get_val("u_mep", pt_data.get("mep", 0))
-            t_util = gba * get_val("u_util", pt_data.get("utility", 0))
-            t_ffe = rooms * get_val("u_ffe", pt_data.get("ffe", 0))
-            t_ext = land * get_val("u_ext", pt_data.get("ext_land", 0))
-            t_fac = get_val("m_fac_pub", 0) * get_val("u_fac_p", pt_data.get("fac_pub", 0))
-            
-            t_arch = (gfa * get_val("u_arch", pt_data.get("arch_base", 0)))
-            custom_costs = sum(float(i.get("Rate (Rp)", 0)) * float(i.get("Quantity", 1)) for i in d.get("smart_custom_costs", []) if isinstance(i, dict))
-            t_arch += custom_costs
-            
-            subtotal = sum([t_earth, t_found, t_struc, t_arch, t_ffe, t_mep, t_util, t_ext, t_fac])
-            t_prelim = subtotal * 0.05
-            t_cont = (subtotal + t_prelim) * 0.03
-            hc = subtotal + t_prelim + t_cont
-            
-            t_cons = gfa * get_val("sc_cons", pt_data.get("cons", 0))
-            t_qs = get_val("sc_qs_m", 0) * get_val("sc_qs_r", 0)
-            t_pm = get_val("sc_pm_m", 0) * get_val("sc_pm_r", 0)
-            t_ins = hc * (get_val("sc_ins", 0.12) / 100.0)
-            sc = t_cons + t_qs + t_pm + t_ins
-            return {"EARTHWORKS": t_earth, "FOUNDATIONS": t_found, "STRUCTURAL WORKS": t_struc, "ARCHITECTURAL WORKS": t_arch, "FF & E": t_ffe, "M.E.P WORKS": t_mep, "UTILITY CONNECTION": t_util, "EXTERNAL WORKS": t_ext, "FACILITY": t_fac, "PRELIMINARIES WORKS": t_prelim, "CONTINGENCIES": t_cont, "HARDCOST": hc, "CONSULTANCY SERVICES FEE": t_cons, "QS SERVICES": t_qs, "PROJECT MANAGEMENT SERVICES": t_pm, "INSURANCE COVERAGE": t_ins, "SOFTCOST": sc, "TOTAL, EXCLD PPN": hc + sc}
 
         tot_cache = {}; global_cost = {}; tot_gba = tot_gfa = tot_sgfa = 0
         for pid, pdata in st.session_state.projects.items():
-            vals = html_get_recap_values(pdata)
+            vals = math_engine(pdata)
             tot_cache[pid] = vals
             for k, v in vals.items(): global_cost[k] = global_cost.get(k, 0) + v
             d = pdata.get("data", {})
             tot_gba += float(d.get("m_gba", 0)); tot_gfa += float(d.get("m_gfa", 0)); tot_sgfa += float(d.get("m_sgfa", 0))
 
-        # 2. CSS for the horizontal scroll and sticky headers
+        global_hc = global_cost.get("HARDCOST", 0); safe_hc = global_hc if global_hc > 0 else 1
+        global_sc = global_cost.get("SOFTCOST", 0); safe_sc = global_sc if global_sc > 0 else 1
+
         html_str = """
         <style>
         .recap-wrapper { width: 100%; overflow-x: auto; font-family: Calibri, sans-serif; font-size: 11px; }
@@ -2772,12 +2818,13 @@ def show_portfolio_summary():
         .sticky-col { position: sticky; left: 0; background-color: #F2F2F2; z-index: 2; border-right: 2px solid #000; }
         .sticky-col2 { position: sticky; left: 35px; background-color: #F2F2F2; z-index: 2; text-align: left !important; }
         .sticky-col3 { position: sticky; left: 235px; background-color: #F2F2F2; z-index: 2; text-align: center; }
+        .sticky-col4 { position: sticky; left: 335px; background-color: #F2F2F2; z-index: 2; text-align: center; border-right: 2px solid #000; }
         .bold-row { font-weight: bold; background-color: #F9F9F9; }
         </style>
         <div class="recap-wrapper"><table class="recap-table">
         """
 
-        html_str += "<tr><th rowspan='4' class='sticky-col'>SN</th><th rowspan='4' class='sticky-col2' style='min-width:200px;'>DESCRIPTION</th><th rowspan='4' class='sticky-col3'>COA</th><th rowspan='4' style='background-color:#F2F2F2;'>%</th>"
+        html_str += "<tr><th rowspan='4' class='sticky-col'>SN</th><th rowspan='4' class='sticky-col2' style='min-width:200px;'>DESCRIPTION</th><th rowspan='4' class='sticky-col3'>COA</th><th rowspan='4' class='sticky-col4'>%</th>"
         for i, (pid, pdata) in enumerate(project_list):
             color = bg_colors[i % len(bg_colors)]
             html_str += f"<th colspan='5' style='background-color:{color}; color:#000;'>{pdata.get('name', 'PROJECT').upper()}</th>"
@@ -2802,20 +2849,28 @@ def show_portfolio_summary():
         html_str += "</tr>"
 
         row_mapping = [
-            ("I", "HARDCOST", "118-14-000", True), ("1", "PRELIMINARIES WORKS", "118-14-100", False), ("2", "EARTHWORKS", "118-14-200", False),
-            ("3", "FOUNDATIONS", "118-14-300", False), ("4", "STRUCTURAL WORKS", "118-14-500", False), ("5", "ARCHITECTURAL WORKS", "118-14-600", False),
-            ("6", "FF & E", "118-14-700", False), ("7", "M.E.P WORKS", "118-14-800", False), ("8", "UTILITY CONNECTION", "118-13-900", False),
-            ("9", "EXTERNAL WORKS", "118-14-930", False), ("10", "FACILITY", "118-14-960", False), ("11", "CONTINGENCIES", "", False),
-            ("II", "SOFTCOST", "118-13-000", True), ("1", "CONSULTANCY SERVICES FEE", "118-13-202", False), ("2", "QS SERVICES", "118-13-201", False),
-            ("3", "PROJECT MANAGEMENT SERVICES", "118-13-203", False), ("4", "INSURANCE COVERAGE", "118-13-300", False), ("IV", "TOTAL, EXCLD PPN", "", True)
+            ("I", "HARDCOST", "118-14-000", True, "HC"), ("1", "PRELIMINARIES WORKS", "118-14-100", False, "HC"), 
+            ("2", "EARTHWORKS", "118-14-200", False, "HC"), ("3", "FOUNDATIONS", "118-14-300", False, "HC"), 
+            ("4", "STRUCTURAL WORKS", "118-14-500", False, "HC"), ("5", "ARCHITECTURAL WORKS", "118-14-600", False, "HC"),
+            ("6", "FF & E", "118-14-700", False, "HC"), ("7", "M.E.P WORKS", "118-14-800", False, "HC"), 
+            ("8", "UTILITY CONNECTION", "118-13-900", False, "HC"), ("9", "EXTERNAL WORKS", "118-14-930", False, "HC"), 
+            ("10", "FACILITY", "118-14-960", False, "HC"), ("11", "CONTINGENCIES", "", False, "HC"),
+            ("II", "SOFTCOST", "118-13-000", True, "SC_TOTAL"), ("1", "CONSULTANCY SERVICES FEE", "118-13-202", False, "SC"), 
+            ("2", "QS SERVICES", "118-13-201", False, "SC"), ("3", "PROJECT MANAGEMENT SERVICES", "118-13-203", False, "SC"), 
+            ("4", "INSURANCE COVERAGE", "118-13-300", False, "SC"), ("IV", "TOTAL, EXCLD PPN", "", True, "TOTAL")
         ]
 
-        for sn, desc, coa, is_bold in row_mapping:
+        for sn, desc, coa, is_bold, cat in row_mapping:
+            global_val = global_cost.get(desc, 0)
+            if cat == "HC": pct = global_val / safe_hc
+            elif cat == "SC": pct = global_val / safe_sc
+            elif cat in ["SC_TOTAL", "TOTAL"]: pct = global_val / safe_hc
+            else: pct = 0
+
             tr_class = " class='bold-row'" if is_bold else ""
-            html_str += f"<tr{tr_class}><td class='sticky-col' style='text-align:center;'>{sn}</td><td class='sticky-col2'>{desc}</td><td class='sticky-col3'>{coa}</td><td>{'100%' if is_bold else ''}</td>"
+            html_str += f"<tr{tr_class}><td class='sticky-col' style='text-align:center;'>{sn}</td><td class='sticky-col2'>{desc}</td><td class='sticky-col3'>{coa}</td><td class='sticky-col4'>{pct*100:.2f}%</td>"
             
             for pid, pdata in project_list:
-                # 💡 THIS IS THE FIX: Pulling the calculated value!
                 val = global_cost.get(desc, 0) if pid == "TOTAL" else tot_cache[pid].get(desc, 0)
                 
                 if pid == "TOTAL":
@@ -2833,7 +2888,7 @@ def show_portfolio_summary():
 
         html_str += "</table></div>"
         st.markdown(html_str, unsafe_allow_html=True)
-        
+
 # ==========================================
 # SIDEBAR & GLOBAL NAVIGATION
 # ==========================================
@@ -2945,4 +3000,3 @@ if "projects" in st.session_state and st.session_state.get("storage_loaded", Fal
 st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
 
 if st.session_state.get("storage_loaded", False):
-    save_data()
