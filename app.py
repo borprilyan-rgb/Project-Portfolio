@@ -6,12 +6,14 @@ import matplotlib.patches as patches
 import plotly.graph_objects as go
 import num2words as n2w
 import ast
+import numpy as np
+import textwrap
 
 import json as _json
 import os
 import tempfile
 
-#streamlit run app.py
+#
 APP_VERSION = "1.1.0"
 
 MASTER_DELETE_PW = "Jkt12345?"
@@ -22,6 +24,142 @@ from supabase import create_client, Client
 url: str = st.secrets["SUPABASE_URL"]
 key: str = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
+
+def force_recalculate_all_projects():
+    """Loops through all projects and updates their final totals in the session state."""
+    for pid, pdata in st.session_state.projects.items():
+        d = pdata.get("data", {})
+        curr_type = pdata.get("type", "Hotel")
+        pt_data = PROJECT_DATABASE.get(curr_type, {})
+
+        def get_val(key, default=0.0):
+            val = d.get(key, default)
+            if isinstance(val, list): return val
+            try: return float(val)
+            except: return val
+
+        # 1. Area Calc
+        area_table = get_val("area_table_data", [])
+        if isinstance(area_table, list) and len(area_table) > 0:
+            calc_gba = calc_gfa = calc_sgfa = 0.0
+            for row in area_table:
+                row_total = sum(float(row.get(c, 0)) for c in ["Parkir", "Roof/Deck", "MEP Outdoor", "Koridor/Lobby", "Stair, MEP, Etc", "Unit", "Office"])
+                calc_gba += row_total
+                calc_gfa += row_total - sum(float(row.get(c, 0)) for c in ["Parkir", "Roof/Deck", "MEP Outdoor"])
+                calc_sgfa += sum(float(row.get(c, 0)) for c in ["Unit", "Office", "Koridor/Lobby"])
+        else:
+            calc_gba = get_val("m_gba", 0.0)
+            calc_gfa = get_val("m_gfa", 0.0)
+            calc_sgfa = get_val("m_sgfa", 0.0)
+
+        # 2. Cost Calc (Simplified core drivers)
+        struc_earth = get_val("u_earth", pt_data.get("struc_earth", 0))
+        struc_found = get_val("u_found", pt_data.get("struc_found", 0))
+        struc_work = get_val("u_struc", pt_data.get("struc_work", 0))
+        arch_base = get_val("u_arch", pt_data.get("arch_base", 0))
+        facade = get_val("m_facade", 0.0)
+        fac_precast_pct = get_val("r_fac_pre", pt_data.get("facade_precast_pct", 0))
+        fac_precast_rate = get_val("u_f_pre", pt_data.get("facade_precast_rate", 0))
+        rooms = get_val("m_rooms", 0.0)
+        ffe_rate = get_val("u_ffe", pt_data.get("ffe", 0))
+        mep_rate = get_val("u_mep", pt_data.get("mep", 0))
+        utility_rate = get_val("u_util", pt_data.get("utility", 0))
+        consultancy_rate = get_val("sc_cons", pt_data.get("cons", 0))
+        
+        smart_custom_costs = sum(float(item.get("Rate (Rp)", 0)) * float(item.get("Quantity", 1)) for item in get_val("smart_custom_costs", []))
+
+        construction_subtotal = sum([
+            (calc_gba * struc_earth), (calc_gba * struc_found), (calc_gba * struc_work), 
+            (calc_gfa * arch_base), (facade * (fac_precast_pct / 100) * fac_precast_rate), 
+            (rooms * ffe_rate), (calc_gba * mep_rate), (calc_gba * utility_rate), smart_custom_costs
+        ])
+
+        t_prelim = construction_subtotal * 0.05
+        t_cont = (construction_subtotal + t_prelim) * 0.03
+        grand_total_hc = construction_subtotal + t_prelim + t_cont
+        total_soft_cost = (calc_gfa * consultancy_rate) + (grand_total_hc * 0.12) 
+        
+        calc_budget = grand_total_hc + total_soft_cost
+
+        # 3. OVERWRITE THE SAVED DATA
+        st.session_state.projects[pid]["data"]["m_gba"] = calc_gba
+        st.session_state.projects[pid]["data"]["m_gfa"] = calc_gfa
+        st.session_state.projects[pid]["data"]["m_sgfa"] = calc_sgfa
+        st.session_state.projects[pid]["data"]["grand_total_project"] = calc_budget
+        st.session_state.projects[pid]["data"]["m_rooms"] = rooms
+        
+    save_data() # Save to cloud/local
+
+def calculate_project_totals(pdata, curr_type):
+    """Calculates all totals dynamically for a given project."""
+    d = pdata.get("data", {})
+    # Default to empty dict if project type isn't in database yet
+    pt_data = PROJECT_DATABASE.get(curr_type, {})
+
+    def get_val(key, default=0.0):
+        val = d.get(key, default)
+        if isinstance(val, list): return val
+        try: return float(val)
+        except: return val
+
+    # --- Area Calculations ---
+    area_table = get_val("area_table_data", [])
+    if isinstance(area_table, list) and len(area_table) > 0:
+        calc_gba = 0.0
+        calc_gfa = 0.0
+        calc_sgfa = 0.0
+        breakdown_cols = ["Parkir", "Roof/Deck", "MEP Outdoor", "Koridor/Lobby", "Stair, MEP, Etc", "Unit", "Office"]
+        
+        for row in area_table:
+            row_total = sum(float(row.get(c, 0)) for c in breakdown_cols)
+            calc_gba += row_total
+            calc_gfa += row_total - sum(float(row.get(c, 0)) for c in ["Parkir", "Roof/Deck", "MEP Outdoor"])
+            calc_sgfa += sum(float(row.get(c, 0)) for c in ["Unit", "Office", "Koridor/Lobby"])
+    else:
+        calc_gba = get_val("m_gba", 0.0)
+        calc_gfa = get_val("m_gfa", 0.0)
+        calc_sgfa = get_val("m_sgfa", 0.0)
+
+    # --- Cost Calculations ---
+    struc_earth = get_val("u_earth", pt_data.get("struc_earth", 0))
+    struc_found = get_val("u_found", pt_data.get("struc_found", 0))
+    struc_work = get_val("u_struc", pt_data.get("struc_work", 0))
+    arch_base = get_val("u_arch", pt_data.get("arch_base", 0))
+    
+    facade = get_val("m_facade", 0.0)
+    fac_precast_pct = get_val("r_fac_pre", pt_data.get("facade_precast_pct", 0))
+    fac_precast_rate = get_val("u_f_pre", pt_data.get("facade_precast_rate", 0))
+    
+    rooms = get_val("m_rooms", 0.0)
+    ffe_rate = get_val("u_ffe", pt_data.get("ffe", 0))
+    mep_rate = get_val("u_mep", pt_data.get("mep", 0))
+    utility_rate = get_val("u_util", pt_data.get("utility", 0))
+    
+    consultancy_rate = get_val("sc_cons", pt_data.get("cons", 0))
+    insurance_pct = get_val("sc_ins", 0.12)
+    
+    smart_custom_costs = sum(float(item.get("Rate (Rp)", 0)) * float(item.get("Quantity", 1)) for item in get_val("smart_custom_costs", []))
+
+    t_earth = calc_gba * struc_earth
+    t_found = calc_gba * struc_found
+    t_struc = calc_gba * struc_work
+    t_arch_base = calc_gfa * arch_base
+    t_precast = facade * (fac_precast_pct / 100) * fac_precast_rate
+    t_ffe = rooms * ffe_rate
+    t_mep = calc_gba * mep_rate
+    t_utility = calc_gba * utility_rate
+    
+    construction_subtotal = sum([t_earth, t_found, t_struc, t_arch_base, t_precast, t_ffe, t_mep, t_utility, smart_custom_costs])
+
+    t_preliminary = construction_subtotal * 0.05
+    t_contingency = (construction_subtotal + t_preliminary) * 0.03
+    grand_total_hc = construction_subtotal + t_preliminary + t_contingency
+
+    total_soft_cost = (calc_gfa * consultancy_rate) + (grand_total_hc * (insurance_pct / 100.0)) 
+    
+    calc_budget = grand_total_hc + total_soft_cost
+
+    return calc_gba, calc_gfa, calc_sgfa, calc_budget, rooms
 
 def save_data():
     """Takes your projects and 'uploads' them to the cloud table."""
@@ -1899,7 +2037,7 @@ def show_cost_estimator():
         "sc_cons": consultancy_rate, "sc_qs_m": qs_months, "sc_qs_r": qs_rate,
         "sc_pm_m": pm_months, "sc_pm_r": pm_rate, "sc_ins": insurance_pct
     })
-
+    st.session_state.projects[curr_id]["data"]["grand_total_project"] = grand_total_project
     save_data()
 
     with tab8:
@@ -2019,6 +2157,221 @@ def show_cost_estimator():
                 else:
                     st.info("Tidak ada item tambahan (custom) yang dimasukkan.")
 
+import streamlit as st
+import pandas as pd
+
+import streamlit as st
+import pandas as pd
+import textwrap
+
+def show_portfolio_summary():
+    st.title("Master Project Portfolio")
+    
+    # ==========================================
+    # 1. INITIALIZE EDITABLE SESSION STATE
+    # ==========================================
+    if "port_meta" not in st.session_state:
+        st.session_state.port_meta = {
+            "title": "PROJECT PORTFOLIO | PIK2.D2.GINZA.MIDTOWN OPT.2 R(1)",
+            "ref": "REF. DATA R(0) | CONCEPT DWG 2026-02-02.DPA",
+            "version": "R (1) OPT2",
+            "updated": "02-02-2026",
+            "created": "02-02-2026"
+        }
+
+    if "port_assumptions" not in st.session_state:
+        st.session_state.port_assumptions = pd.DataFrame({
+            "No.": [str(i) for i in range(1, 18)],
+            "Assumption Description": [
+                "Include Vacuum Project + Urugan kembali asumsi 1m",
+                "Foundation System standard pilecaps.",
+                "No Basement and No Parking Podium.",
+                "Parking provison limited to ON STREET LEVEL parking; Floor Hardener finish",
+                "Floor to Floor Height at 3.5M",
+                "Facade Alumunium Window Wall - + Grill Outdoor AC",
+                "External Façade Precast, No double skin for parking podium if any.",
+                "Ground Lobby Finishes completed with Artificial stone & HT.",
+                "Typical Corridor | Floor finishes : HT | Wall Finishes : Cement Sand Plaster c/w Emulsion Paint.",
+                "Aircon System | Apartement : AC Split | Hotel : VRF SYSTEM",
+                "SBO Rebars @ Rp. 10.000/kg",
+                "Excluded Smarthome",
+                "Lift : Luxury Apartment : 8 Private Lift + 2 Services Lift | Hotel 3* : 3 Passenger Lift + 1 Services Lift\nTerrace Village : 16 Private Lift + 8 Services Lift | Retail : No Elevator + Escalator 12 units\nApartment 2 : 4 Passenger Lift + 2 Services Lift\nPodium Village : 10 Private Lift + 5 Services Lift",
+                "Exclude Wardrobe",
+                "FFE : Kitchen cabinet, Hob & Hood, Refrigerator & Washing Machine",
+                "Water Heater : Installation only",
+                "Based on Resume Calculation DP dated on 2026.02.02"
+            ]
+        })
+
+    # ==========================================
+    # 2. TABS SETUP
+    # ==========================================
+    tab1, tab2 = st.tabs(["Tab 1: Configuration", "Tab 2: Master Output (Excel Format)"])
+
+    # --- TAB 1: EDITABLE NATIVE COMPONENTS ---
+    with tab1:
+        st.subheader("1. Header Configuration")
+        col1, col2 = st.columns(2)
+        st.session_state.port_meta["title"] = col1.text_input("Project Title", value=st.session_state.port_meta["title"])
+        st.session_state.port_meta["ref"] = col2.text_input("Reference Data", value=st.session_state.port_meta["ref"])
+        
+        col3, col4, col5 = st.columns(3)
+        st.session_state.port_meta["version"] = col3.text_input("Version", value=st.session_state.port_meta["version"])
+        st.session_state.port_meta["updated"] = col4.text_input("Updated Date", value=st.session_state.port_meta["updated"])
+        st.session_state.port_meta["created"] = col5.text_input("Created Date", value=st.session_state.port_meta["created"])
+
+        st.markdown("---")
+        
+        st.subheader("2. Assumptions Configuration")
+        edited_assumptions = st.data_editor(
+            st.session_state.port_assumptions,
+            num_rows="dynamic",
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "No.": st.column_config.NumberColumn("No.", width="small"),
+                "Assumption Description": st.column_config.TextColumn("Assumption Description", width="large"),
+            }
+        )
+        st.session_state.port_assumptions = edited_assumptions
+
+    # --- TAB 2: EXACT FORMAT MIRROR (HTML/CSS) ---
+# --- TAB 2: EXACT FORMAT MIRROR (HTML/CSS) ---
+    with tab2:
+        col_btn, col_txt = st.columns([1, 4])
+        with col_btn:
+            if st.button("🔄 Sync & Recalculate All", use_container_width=True):
+                force_recalculate_all_projects()
+                st.rerun() # Reloads the page to show the fresh numbers
+                
+        with col_txt:
+        
+            st.markdown("---")
+
+        # 1. CSS Styles (Flush left to avoid markdown code blocks)
+        css_styles = """<style>
+.asg-container { font-family: Calibri, sans-serif; font-size: 13px; color: #000; }
+.asg-header {
+    background-color: #0070C0; color: white; padding: 6px 12px; 
+    font-weight: bold; font-size: 13px; display: flex; justify-content: space-between;
+    line-height: 1.4; margin-bottom: 15px;
+}
+.asg-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+.asg-table th, .asg-table td { border: 2px solid #000; padding: 5px 8px; text-align: right; vertical-align: middle; }
+.asg-table th { background-color: #F2F2F2; text-align: center; font-weight: bold; }
+.asg-table td.left { text-align: left; font-weight: bold; }
+.asg-table td.center { text-align: center; font-weight: bold; }
+.asg-table .bold-row td { font-weight: bold; }
+.asg-assumptions { width: 100%; border-collapse: collapse; font-size: 12px; }
+.asg-assumptions td { border: 1px solid #D9D9D9; padding: 4px 8px; }
+.asg-assumptions .yellow-header { background-color: #FFD966; font-weight: bold; text-align: left; }
+</style>"""
+
+        # 2. Dynamic Header Block
+        header_html = f"""<div class="asg-container">
+<div class="asg-header">
+    <div>
+        ASG GROUP PROPERTY DEVELOPMENT<br>
+        QS & PROCUREMENT DIVISION<br>
+        {st.session_state.port_meta["title"]}<br>
+        {st.session_state.port_meta["ref"]}
+    </div>
+    <div style="text-align: right;">
+        VERSION &nbsp;&nbsp;: {st.session_state.port_meta["version"]}<br>
+        UPDATED &nbsp;: {st.session_state.port_meta["updated"]}<br>
+        CREATED &nbsp;: {st.session_state.port_meta["created"]}
+    </div>
+</div>"""
+
+        # 3. Dynamic Data Table Core
+        table_start = """<table class="asg-table">
+<thead>
+    <tr>
+        <th rowspan="2" style="width: 3%;">SN</th>
+        <th rowspan="2" style="width: 18%;">AREA</th>
+        <th colspan="3">BUILDING AREA (M2)</th>
+        <th colspan="2" style="width: 10%;">UNIT</th>
+        <th rowspan="2" style="width: 14%;">BUDGET ESTIMATE<br>RP</th>
+        <th colspan="3">COST RATIO RP/M2</th>
+    </tr>
+    <tr>
+        <th>GBA</th><th>GFA</th><th>SGFA</th>
+        <th></th><th></th>
+        <th>GBA</th><th>GFA</th><th>SGFA</th>
+    </tr>
+</thead>
+<tbody>"""
+        
+        # 4. Generate Dynamic Rows from Active Projects
+        table_rows = ""
+        tot_gba = tot_gfa = tot_sgfa = tot_budget = 0
+        
+        for sn, (pid, pdata) in enumerate(st.session_state.projects.items(), 1):
+            d = pdata.get("data", {})
+            name = pdata.get("name", f"Project {sn}")
+            ptype = pdata.get("type", "")
+            
+            gba = float(d.get("m_gba", 0.0))
+            gfa = float(d.get("m_gfa", 0.0))
+            sgfa = float(d.get("m_sgfa", 0.0))
+            qty = float(d.get("m_rooms", 0.0))
+            budget = float(d.get("grand_total_project", 0.0))
+            
+            if "Hotel" in ptype: unit_lbl = "RoomKey"
+            elif "Parking" in ptype: unit_lbl = "lots"
+            else: unit_lbl = "Units"
+            
+            r_gba = budget / gba if gba > 0 else 0
+            r_gfa = budget / gfa if gfa > 0 else 0
+            r_sgfa = budget / sgfa if sgfa > 0 else 0
+            
+            table_rows += f"""<tr class="bold-row">
+<td class="center">{sn}</td>
+<td class="left">{name}</td>
+<td>{gba:,.2f}</td><td>{gfa:,.2f}</td><td>{sgfa:,.2f}</td>
+<td class="center">{qty:,.0f}</td><td class="center">{unit_lbl}</td>
+<td>{budget:,.0f}</td>
+<td>{r_gba:,.0f}</td><td>{r_gfa:,.0f}</td><td>{r_sgfa:,.0f}</td>
+</tr>"""
+            
+            tot_gba += gba
+            tot_gfa += gfa
+            tot_sgfa += sgfa
+            tot_budget += budget
+
+        tot_r_gba = tot_budget / tot_gba if tot_gba > 0 else 0
+        tot_r_gfa = tot_budget / tot_gfa if tot_gfa > 0 else 0
+        tot_r_sgfa = tot_budget / tot_sgfa if tot_sgfa > 0 else 0
+
+        table_end = f"""<tr class="bold-row" style="background-color: #F2F2F2;">
+<td class="center" colspan="2">TOTAL</td>
+<td>{tot_gba:,.2f}</td><td>{tot_gfa:,.2f}</td><td>{tot_sgfa:,.2f}</td>
+<td class="center" colspan="2">TOTAL</td>
+<td>{tot_budget:,.0f}</td>
+<td>{tot_r_gba:,.0f}</td><td>{tot_r_gfa:,.0f}</td><td>{tot_r_sgfa:,.0f}</td>
+</tr>
+</tbody>
+</table>"""
+
+        assumptions_html = """<table class="asg-assumptions">
+<tr>
+    <td class="yellow-header" style="width: 3%;">I.</td>
+    <td class="yellow-header">ASSUMPTIONS</td>
+</tr>"""
+        for _, row in st.session_state.port_assumptions.iterrows():
+            num = row.get("No.", "")
+            desc = row.get("Assumption Description", "")
+            if pd.notna(desc) and str(desc).strip() != "":
+                assumptions_html += f"""<tr>
+<td style="text-align: center;">{num}</td>
+<td>{desc}</td>
+</tr>"""
+        assumptions_html += """</table></div>"""
+
+        full_html = css_styles + header_html + table_start + table_rows + table_end + assumptions_html
+        
+        st.markdown(full_html, unsafe_allow_html=True)
+
 # ==========================================
 # SIDEBAR & GLOBAL NAVIGATION
 # ==========================================
@@ -2026,7 +2379,7 @@ st.sidebar.title("Main Navigation")
 
 page_choice = st.sidebar.radio(
     "Pilih Pekerjaan:",
-    ["Cost Calculator", "Area Calculator", "Database"]
+    ["Cost Calculator", "Area Calculator", "Database", "Summary"]
 )
 
 st.sidebar.markdown("---")
@@ -2110,8 +2463,10 @@ if page_choice == "Area Calculator":
     show_area_calculator()
 elif page_choice == "Database":
     show_project_database()
-else:
+elif page_choice == "Cost Calculator":
     show_cost_estimator()
+else:
+    show_portfolio_summary()
 
 # --- BACKUP SYSTEM ---
 if "projects" in st.session_state and st.session_state.get("storage_loaded", False):
