@@ -3000,3 +3000,4 @@ if "projects" in st.session_state and st.session_state.get("storage_loaded", Fal
 st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
 
 if st.session_state.get("storage_loaded", False):
+    st.sidebar.success("Data loaded successfully!")
