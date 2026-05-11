@@ -2816,9 +2816,9 @@ def show_portfolio_summary():
         .recap-table th, .recap-table td { border: 1px solid #000; padding: 4px 6px; text-align: right; }
         .recap-table th { text-align: center; font-weight: bold; }
         .sticky-col { position: sticky; left: 0; background-color: #F2F2F2; z-index: 2; border-right: 2px solid #000; }
-        .sticky-col2 { position: sticky; left: 35px; background-color: #F2F2F2; z-index: 2; text-align: left !important; }
-        .sticky-col3 { position: sticky; left: 235px; background-color: #F2F2F2; z-index: 2; text-align: center; }
-        .sticky-col4 { position: sticky; left: 335px; background-color: #F2F2F2; z-index: 2; text-align: center; border-right: 2px solid #000; }
+        .sticky-col2 { position: sticky; left: 25px; background-color: #F2F2F2; z-index: 2; text-align: left !important; }
+        .sticky-col3 { position: sticky; left: 225px; background-color: #F2F2F2; z-index: 2; text-align: center; }
+        .sticky-col4 { position: sticky; left: 290px; background-color: #F2F2F2; z-index: 2; text-align: center; border-right: 2px solid #000; }
         .bold-row { font-weight: bold; background-color: #F9F9F9; }
         </style>
         <div class="recap-wrapper"><table class="recap-table">
