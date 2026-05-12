@@ -1116,7 +1116,7 @@ def show_cost_estimator(): #cost calculator page
         st.header("Keterangan:")        
 
         st.markdown("""
-        **1. Ukuran       :** Untuk pengisian angka luas tanah, GBA, GFA, SGFA, unit kamar, dsb. (***notes:*** pengisian angka berupa qty dan bukan harga)
+        **1. Ukuran       :** Untuk pengisian angka luas tanah, GBA, GFA, SGFA, unit kamar, dsb. (notes: pengisian angka berupa qty dan bukan harga)
         
         **2. Persen       :** Untuk angka yang menggunakan rasio (Misal: rasio pekerjaan lantai proyek = 90% HT, 10% Marmer)
         
@@ -1353,17 +1353,18 @@ def show_cost_estimator(): #cost calculator page
                 st.warning(f"⚠️ Total is **{t_fac_pct}%** (bukan 100%)")
         with col_r3:
             st.subheader("Waste & Skirting (%)")
-            fl_waste = st.number_input(
-                "Floor Waste", 
-                value=get_val("w_floor", pt_data.get("fl_waste", 10)), # Use .get() with 1.1 as default
-                key=f"w_floor{curr_type_key}"
-            )        
             fl_skirt = st.number_input(
-                "Dinding/Skirting (%)", 
+                "Skirting (%)", 
                 value=get_val("s_floor", pt_data.get("fl_skirt", 20)), 
                 key=f"s_floor{curr_type_key}"
             )
-            st.caption(f"Luas Lantai + Skirting + Waste: GFA: {gfa:.2f} x {1 + (fl_waste/100):.2f} x {1 + (fl_skirt/100):.2f} = {gfa*(1 + (fl_waste/100))*(1 + (fl_skirt/100)):.2f} m2")
+            fl_waste = st.number_input(
+                "Floor Waste (%)", 
+                value=get_val("w_floor", pt_data.get("fl_waste", 10)), # Use .get() with 1.1 as default
+                key=f"w_floor{curr_type_key}"
+            )        
+
+            st.caption(f"Luas Lantai + Skirting + Waste: GFA: {gfa:.2f} x {1 + (fl_skirt/100):.2f} x {1 + (fl_waste/100):.2f} = {gfa*(1 + (fl_waste/100))*(1 + (fl_skirt/100)):.2f} m2")
 
             f_mult = (1 + (fl_waste/100)) * (1 + (fl_skirt/100))
         
