@@ -2980,7 +2980,7 @@ def login_screen():
         </style>
     """, unsafe_allow_html=True)
     
-    st.markdown("<br><br><br>", unsafe_allow_html=True) # Vertical spacing
+    st.markdown("<br>", unsafe_allow_html=True) # Vertical spacing
     # Center the logo using columns
     _, logo_col, _ = st.columns([2, 1, 2])
     with logo_col:
@@ -3014,7 +3014,10 @@ def login_screen():
                     if "storage_loaded" in st.session_state:
                         del st.session_state["storage_loaded"]
                         
-                    st.success("Identity Verified.")
+                    username = res.user.email.split("@")[0]
+                    st.success(f"Identity Verified. Welcome, **{username}**! 👋")
+                    import time
+                    time.sleep(1)  # pause so user can see the message
                     st.rerun()
                 except Exception as e:
                     st.error(f"Invalid Credentials: {e}")
@@ -3167,7 +3170,7 @@ else:
     main_app()
 #endregion
 
-#region --- readme.txt, maybe? ----
+#region --- hey i just met you, and this is crazy, but here's my spaghetti, so readme.txt, maybe? ----
 # Version: 1.0.0
 # Environment: Streamlit 1.56.0, Python 3.13
 # for the future me or any IT person that might look at this code,
