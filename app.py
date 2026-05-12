@@ -290,10 +290,10 @@ def show_snapshots():
             
             # Format the date nicely
             from datetime import datetime
-            created = datetime.fromisoformat(snap["created_at"].replace("Z", "+00:00"))
+            created = datetime.fromisoformat(snap["created_at"].replace("Z", "+07:00"))
             formatted_date = created.strftime("%d %b %Y, %H:%M")
             
-            col1.markdown(f"**{snap['snapshot_name']}**  \n  *Saved: {formatted_date}*")
+            col1.markdown(f"**{snap['snapshot_name']}**  \n  *Saved: {formatted_date} WIB*")
             
             if col2.button("Load Project", key=f"load_{snap['id']}", type="primary", use_container_width=True):
                 data = load_snapshot_data(snap["id"])
