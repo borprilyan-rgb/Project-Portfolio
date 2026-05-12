@@ -3115,57 +3115,116 @@ from supabase import create_client, Client
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-# 2. THE LOGIN UI (The only thing visible when logged out)
+import time
+
 def login_screen():
-    # This CSS hides the sidebar and the "Deploy" button during login
+    # 1. Inject Custom CSS for a professional, modern look
     st.markdown("""
         <style>
+            /* Hide the default Streamlit sidebar and top header */
             [data-testid="stSidebar"] {display: none;}
             [data-testid="stHeader"] {display: none;}
+            
+            /* Typography & Alignment */
+            .login-header {
+                text-align: center;
+                margin-top: 1rem;
+                margin-bottom: 1.5rem;
+            }
+            .login-title {
+                color: #1E3A8A; /* Deep professional corporate blue */
+                font-size: 26px;
+                font-weight: 700;
+                margin-bottom: 5px;
+            }
+            .login-subtitle {
+                color: #6B7280; /* Muted gray */
+                font-size: 15px;
+            }
+            
+            /* Target the Streamlit form to turn it into a floating 'Card' */
+            [data-testid="stForm"] {
+                border: 1px solid rgba(49, 51, 63, 0.1);
+                border-radius: 12px;
+                padding: 2rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+                background-color: var(--background-color);
+            }
         </style>
     """, unsafe_allow_html=True)
     
-    st.markdown("<br>", unsafe_allow_html=True) # Vertical spacing
-    # Center the logo using columns
-    _, logo_col, _ = st.columns([2, 1, 2])
-    with logo_col:
-        st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTQWTNsgu_c6WzJAehb4zQ3qdTKNauleAXe4w&s", use_container_width=True)
-    st.markdown("<h1 style='text-align: center; color: #3e4095;'>Project Feasibility Study</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'></p>", unsafe_allow_html=True)
-    
-    # Using a column layout to center the login box
-    _, center_col, _ = st.columns([1, 1, 1])
+        
+    # 2. Adjust Layout Proportions (creates a clean, focused center column)
+    col1, center_col, col3 = st.columns([1.5, 2, 1.5])
     
     with center_col:
-        with st.form("login_gate"):
-            email = st.text_input("Email")
-            password = st.text_input("Password", type="password")
+        # 3. Nesting the logo right above the text for perfect alignment
+        logo_col_1, logo_col_2, logo_col_3 = st.columns([1, 1.5, 1])
+        with logo_col_2:
+            st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTQWTNsgu_c6WzJAehb4zQ3qdTKNauleAXe4w&s", use_container_width=True)
             
-            if st.form_submit_button("Sign In", use_container_width=True, type="primary"):
-                try:
-                    res = supabase.auth.sign_in_with_password({
-                        "email": email, 
-                        "password": password
-                    })
-                    
-                    supabase.postgrest.auth(res.session.access_token)
-                    st.session_state.logged_in = True
-                    st.session_state.user = res.user
-                    st.session_state.access_token = res.session.access_token
+        st.markdown("""
+            <div class="login-header">
+                <div class="login-title">Project Feasibility Study</div>
+                <div class="login-subtitle">Please sign in to your account</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # 4. The Login Form
+        with st.form("login_gate", clear_on_submit=False):
+            # Added placeholders for better UX
+            email = st.text_input("Email", placeholder="name@company.com")
+            password = st.text_input("Password", type="password", placeholder="••••••••")
+            
+            st.write("") # Small gap before button
+            submit = st.form_submit_button("Sign In", use_container_width=True, type="primary")
+            
+            if submit:
+                # Basic input validation
+                if not email or not password:
+                    st.warning("Please enter both email and password.", icon="⚠️")
+                else:
+                    # Added a spinner so the UI doesn't freeze during API calls
+                    with st.spinner("Authenticating securely..."):
+                        try:
+                            res = supabase.auth.sign_in_with_password({
+                                "email": email, 
+                                "password": password
+                            })
+                            
+                            supabase.postgrest.auth(res.session.access_token)
+                            st.session_state.logged_in = True
+                            st.session_state.user = res.user
+                            st.session_state.access_token = res.session.access_token
 
-                    # ← ADD THIS: clear projects so main_app() re-loads from Supabase
-                    if "projects" in st.session_state:
-                        del st.session_state["projects"]
-                    if "storage_loaded" in st.session_state:
-                        del st.session_state["storage_loaded"]
-                        
-                    username = res.user.email.split("@")[0]
-                    st.success(f"Identity Verified. Welcome, **{username}**! 👋")
-                    import time
-                    time.sleep(1)  # pause so user can see the message
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Invalid Credentials: {e}")
+                            # Clear projects so main_app() re-loads from Supabase
+                            for key in ["projects", "storage_loaded"]:
+                                if key in st.session_state:
+                                    del st.session_state[key]
+                            
+                            # Format username to look cleaner (e.g., john.doe -> John Doe)
+                            raw_username = res.user.email.split("@")[0]
+                            clean_username = raw_username.replace('.', ' ').title()
+                            
+                            st.success(f"Identity Verified. Welcome back, **{clean_username}**! 👋")
+                            time.sleep(0.8)  # Slightly faster transition
+                            st.rerun()
+                            
+                        except Exception as e:
+                            # Catch generic invalid credential messages and make them user-friendly
+                            error_msg = str(e)
+                            if "Invalid login credentials" in error_msg or "400" in error_msg:
+                                st.error("Invalid email or password. Please try again.", icon="❌")
+                            else:
+                                st.error(f"Authentication error: {error_msg}", icon="🚨")
+
+    # 5. Professional Footer
+    st.markdown("""
+        <div style='text-align: center; color: #9CA3AF; font-size: 13px; margin-top: 20px;'>
+            © 2026 Project Feasibility Team. All rights reserved.<br>
+            Internal Corporate Use Only.
+        </div>
+    """, unsafe_allow_html=True)
 
 # 3. THE ACTUAL APPLICATION
 def main_app():
