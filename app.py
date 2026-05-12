@@ -258,7 +258,7 @@ def delete_snapshot(snapshot_id):
         return False
 
 def show_snapshots():
-    st.title("Saved Projects")
+    st.title("Project Archive")
 
     # --- SAVE NEW SNAPSHOT ---
     st.subheader("Save Project")
@@ -278,7 +278,7 @@ def show_snapshots():
     st.divider()
 
     # --- LIST EXISTING SNAPSHOTS ---
-    st.subheader("Saved Project:")
+    st.subheader("Load Project:")
     snapshots = load_snapshots()
 
     if not snapshots:
@@ -1245,36 +1245,171 @@ def show_cost_estimator(): #cost calculator page
     curr_type_key = f"{curr_id}_{curr_type}"
 
     # --- TABS ---
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-        "Petunjuk",
-        "1. Ukuran", "2. Persen dan Pengali",
-        "3. Harga", "4. Soft Costs",
+    tab1, tab2, tab3, tab5, tab4, tab6, tab7, tab8, tab9 = st.tabs([
+        "Welcome",
+        "1. Ukuran", "2. Rasio",
+        "3. Soft Costs", "4. Harga",
         "5. Item Tambahan", "6. Hasil",
         "7. Pembuktian",
         "Unggah & Unduh",
     ])
 
-# --- TAB 1: PETUNJUK PEMAKAIAN ---
+# --- TAB 1: WELCOME ---
     with tab1:
-        st.header("Keterangan:")        
-
         st.markdown("""
-        **1. Ukuran       :** Untuk pengisian angka luas tanah, GBA, GFA, SGFA, unit kamar, dsb. (notes: pengisian angka berupa qty dan bukan harga)
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+            
+            /* General Hero Styling */
+            .hero-card {
+                background: #ffffff; border: 0.5px solid #e0e0e0; border-radius: 12px;
+                padding: 1.75rem 1.5rem 1.5rem; margin-bottom: 2rem;
+            }
+            .hero-badge {
+                display: inline-flex; align-items: center; gap: 6px;
+                font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+                text-transform: uppercase; background: #f5f5f5;
+                color: #666; border: 0.5px solid #ddd; border-radius: 8px;
+                padding: 4px 10px; margin-bottom: 1rem;
+            }
+            .hero-title { font-size: 22px; font-weight: 600; color: #1a1a1a; margin: 0 0 8px; }
+            .hero-sub   { font-size: 14px; color: #555; margin: 0; line-height: 1.6; }
+            .hero-divider { height: 1px; background: #eee; margin: 1.25rem 0; }
+            .hero-meta  { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+            .hero-meta-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #666; }
+            
+            /* Section Titles */
+            .section-label {
+                font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+                text-transform: uppercase; color: #3e4095; margin: 0 0 1rem;
+                border-bottom: 1px solid #eee; padding-bottom: 6px;
+            }
+            
+            /* Grid & Cards */
+            .step-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 2rem; }
+            .step-card {
+                background: #fff; border: 0.5px solid #e0e0e0; border-radius: 12px;
+                padding: 1.25rem; transition: border-color 0.15s, box-shadow 0.15s;
+            }
+            .step-card:hover { border-color: #3e4095; box-shadow: 0 4px 12px rgba(62, 64, 149, 0.05); }
+            .step-top  { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+            
+            /* Icons for Navigation Menu */
+            .nav-icon {
+                width: 28px; height: 28px; border-radius: 6px;
+                background: #f0f0f5; color: #3e4095; font-size: 14px;
+                display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+            }
+            
+            /* Numbers for Steps */
+            .step-num  {
+                width: 24px; height: 24px; border-radius: 6px;
+                background: #3e4095; color: #fff; font-size: 11px; font-weight: 600;
+                display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+            }
+            
+            /* Text inside cards */
+            .step-title { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+            .step-desc  { font-size: 13px; color: #666; line-height: 1.5; margin: 0; }
+            .step-caption {
+                font-size: 11px !important;
+                color: #9CA3AF !important;
+                margin-top: 4px !important;
+                font-style: italic;
+            }
+            
+            /* Tooltip/Info Box */
+            .tip-box {
+                background: #f8f8ff; border: 0.5px solid #e0e0ff;
+                border-left: 3px solid #3e4095; border-radius: 0 8px 8px 0;
+                padding: 1rem; display: flex; align-items: flex-start; gap: 12px;
+            }
+            .tip-icon { font-size: 18px; color: #3e4095; margin-top: -2px; flex-shrink: 0; }
+            .tip-text  { font-size: 13px; color: #444; margin: 0; line-height: 1.5; }
+        </style>
+
+        <!-- HERO SECTION -->
+        <div class="hero-card">
+            <div class="hero-badge">&#128200; Workspace Dashboard</div>
+            <p class="hero-title">Project Feasibility Study</p>
+            <p class="hero-sub">Analisis kelayakan proyek secara komprehensif dengan estimasi biaya yang akurat.</p>
+            <div class="hero-divider"></div>
+            <div class="hero-meta">
+                <div class="hero-meta-item">&#128202; Perhitungan area & biaya terintegrasi</div>
+                <div class="hero-meta-item">&#129516; Breakdown biaya otomatis</div>
+                <div class="hero-meta-item">&#128452; Terkoneksi dengan Database master</div>
+            </div>
+        </div>
+
+        <!-- SECTION 1: MAIN NAVIGATION -->
+        <p class="section-label">🧭 Penjelasan Menu Utama (Sidebar)</p>
+        <div class="step-grid">
+            <div class="step-card">
+                <div class="step-top"><div class="nav-icon">🧮</div><span class="step-title">Cost Calculator</span></div>
+                <p class="step-desc">Modul utama untuk menghitung rincian dan estimasi kelayakan biaya proyek.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-top"><div class="nav-icon">📐</div><span class="step-title">Area Calculator</span></div>
+                <p class="step-desc">Kalkulator khusus untuk merencanakan parameter dimensi dan luas area.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-top"><div class="nav-icon">🗄️</div><span class="step-title">Database</span></div>
+                <p class="step-desc">Pusat data acuan harga satuan, material, dan referensi standar proyek.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-top"><div class="nav-icon">📊</div><span class="step-title">Summary</span></div>
+                <p class="step-desc">Ringkasan eksekutif dan dashboard pelaporan dari hasil perhitungan akhir.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-top"><div class="nav-icon">📂</div><span class="step-title">Project Archive</span></div>
+                <p class="step-desc">Manajemen berkas: simpan, muat (load), dan kelola histori versi proyek Anda.</p>
+            </div>
+        </div>
+
+        <!-- SECTION 2: COST CALCULATOR WORKFLOW -->
+        <p class="section-label">⚙️ Alur Kerja: Cost Calculator</p>
+        <div class="step-grid">
+            <div class="step-card">
+                <div class="step-top"><div class="step-num">1</div><span class="step-title">Ukuran</span></div>
+                <p class="step-desc">Isi luas tanah, GBA, GFA, SGFA, dan jumlah unit.</p>
+                <p class="step-caption">Input berupa qty, bukan harga.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-top"><div class="step-num">2</div><span class="step-title">Rasio</span></div>
+                <p class="step-desc">Untuk input rasio material lantai & fasad.</p>
+                <p class="step-caption">Input berupa persentase (%).</p>
+            </div>
+            <div class="step-card">
+                <div class="step-top"><div class="step-num">3</div><span class="step-title">Soft Cost</span></div>
+                <p class="step-desc">Biaya jasa QS, PM, konsultan, dan asuransi proyek.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-top"><div class="step-num">4</div><span class="step-title">Harga</span></div>
+                <p class="step-desc">Harga otomatis mengikuti database jenis proyek.</p>
+                <p class="step-caption">Dapat disesuaikan manual (override).</p>
+            </div>
+            <div class="step-card">
+                <div class="step-top"><div class="step-num">5</div><span class="step-title">Tambahan</span></div>
+                <p class="step-desc">Penambahan item khusus atau spesifik proyek.</p>
+                <p class="step-caption">Input manual untuk Nama, Qty, dan Harga.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-top"><div class="step-num">6</div><span class="step-title">Hasil</span></div>
+                <p class="step-desc">Dashboard hasil perhitungan total biaya proyek keseluruhan.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-top"><div class="step-num">7</div><span class="step-title">Pembuktian</span></div>
+                <p class="step-desc">Tampilkan perhitungan rinci per item untuk verifikasi dan audit QS.</p>
+            </div>
+        </div>
+
+        <!-- TIP BOX -->
+        <div class="tip-box">
+            <span class="tip-icon">&#8505;</span>
+            <p class="tip-text"><strong>Rekomendasi Alur:</strong> Jika Anda memulai proyek baru, masuk ke <strong>Area Calculator</strong> terlebih dahulu. Setelah luasan didapat, pindah ke <strong>Cost Calculator</strong> (Mulai dari tab Ukuran hingga Hasil). Jangan lupa simpan pekerjaan Anda di <strong>Project Archive</strong> sebelum keluar.</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        **2. Persen       :** Untuk angka yang menggunakan rasio (Misal: rasio pekerjaan lantai proyek = 90% HT, 10% Marmer)
-        
-        **3. Harga        :** Untuk pengisian harga otomatis mengikuti database jenis proyek, dapat diisi manual sesuai kebutuhan.
-        
-        **4. Soft Costs   :** Untuk pengisian biaya jasa QS, PM, konsultan dan asuransi.
-        
-        **5. Tambahan     :** Untuk penambahan item khusus, ketik manual untuk nama item, qty dan harga pada tabel.
-        
-        **6. Hasil        :** Untuk melihat hasil perhitungan total biaya proyek, serta breakdown biaya per kategori.
-        
-        **7. Pembuktian   :** Untuk melihat perhitungan secara rinci.
-                      
-        """)
-    
     with tab9:
             st.header("Upload & Download")
             c1, c2 = st.columns(2)
@@ -3290,7 +3425,7 @@ def main_app():
 
     page_choice = st.sidebar.radio(
         "Pilih Pekerjaan:",
-        ["Cost Calculator", "Area Calculator", "Database", "Summary", "Saved Project"]
+        ["Cost Calculator", "Area Calculator", "Database", "Summary", "Project Archive"]
     )
 
     st.sidebar.markdown("---")
@@ -3384,7 +3519,7 @@ def main_app():
         show_project_database()
     elif page_choice == "Cost Calculator":
         show_cost_estimator()
-    elif page_choice == "Saved Project":
+    elif page_choice == "Project Archive":
         show_snapshots()
     else:
         show_portfolio_summary()
