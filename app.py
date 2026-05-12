@@ -2997,3 +2997,10 @@ if "projects" in st.session_state and st.session_state.get("storage_loaded", Fal
     pass
 
 st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
+
+hide_footer_style = """
+    <style>
+    footer {visibility: hidden;}
+    </style>
+    """
+st.markdown(hide_footer_style, unsafe_allow_html=True)
