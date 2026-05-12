@@ -1,3 +1,4 @@
+#region --- LIBRARY AND SUCH ---
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -13,20 +14,19 @@ import openpyxl
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
 from openpyxl.utils import get_column_letter
-
 import json as _json
 import os
 import tempfile
+#endregion
 
-#uv run streamlit run app.py
-st.set_page_config(page_title="Project Feasibility Study", page_icon="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTkU1xmvS3htlGxuhjZjqlryPZ4kE72KKaBlg&s", layout="wide", initial_sidebar_state="expanded",)
-APP_VERSION = "1.1.0"
+#region --- GLOBAL VARIABLES (VERSION, PASSWORD, PAGE CONFIG) ---
+APP_VERSION = "1.1.0" #app version for future compatibility check
+MASTER_DELETE_PW = "hapussemua" #delete button password
+st.set_page_config(page_title="Project Portfolio", layout="wide") #streamlit page config
+#endregion
 
-MASTER_DELETE_PW = "Jkt12345?"
-
+#region --- DO NOT CHANGE (OR I WILL KICK YOUR BUTT)---
 from supabase import create_client, Client
-
-# 1. Connect to the Cloud
 url: str = st.secrets["SUPABASE_URL"]
 key: str = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
@@ -211,8 +211,9 @@ def n2w(amount):
             return f"{amount:,.0f}"
     except:
         return "0"
+#endregion
 
-PROJECT_DATABASE = {
+PROJECT_DATABASE = { #Change only when asked
     "Apartment": {
         #Foundation & Structure
         "struc_earth": 25000.0, "struc_found": 400000.0, "struc_work": 1933000.0,
@@ -454,7 +455,7 @@ PROJECT_DATABASE = {
     }
 }
 
-#region
+#region --- DO NOT CHANGE#2 (OR I WILL KICK YOUR FACE)---
 def cb_add_project():
     st.session_state.proj_counter += 1
     new_id = f"proj_{st.session_state.proj_counter}"
@@ -479,9 +480,7 @@ def cb_switch_project():
         selected_idx = proj_labels.index(selected_label)
         st.session_state.current_proj_id = proj_ids[selected_idx]
         save_data()     
-#endregion#
 
-#region
 # Initialization
 if "projects" not in st.session_state:
     stored_data = load_data()
@@ -512,7 +511,7 @@ if "projects" not in st.session_state:
     st.session_state.storage_loaded = True
 #endregion
 
-def show_project_database():
+def show_project_database(): #database page
     tab1, tab2 = st.tabs([
     "Database", " "
     ])
@@ -547,7 +546,7 @@ def show_project_database():
             }
         )
 
-def show_area_calculator():
+def show_area_calculator(): #area calculator page
     st.title("Area Calculator")
     
     # 1. Identify the Active Project
@@ -586,7 +585,7 @@ def show_area_calculator():
                 curr_proj["data"]["area_table_data"] = default_stack
 
         # --- TOP SETUP CONTROLS ---
-        with st.expander("⚙️ Quick Floor Generator", expanded=False):
+        with st.expander("Building Floor Config", expanded=False):
             c_name, c_h, c_b, c_u = st.columns(4)
             
             # Using get_area_val ensures the data survives page reloads
@@ -978,7 +977,7 @@ def show_area_calculator():
         
         st.pyplot(fig)
       
-def update_price(metric_key, db_key):
+def update_price(metric_key, db_key): #this function pulls~
     """Update flooring price based on spec radio selection."""
     c_id = st.session_state.current_proj_id
     
@@ -1005,7 +1004,7 @@ def update_price(metric_key, db_key):
         new_val = db_val.get(selected_spec, 0.0)
         st.session_state[f"u_fl_{metric_key}_{c_type_key}"] = float(new_val)
 
-def show_cost_estimator():
+def show_cost_estimator(): #cost calculator page
     st.title("Cost Calculator")
 
     st.markdown("""
@@ -1051,26 +1050,6 @@ def show_cost_estimator():
                 border-color: #262730 transparent transparent transparent;
             }
         </style>
-        """, unsafe_allow_html=True)
-
-    # --- NEW: REUSABLE CARD HELPER ---
-    def draw_hover_card(label, display_val, raw_val, color, formula):
-        box_base = f"margin-bottom: 12px; padding: 8px; border-radius: 5px; background-color: #FFFFFF; border: 1px solid #E0E0E0; border-left: 5px solid {color};"
-        label_style = "font-size: 12px; color: #666666; font-weight: bold;"
-        val_style = "font-size: 14px; font-weight: bold; color: #000000; margin-top: 4px;"
-        
-        st.markdown(f"""
-        <div class="metric-container">
-            <div style="{box_base}">
-                <div style="{label_style}">{label}</div>
-                <div style="{val_style}">{display_val}</div>
-                <div style="font-size: 10px; color: #888888; margin-top: 2px;">Rp {raw_val:,.0f}</div>
-            </div>
-            <div class="custom-tooltip">
-                <strong style="color:{color}; font-size:13px;">Calculation Logic:</strong><br>
-                {formula}
-            </div>
-        </div>
         """, unsafe_allow_html=True)
 
     curr_id = st.session_state.current_proj_id
@@ -2106,7 +2085,8 @@ def show_cost_estimator():
                         st.markdown(f"- {detail}")
                 else:
                     st.info("Tidak ada item tambahan (custom) yang dimasukkan.")
-#region summary
+
+#region --- DO NOT CHANGE#3 (OR GOD HELP ME) ---
 def generate_exact_portfolio_excel(port_meta, port_data, port_assumptions):
     output = io.BytesIO()
     wb = Workbook()
@@ -2499,6 +2479,7 @@ def generate_recap_excel(port_meta, projects):
     ws.freeze_panes = 'E10'
     wb.save(output)
     return output.getvalue()
+#endregion
 
 def show_portfolio_summary():
     st.title("Summary")
@@ -2542,10 +2523,11 @@ def show_portfolio_summary():
     # ==========================================
     # 2. TABS SETUP
     # ==========================================
-    tab1, tab2, tab3 = st.tabs(["Tab 1: Pengaturan", "Tab 2: FAD", "Tab 3: Rekap"])
-
+    summary_list = ["Pengaturan", "FAD", "Rekap"]
+    summary_tabs = st.tabs(summary_list)
+    
     # --- TAB 1: EDITABLE NATIVE COMPONENTS ---
-    with tab1:
+    with summary_tabs[0]:
         st.subheader("1. Header Configuration")
         col1, col2 = st.columns(2)
         st.session_state.port_meta["title"] = col1.text_input("Project Title", value=st.session_state.port_meta["title"])
@@ -2572,7 +2554,7 @@ def show_portfolio_summary():
         st.session_state.port_assumptions = edited_assumptions
 
     # --- TAB 2: EXACT FORMAT MIRROR (HTML/CSS) ---
-    with tab2:
+    with summary_tabs[1]:
         # 1. DATA PREPARATION (Define raw_data BEFORE anything else)
         raw_data = []
         tot_gba = tot_gfa = tot_sgfa = tot_budget = 0
@@ -2765,7 +2747,7 @@ def show_portfolio_summary():
         st.markdown(full_html, unsafe_allow_html=True)
 
 # --- TAB 3: WIDE RECAP COST ---
-    with tab3:
+    with summary_tabs[2]:
         st.subheader("Comprehensive Recap Matrix (Cost & Ratios)")
         
         if "recap_math_engine" not in st.session_state:
@@ -2780,17 +2762,13 @@ def show_portfolio_summary():
                 st.session_state.projects
             )
             st.download_button(
-                label="📊 Download Wide Recap Excel",
+                label="Download Recap Excel",
                 data=recap_excel_data,
                 file_name="ASG_Recap_Cost_Wide.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
                 type="primary"
             )
-        with col_info:
-            st.info("The table below is a live preview. Use the horizontal scrollbar to view all projects side-by-side.")
-
-        st.markdown("---")
 
         # --- GENERATE HTML PREVIEW ---
         bg_colors = ["#EAEAEA", "#FCE4D6", "#F2DCDB", "#E1D5E7", "#DDEBF7", "#E2EFDA", "#D9E1F2", "#F4B084", "#FFF2CC"]
@@ -2810,14 +2788,25 @@ def show_portfolio_summary():
         html_str = """
         <style>
         .recap-wrapper { width: 100%; overflow-x: auto; font-family: Calibri, sans-serif; font-size: 11px; }
-        .recap-table { border-collapse: collapse; white-space: nowrap; }
-        .recap-table th, .recap-table td { border: 1px solid #000; padding: 4px 6px; text-align: right; }
+        .recap-table { border-collapse: collapse; border-spacing: 0; white-space: nowrap; }
+        .recap-table th, .recap-table td {
+            border-top: 1px solid #000;
+            border-left: 1px solid #000;
+        }
+        .recap-table tr:last-child td {
+            border-bottom: 1px solid #000;
+        }
+        .recap-table th:last-child,
+        .recap-table td:last-child {
+            border-right: 1px solid #000;
+        }
         .recap-table th { text-align: center; font-weight: bold; }
         .sticky-col { position: sticky; left: 0; background-color: #F2F2F2; z-index: 2; border-right: 2px solid #000; }
-        .sticky-col2 { position: sticky; left: 35px; background-color: #F2F2F2; z-index: 2; text-align: left !important; }
-        .sticky-col3 { position: sticky; left: 235px; background-color: #F2F2F2; z-index: 2; text-align: center; }
-        .sticky-col4 { position: sticky; left: 335px; background-color: #F2F2F2; z-index: 2; text-align: center; border-right: 2px solid #000; }
+        .sticky-col2 { position: sticky; left: 25px; background-color: #F2F2F2; z-index: 2; text-align: left !important; }
+        .sticky-col3 { position: sticky; left: 220px; background-color: #F2F2F2; z-index: 2; text-align: center; }
+        .sticky-col4 { position: sticky; left: 290px; background-color: #F2F2F2; z-index: 2; text-align: center; border-right: 2px solid #000; }
         .bold-row { font-weight: bold; background-color: #F9F9F9; }
+        
         </style>
         <div class="recap-wrapper"><table class="recap-table">
         """
@@ -2886,13 +2875,9 @@ def show_portfolio_summary():
 
         html_str += "</table></div>"
         st.markdown(html_str, unsafe_allow_html=True)
-#endregion
 
-# ==========================================
-# SIDEBAR & GLOBAL NAVIGATION
-# ==========================================
+#region --- SIDEBAR ----
 st.sidebar.title("Main Navigation")
-
 page_choice = st.sidebar.radio(
     "Pilih Pekerjaan:",
     ["Cost Calculator", "Area Calculator", "Database", "Summary"]
@@ -2997,10 +2982,12 @@ if "projects" in st.session_state and st.session_state.get("storage_loaded", Fal
     pass
 
 st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
+#endregion
 
-hide_footer_style = """
-    <style>
-    footer {visibility: hidden;}
-    </style>
-    """
-st.markdown(hide_footer_style, unsafe_allow_html=True)
+#region --- readme.txt, maybe? ----
+# Version: 1.0.0
+# Environment: Streamlit 1.56.0, Python 3.13
+# for the future me or any IT person that might look at this code,
+# this code is made in 2026, by a totally newbie programmer wannabe, but with over 8 years of work experience and Architecture Bachelor (architure as in construction, not that architecture)
+# if someday this might not work, know that I (Boris Prilyan Sidabutar, B. Arch) make this alone (many thanks especially to Jesus and for Gemini and Claude too)
+#endregion
