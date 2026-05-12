@@ -2555,6 +2555,8 @@ def show_portfolio_summary():
 
     # --- TAB 2: EXACT FORMAT MIRROR (HTML/CSS) ---
     with summary_tabs[1]:
+        st.subheader("Feasibility Analysis Data (FAD)")
+
         # 1. DATA PREPARATION (Define raw_data BEFORE anything else)
         raw_data = []
         tot_gba = tot_gfa = tot_sgfa = tot_budget = 0
@@ -2591,12 +2593,12 @@ def show_portfolio_summary():
         # 2. UI CONTROLS (Now they can safely see raw_data)
         col_btn1, col_btn2, _ = st.columns([1.5, 1.5, 3])
         
-        with col_btn1:
+        with col_btn2:
             if st.button("Sync", use_container_width=True):
                 force_recalculate_all_projects()
                 st.rerun()
                 
-        with col_btn2:
+        with col_btn1:
             # This will now work because raw_data was defined in Step 1
             excel_output = generate_exact_portfolio_excel(
                 st.session_state.port_meta, 
@@ -2612,8 +2614,6 @@ def show_portfolio_summary():
                 use_container_width=True,
                 type="primary"
             )
-
-        st.markdown("---")
                 
         # 1. CSS Styles (Flush left to avoid markdown code blocks)
         css_styles = """<style>
@@ -2762,7 +2762,7 @@ def show_portfolio_summary():
                 st.session_state.projects
             )
             st.download_button(
-                label="Download Recap Excel",
+                label="Download Excel",
                 data=recap_excel_data,
                 file_name="ASG_Recap_Cost_Wide.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2787,24 +2787,54 @@ def show_portfolio_summary():
 
         html_str = """
         <style>
-        .recap-wrapper { width: 100%; overflow-x: auto; font-family: Calibri, sans-serif; font-size: 11px; }
-        .recap-table { border-collapse: collapse; border-spacing: 0; white-space: nowrap; }
+        .recap-wrapper { 
+            width: 100%; 
+            overflow-x: auto; 
+            font-family: Calibri, sans-serif; 
+            font-size: 11px; 
+        }
+
+        /* DESKTOP ONLY: Add the comparison space */
+        @media (min-width: 1024px) {
+            .recap-wrapper { 
+                padding-right: 600px; 
+            }
+        }
+
+        /* MOBILE SPECIFIC: Ensure it takes the full width and handles sticky better */
+        @media (max-width: 1023px) {
+            .recap-wrapper { 
+                padding-right: 0px; 
+            }
+            .sticky-col2 { 
+                min-width: 120px !important; /* Shrink description for small screens */
+            }
+        }
+
+        .recap-table { 
+            border-collapse: separate; 
+            border-spacing: 0; 
+            white-space: nowrap; 
+        }
+
         .recap-table th, .recap-table td {
-            border-top: 1px solid #000;
-            border-left: 1px solid #000;
-        }
-        .recap-table tr:last-child td {
-            border-bottom: 1px solid #000;
-        }
-        .recap-table th:last-child,
-        .recap-table td:last-child {
             border-right: 1px solid #000;
+            border-bottom: 1px solid #000;
+            padding: 4px 6px;
+            background-color: #fff;
         }
-        .recap-table th { text-align: center; font-weight: bold; }
-        .sticky-col { position: sticky; left: 0; background-color: #F2F2F2; z-index: 2; border-right: 2px solid #000; }
-        .sticky-col2 { position: sticky; left: 25px; background-color: #F2F2F2; z-index: 2; text-align: left !important; }
-        .sticky-col3 { position: sticky; left: 220px; background-color: #F2F2F2; z-index: 2; text-align: center; }
-        .sticky-col4 { position: sticky; left: 290px; background-color: #F2F2F2; z-index: 2; text-align: center; border-right: 2px solid #000; }
+
+        /* Sticky Logic (Keep your previous z-indexes) */
+        .sticky-col, .sticky-col2, .sticky-col3, .sticky-col4 { 
+            position: sticky; 
+            background-color: #F2F2F2 !important; 
+            z-index: 5; 
+        }
+
+        .sticky-col  { left: 0; }
+        .sticky-col2 { left: 25px; text-align: left !important; }
+        .sticky-col3 { left: 160px; } /* Adjusted for mobile width */
+        .sticky-col4 { left: 220px; border-right: 2px solid #000 !important; }
         .bold-row { font-weight: bold; background-color: #F9F9F9; }
         
         </style>
