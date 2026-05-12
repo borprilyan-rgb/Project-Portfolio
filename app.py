@@ -2985,7 +2985,7 @@ def login_screen():
     _, logo_col, _ = st.columns([2, 1, 2])
     with logo_col:
         st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTQWTNsgu_c6WzJAehb4zQ3qdTKNauleAXe4w&s", use_container_width=True)
-    st.markdown("<h2 style='text-align: center; color: #1B365D;'>Project Feasibility Study</h2>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #1B365D;'>Project Feasibility Study</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'></p>", unsafe_allow_html=True)
     
     # Using a column layout to center the login box
