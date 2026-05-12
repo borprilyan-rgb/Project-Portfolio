@@ -21,7 +21,6 @@ import tempfile
 
 #region --- GLOBAL VARIABLES (VERSION, PASSWORD, PAGE CONFIG) ---
 APP_VERSION = "1.1.0" #app version for future compatibility check
-MASTER_DELETE_PW = "hapussemua" #delete button password
 st.set_page_config(page_title="Project Portfolio", layout="wide") #streamlit page config
 #endregion
 
@@ -268,7 +267,7 @@ def show_snapshots():
         "Project Name", 
         placeholder="e.g. ASG Tower - Option 2 - Rev3"
     )
-    col1, _ = st.columns([1, 3])
+    col1, _ = st.columns([1, 6])
     if col1.button("Save Project", use_container_width=True):
         if snapshot_name.strip() == "":
             col1.warning("Please enter a snapshot name.")
@@ -280,14 +279,14 @@ def show_snapshots():
     st.divider()
 
     # --- LIST EXISTING SNAPSHOTS ---
-    st.subheader("Saved Snapshots")
+    st.subheader("Saved Project:")
     snapshots = load_snapshots()
 
     if not snapshots:
-        st.info("No snapshots saved yet.")
+        st.info("No saved projects yet.")
     else:
         for snap in snapshots:
-            col1, col2, col3 = st.columns([4, 1, 1])
+            col1, col2, col3 = st.columns([5, 1, 1])
             
             # Format the date nicely
             from datetime import datetime
