@@ -1,0 +1,5 @@
+[server]
+runOnSave = false
+[theme]
+primaryColor = "#1B365D"
+font = "sans serif"
