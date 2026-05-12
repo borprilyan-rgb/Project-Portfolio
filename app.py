@@ -3425,7 +3425,7 @@ def main_app():
 
     page_choice = st.sidebar.radio(
         "Pilih Pekerjaan:",
-        ["Cost Calculator", "Area Calculator", "Database", "Summary", "Project Archive"]
+        ["🧮 Cost Calculator", "📐 Area Calculator", "🗄️ Database", "📊 Summary", "📂 Project Archive"]
     )
 
     st.sidebar.markdown("---")
@@ -3513,16 +3513,16 @@ def main_app():
     st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
     #endregion
     
-    if page_choice == "Area Calculator":
+    if page_choice == "📐 Area Calculator":
         show_area_calculator()
-    elif page_choice == "Database":
+    elif page_choice == "🗄️ Database":
         show_project_database()
-    elif page_choice == "Cost Calculator":
-        show_cost_estimator()
-    elif page_choice == "Project Archive":
+    elif page_choice == "📊 Summary":
+        show_portfolio_summary()
+    elif page_choice == "📂 Project Archive":
         show_snapshots()
     else:
-        show_portfolio_summary()
+        show_cost_estimator()
 
 # 4. THE GATEKEEPER LOGIC
 # Replace your entire gatekeeper section at the bottom with this:
