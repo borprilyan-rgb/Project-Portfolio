@@ -259,7 +259,6 @@ def delete_snapshot(snapshot_id):
 
 def show_snapshots():
     st.title("Saved Projects")
-    st.caption("Save the current state of all your projects and reload them anytime.")
 
     # --- SAVE NEW SNAPSHOT ---
     st.subheader("Save Project")
