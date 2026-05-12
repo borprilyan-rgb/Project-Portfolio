@@ -3199,7 +3199,7 @@ def login_screen():
         # 4. The Login Form
         with st.form("login_gate", clear_on_submit=False):
             # Added placeholders for better UX
-            email = st.text_input("Email", placeholder="name@company.com")
+            email = st.text_input("Email", placeholder="name@agungsedayu.com")
             password = st.text_input("Password", type="password", placeholder="••••••••")
             
             st.write("") # Small gap before button
