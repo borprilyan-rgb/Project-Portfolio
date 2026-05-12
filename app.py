@@ -3245,10 +3245,11 @@ def login_screen():
                                 st.error(f"Authentication error: {error_msg}", icon="🚨")
 
     # 5. Professional Footer
-    st.markdown("""
-        <div style='text-align: center; color: #9CA3AF; font-size: 13px; margin-top: 20px;'>
-            © 2026 Project Feasibility Team. All rights reserved.<br>
-            Internal Corporate Use Only.
+    st.markdown(f"""
+        <hr style="border: none; border-top: 1px solid #E5E7EB; margin-top: 50px; margin-bottom: 20px;">
+        <div style='text-align: center; color: #9CA3AF; font-size: 12px; font-family: sans-serif; line-height: 1.6;'>
+            v{APP_VERSION} | &copy; 2026 QS & Procurement - ASG. All rights reserved.<br>
+            <span style="letter-spacing: 1px; font-weight: 500;">INTERNAL CORPORATE USE ONLY</span>
         </div>
     """, unsafe_allow_html=True)
 
