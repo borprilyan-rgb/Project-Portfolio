@@ -167,6 +167,150 @@ def calculate_project_totals(pdata, curr_type):
 
     return calc_gba, calc_gfa, calc_sgfa, calc_budget, rooms
 
+def save_snapshot(snapshot_name):
+    token = st.session_state.get("access_token")
+    user_id = st.session_state.get("user").id
+
+    if not token or not user_id:
+        st.error("Not authenticated.")
+        return False
+
+    authed_client = create_client(url, key)
+    authed_client.postgrest.auth(token)
+
+    payload = {
+        "app_version": APP_VERSION,
+        "projects": st.session_state.projects,
+        "current_proj_id": st.session_state.current_proj_id,
+        "proj_counter": st.session_state.proj_counter
+    }
+
+    try:
+        authed_client.table("project_snapshots").insert({
+            "user_id": user_id,
+            "snapshot_name": snapshot_name,
+            "data": payload
+        }).execute()
+        return True
+    except Exception as e:
+        st.error(f"Snapshot Save Error: {e}")
+        return False
+
+def load_snapshots():
+    token = st.session_state.get("access_token")
+    user = st.session_state.get("user")
+
+    if not token or not user:
+        return []
+
+    try:
+        authed_client = create_client(url, key)
+        authed_client.postgrest.auth(token)
+
+        response = authed_client.table("project_snapshots") \
+            .select("id, snapshot_name, created_at") \
+            .eq("user_id", user.id) \
+            .order("created_at", desc=True) \
+            .execute()
+
+        return response.data if response.data else []
+    except Exception as e:
+        st.error(f"Snapshot Load Error: {e}")
+        return []
+
+def load_snapshot_data(snapshot_id):
+    token = st.session_state.get("access_token")
+
+    if not token:
+        return None
+
+    try:
+        authed_client = create_client(url, key)
+        authed_client.postgrest.auth(token)
+
+        response = authed_client.table("project_snapshots") \
+            .select("data") \
+            .eq("id", snapshot_id) \
+            .execute()
+
+        if response.data:
+            return response.data[0]["data"]
+    except Exception as e:
+        st.error(f"Snapshot Fetch Error: {e}")
+    return None
+
+def delete_snapshot(snapshot_id):
+    token = st.session_state.get("access_token")
+
+    if not token:
+        return False
+
+    try:
+        authed_client = create_client(url, key)
+        authed_client.postgrest.auth(token)
+
+        authed_client.table("project_snapshots") \
+            .delete() \
+            .eq("id", snapshot_id) \
+            .execute()
+        return True
+    except Exception as e:
+        st.error(f"Snapshot Delete Error: {e}")
+        return False
+
+def show_snapshots():
+    st.title("Saved Projects")
+    st.caption("Save the current state of all your projects and reload them anytime.")
+
+    # --- SAVE NEW SNAPSHOT ---
+    st.subheader("Save Project")
+    snapshot_name = st.text_input(
+        "Project Name", 
+        placeholder="e.g. ASG Tower - Option 2 - Rev3"
+    )
+    col1, _ = st.columns([1, 3])
+    if col1.button("Save Project", use_container_width=True):
+        if snapshot_name.strip() == "":
+            col1.warning("Please enter a snapshot name.")
+        else:
+            if save_snapshot(snapshot_name):
+                st.success(f"Snapshot **{snapshot_name}** saved!")
+                st.rerun()
+
+    st.divider()
+
+    # --- LIST EXISTING SNAPSHOTS ---
+    st.subheader("Saved Snapshots")
+    snapshots = load_snapshots()
+
+    if not snapshots:
+        st.info("No snapshots saved yet.")
+    else:
+        for snap in snapshots:
+            col1, col2, col3 = st.columns([4, 1, 1])
+            
+            # Format the date nicely
+            from datetime import datetime
+            created = datetime.fromisoformat(snap["created_at"].replace("Z", "+00:00"))
+            formatted_date = created.strftime("%d %b %Y, %H:%M")
+            
+            col1.markdown(f"**{snap['snapshot_name']}**  \n*Saved: {formatted_date}*")
+            
+            if col2.button("Load Project", key=f"load_{snap['id']}", type="primary", use_container_width=True):
+                data = load_snapshot_data(snap["id"])
+                if data:
+                    st.session_state.projects = data["projects"]
+                    st.session_state.current_proj_id = data["current_proj_id"]
+                    st.session_state.proj_counter = data["proj_counter"]
+                    save_data()  # also update the main auto-save slot
+                    st.success(f"Loaded **{snap['snapshot_name']}**!")
+                    st.rerun()
+
+            if col3.button("Delete Project", key=f"del_{snap['id']}", use_container_width=True):
+                if delete_snapshot(snap["id"]):
+                    st.success("Snapshot deleted.")
+                    st.rerun()
+
 def save_data():
     if not st.session_state.get("storage_loaded", False):
         return
@@ -3061,7 +3205,7 @@ def main_app():
 
     page_choice = st.sidebar.radio(
         "Pilih Pekerjaan:",
-        ["Cost Calculator", "Area Calculator", "Database", "Summary"]
+        ["Cost Calculator", "Area Calculator", "Database", "Summary", "Saved Project"]
     )
 
     st.sidebar.markdown("---")
@@ -3155,6 +3299,8 @@ def main_app():
         show_project_database()
     elif page_choice == "Cost Calculator":
         show_cost_estimator()
+    elif page_choice == "Saved Project":
+        show_snapshots()
     else:
         show_portfolio_summary()
 
