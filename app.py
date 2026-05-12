@@ -3138,7 +3138,7 @@ def login_screen():
     
     with center_col:
         with st.form("login_gate"):
-            email = st.text_input("Corporate Email")
+            email = st.text_input("Email")
             password = st.text_input("Password", type="password")
             
             if st.form_submit_button("Sign In", use_container_width=True, type="primary"):
