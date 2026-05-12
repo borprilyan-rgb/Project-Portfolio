@@ -288,22 +288,10 @@ def show_snapshots():
         for snap in snapshots:
             col1, col2, col3 = st.columns([5, 1, 1])
             
+            # Format the date nicely
             from datetime import datetime
-            import pytz
-
-            # 1. Parse the UTC string
-            # We replace 'Z' with '+00:00' so fromisoformat recognizes it as UTC
-            created_utc = datetime.fromisoformat(snap["created_at"].replace("Z", "+00:00"))
-
-            # 2. Define the target timezone
-            # For Bekasi/Jakarta, the standard string is "Asia/Jakarta"
-            local_tz = pytz.timezone("Asia/Jakarta")
-
-            # 3. Convert to that timezone
-            created_local = created_utc.astimezone(local_tz)
-
-            # 4. Format for your Streamlit UI
-            formatted_date = created_local.strftime("%d %b %Y, %H:%M")
+            created = datetime.fromisoformat(snap["created_at"].replace("Z", "+00:00"))
+            formatted_date = created.strftime("%d %b %Y, %H:%M")
             
             col1.markdown(f"**{snap['snapshot_name']}**  \n  *Saved: {formatted_date}*")
             
@@ -3149,7 +3137,7 @@ def login_screen():
     
     with center_col:
         with st.form("login_gate"):
-            email = st.text_input("Email")
+            email = st.text_input("Corporate Email")
             password = st.text_input("Password", type="password")
             
             if st.form_submit_button("Sign In", use_container_width=True, type="primary"):
@@ -3176,7 +3164,7 @@ def login_screen():
                     time.sleep(1)  # pause so user can see the message
                     st.rerun()
                 except Exception as e:
-                    st.error(f"{e}")
+                    st.error(f"Invalid Credentials: {e}")
 
 # 3. THE ACTUAL APPLICATION
 def main_app():
