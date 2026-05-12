@@ -2985,7 +2985,7 @@ def login_screen():
     _, logo_col, _ = st.columns([2, 1, 2])
     with logo_col:
         st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTQWTNsgu_c6WzJAehb4zQ3qdTKNauleAXe4w&s", use_container_width=True)
-    st.markdown("<h1 style='text-align: center; color: #1B365D;'>Project Feasibility Study</h1>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #1B365D;'>Project Feasibility Study</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'></p>", unsafe_allow_html=True)
     
     # Using a column layout to center the login box
@@ -3170,10 +3170,13 @@ else:
     main_app()
 #endregion
 
-#region --- hey i just met you, and this is crazy, but here's my spaghetti, so readme.txt, maybe? ----
-# Version: 1.0.0
+#region --- THANK YOU ---
+# Version: 1.1.0
 # Environment: Streamlit 1.56.0, Python 3.13
 # for the future me or any IT person that might look at this code,
-# this code is made in 2026, by a totally newbie programmer wannabe, but with over 8 years of work experience and Architecture Bachelor (architure as in construction, not that architecture)
-# if someday this might not work, know that I (Boris Prilyan Sidabutar, B. Arch) make this alone (many thanks especially to Jesus and for Gemini and Claude too)
+# this code is made in 2026, by a totally newbie programmer wannabe, 
+# but with over 8 years of work experience and Architecture Bachelor 
+# (architure as in construction, not that architecture)
+# if someday this might not work, know that I (Boris Prilyan Sidabutar, B. Arch) 
+# make this alone (many thanks especially to Jesus and for Gemini and Claude too)
 #endregion
