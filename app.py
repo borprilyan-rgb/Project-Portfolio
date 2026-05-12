@@ -454,7 +454,7 @@ PROJECT_DATABASE = {
     }
 }
 
-st.set_page_config(page_title="Project Portfolio", layout="wide")
+st.set_page_config(page_title="Project Portfolio", page_icon="🧊", layout="wide", initial_sidebar_state="expanded",)
 
 #region
 def cb_add_project():
