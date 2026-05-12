@@ -2979,13 +2979,17 @@ def login_screen():
             [data-testid="stHeader"] {display: none;}
         </style>
     """, unsafe_allow_html=True)
-
+    
     st.markdown("<br><br><br>", unsafe_allow_html=True) # Vertical spacing
-    st.markdown("<h1 style='text-align: center; color: #1B365D;'>ProCalc</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Executive Cost Recap & Feasibility Tool</p>", unsafe_allow_html=True)
+    # Center the logo using columns
+    _, logo_col, _ = st.columns([2, 1, 2])
+    with logo_col:
+        st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTQWTNsgu_c6WzJAehb4zQ3qdTKNauleAXe4w&s", use_container_width=True)
+    st.markdown("<h1 style='text-align: center; color: #1B365D;'>Project Feasibility Study</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'></p>", unsafe_allow_html=True)
     
     # Using a column layout to center the login box
-    _, center_col, _ = st.columns([1, 2, 1])
+    _, center_col, _ = st.columns([1, 1, 1])
     
     with center_col:
         with st.form("login_gate"):
@@ -3045,6 +3049,12 @@ def main_app():
 
     #region --- SIDEBAR ----
     st.sidebar.title("Main Navigation")
+
+    user_email = st.session_state.get("user").email
+    username = user_email.split("@")[0]
+    st.sidebar.markdown(f"Hello, **{username}**!")
+
+
     page_choice = st.sidebar.radio(
         "Pilih Pekerjaan:",
         ["Cost Calculator", "Area Calculator", "Database", "Summary"]
@@ -3124,6 +3134,14 @@ def main_app():
         # Local storage disabled
         pass
 
+    if st.sidebar.button("Logout", type="primary"):
+        st.session_state.logged_in = False
+        st.session_state.access_token = None
+        st.session_state.user = None
+        del st.session_state["projects"]
+        del st.session_state["storage_loaded"]
+        st.rerun()
+        
     st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
     #endregion
     
