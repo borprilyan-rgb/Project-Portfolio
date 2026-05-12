@@ -168,9 +168,20 @@ def calculate_project_totals(pdata, curr_type):
     return calc_gba, calc_gfa, calc_sgfa, calc_budget, rooms
 
 def save_data():
-    """Takes your projects and 'uploads' them to the cloud table."""
     if not st.session_state.get("storage_loaded", False):
         return
+    if not st.session_state.get("logged_in", False):
+        return
+
+    token = st.session_state.get("access_token")
+    user_id = st.session_state.get("user").id  # get the logged-in user's ID
+
+    if not token or not user_id:
+        st.error("Not authenticated.")
+        return
+
+    authed_client = create_client(url, key)
+    authed_client.postgrest.auth(token)
 
     payload = {
         "app_version": APP_VERSION,
@@ -180,22 +191,34 @@ def save_data():
     }
 
     try:
-        # 'upsert' means: If id 'main_storage' exists, update it. If not, create it.
-        supabase.table("project_storage").upsert({
-            "id": "main_storage", 
+        authed_client.table("project_storage").upsert({
+            "id": f"storage_{user_id}",  # unique row per user
+            "user_id": user_id,
             "data": payload
         }).execute()
     except Exception as e:
         st.error(f"Cloud Save Error: {e}")
 
 def load_data():
-    """Pulls your projects 'down' from the cloud table."""
+    token = st.session_state.get("access_token")
+    user = st.session_state.get("user")
+
+    if not token or not user:
+        return None
+
     try:
-        response = supabase.table("project_storage").select("data").eq("id", "main_storage").execute()
+        authed_client = create_client(url, key)
+        authed_client.postgrest.auth(token)
+
+        response = authed_client.table("project_storage") \
+            .select("data") \
+            .eq("id", f"storage_{user.id}") \
+            .execute()
+
         if response.data:
             return response.data[0]["data"]
     except Exception as e:
-        print(f"Cloud Load Error: {e}")
+        st.error(f"Cloud Load Error: {e}")
     return None
 
 def n2w(amount):
@@ -2770,6 +2793,7 @@ def show_portfolio_summary():
                 type="primary"
             )
 
+
         # --- GENERATE HTML PREVIEW ---
         bg_colors = ["#EAEAEA", "#FCE4D6", "#F2DCDB", "#E1D5E7", "#DDEBF7", "#E2EFDA", "#D9E1F2", "#F4B084", "#FFF2CC"]
         project_list = [("TOTAL", {"name": "TOTAL"})] + list(st.session_state.projects.items())
@@ -2817,9 +2841,22 @@ def show_portfolio_summary():
             white-space: nowrap; 
         }
 
-        .recap-table th, .recap-table td {
+        .recap-table th {
+            text-align: center !important; /* Forces all header text to center */
+            font-weight: bold; 
+            vertical-align: middle;
+            border-top: 1px solid #000;
             border-right: 1px solid #000;
             border-bottom: 1px solid #000;
+            border-left: 1px solid #000;
+            padding: 4px 6px;
+            background-color: #fff;
+        }
+        
+        .recap-table td {
+            border-right: 1px solid #000;
+            border-bottom: 1px solid #000;
+            border-left: 1px solid #000;
             padding: 4px 6px;
             background-color: #fff;
         }
@@ -2831,7 +2868,7 @@ def show_portfolio_summary():
         }
         
         .sticky-col3, .sticky-col4 { 
-            background-color: #F2F2F2; 
+            background-color: #F2F2F2 !important; 
             z-index: 5; 
         }
 
@@ -2887,133 +2924,229 @@ def show_portfolio_summary():
             else: pct = 0
 
             tr_class = " class='bold-row'" if is_bold else ""
-            html_str += f"<tr{tr_class}><td class='sticky-col' style='text-align:center;'>{sn}</td><td class='sticky-col2'>{desc}</td><td class='sticky-col3'>{coa}</td><td class='sticky-col4'>{pct*100:.2f}%</td>"
+            html_str += f"<tr{tr_class}>"
+            # Sticky Columns (Anchor columns remain neutral grey)
+            html_str += f"<td class='sticky-col' style='text-align:center;'>{sn}</td>"
+            html_str += f"<td class='sticky-col2'>{desc}</td>"
+            html_str += f"<td class='sticky-col3'>{coa}</td>"
+            html_str += f"<td class='sticky-col4'>{pct*100:.2f}%</td>"
             
-            for pid, pdata in project_list:
+            # Project Data Columns (Colored to match headers)
+            for i, (pid, pdata) in enumerate(project_list):
                 val = global_cost.get(desc, 0) if pid == "TOTAL" else tot_cache[pid].get(desc, 0)
+                color = bg_colors[i % len(bg_colors)] # Get the header's color
                 
+                # Calculate divisors
                 if pid == "TOTAL":
-                    gba_f = tot_gba if tot_gba > 0 else 1; gfa_f = tot_gfa if tot_gfa > 0 else 1
-                    sgfa_f = tot_sgfa if tot_sgfa > 0 else 1; nfa_f = (tot_gfa*0.82) if tot_gfa > 0 else 1
+                    gba_f, gfa_f, sgfa_f = tot_gba or 1, tot_gfa or 1, tot_sgfa or 1
+                    nfa_f = (tot_gfa * 0.82) or 1
                 else:
                     d = pdata.get("data", {})
-                    gba_f = float(d.get("m_gba", 1) if d.get("m_gba", 0) > 0 else 1)
-                    gfa_f = float(d.get("m_gfa", 1) if d.get("m_gfa", 0) > 0 else 1)
-                    sgfa_f = float(d.get("m_sgfa", 1) if d.get("m_sgfa", 0) > 0 else 1)
-                    nfa_f = gfa_f * 0.82
+                    gba_f = float(d.get("m_gba") or 1)
+                    gfa_f = float(d.get("m_gfa") or 1)
+                    sgfa_f = float(d.get("m_sgfa") or 1)
+                    nfa_f = gfa_f * 0.82 or 1
                 
-                html_str += f"<td>{val:,.0f}</td><td>{val/gba_f:,.0f}</td><td>{val/gfa_f:,.0f}</td><td>{val/sgfa_f:,.0f}</td><td>{val/nfa_f:,.0f}</td>"
+                # Apply the background color style to every <td> in this column
+                c_style = f"style='background-color:{color};'"
+                
+                html_str += f"<td {c_style}>{val:,.0f}</td>"
+                html_str += f"<td {c_style}>{val/gba_f:,.0f}</td>"
+                html_str += f"<td {c_style}>{val/gfa_f:,.0f}</td>"
+                html_str += f"<td {c_style}>{val/sgfa_f:,.0f}</td>"
+                html_str += f"<td {c_style}>{val/nfa_f:,.0f}</td>"
+            
+            # Spacer for desktop 'over-scroll' comparison
+            html_str += "<td style='border:none; background:transparent; min-width:600px;'></td>"
             html_str += "</tr>"
 
         html_str += "</table></div>"
         st.markdown(html_str, unsafe_allow_html=True)
 
-#region --- SIDEBAR ----
-st.sidebar.title("Main Navigation")
-page_choice = st.sidebar.radio(
-    "Pilih Pekerjaan:",
-    ["Cost Calculator", "Area Calculator", "Database", "Summary"]
-)
+#region --- LOGIN SCREEN AND SIDE BAR(INSIDE MAIN APP) ---
+from supabase import create_client, Client
 
-st.sidebar.markdown("---")
+# 1. SETUP & SESSION CHECK
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-proj_ids = list(st.session_state.projects.keys())
-proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
-current_index = proj_ids.index(st.session_state.current_proj_id) if st.session_state.current_proj_id in proj_ids else 0
+# 2. THE LOGIN UI (The only thing visible when logged out)
+def login_screen():
+    # This CSS hides the sidebar and the "Deploy" button during login
+    st.markdown("""
+        <style>
+            [data-testid="stSidebar"] {display: none;}
+            [data-testid="stHeader"] {display: none;}
+        </style>
+    """, unsafe_allow_html=True)
 
-curr_id = st.session_state.current_proj_id
-curr_proj = st.session_state.projects[curr_id]
-
-new_name = st.sidebar.text_input("Nama Proyek", value=curr_proj["name"], key=f"sb_name_{curr_id}")
-
-types_list = ["Hotel", "Retail", "Apartment", "Parking", "Luxury Apartment", "Apartment2", "Hotel 3 Star", "Retail2", "Terrace Villa", "Podium Villa", "Parking2"]
-type_index = types_list.index(curr_proj["type"]) if curr_proj["type"] in types_list else 0
-new_type = st.sidebar.selectbox("Jenis Proyek", types_list, index=type_index, key=f"sb_type_{curr_id}")
-
-needs_rerun = False
-if new_name != curr_proj["name"]:
-    st.session_state.projects[curr_id]["name"] = new_name
-    save_data() # SAVE HERE
-    needs_rerun = True
-
-if new_type != curr_proj["type"]:
-    st.session_state.projects[curr_id]["type"] = new_type
-    st.session_state.projects[curr_id]["data"] = {}
-    save_data() # SAVE HERE
-    needs_rerun = True
-
-if needs_rerun:
-    st.rerun()
-
-st.sidebar.subheader("Daftar Proyek")
-st.sidebar.radio(
-    "Active Project:",
-    options=proj_labels,
-    index=current_index,
-    key="project_selector",
-    on_change=cb_switch_project,
-    label_visibility="collapsed"
-)
-
-c1, c2 = st.sidebar.columns(2)
-
-with c1:
-    st.button("Tambah", on_click=cb_add_project, type="primary", use_container_width=True)
+    st.markdown("<br><br><br>", unsafe_allow_html=True) # Vertical spacing
+    st.markdown("<h1 style='text-align: center; color: #1B365D;'>ProCalc</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Executive Cost Recap & Feasibility Tool</p>", unsafe_allow_html=True)
     
-with c2:
-    unlock_delete = st.sidebar.toggle("Admin Privilege")
+    # Using a column layout to center the login box
+    _, center_col, _ = st.columns([1, 2, 1])
+    
+    with center_col:
+        with st.form("login_gate"):
+            email = st.text_input("Corporate Email")
+            password = st.text_input("Password", type="password")
+            
+            if st.form_submit_button("Sign In", use_container_width=True, type="primary"):
+                try:
+                    res = supabase.auth.sign_in_with_password({
+                        "email": email, 
+                        "password": password
+                    })
+                    
+                    supabase.postgrest.auth(res.session.access_token)
+                    st.session_state.logged_in = True
+                    st.session_state.user = res.user
+                    st.session_state.access_token = res.session.access_token
 
-    if unlock_delete:
-        pw_input = st.sidebar.text_input("Enter Password", type="password")
+                    # ← ADD THIS: clear projects so main_app() re-loads from Supabase
+                    if "projects" in st.session_state:
+                        del st.session_state["projects"]
+                    if "storage_loaded" in st.session_state:
+                        del st.session_state["storage_loaded"]
+                        
+                    st.success("Identity Verified.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Invalid Credentials: {e}")
+
+# 3. THE ACTUAL APPLICATION
+def main_app():
+    # The 'Assembler'
+    if "projects" not in st.session_state:
+        stored_data = load_data()
         
-        if pw_input == MASTER_DELETE_PW:
-            st.sidebar.success("Access Granted")
+        if stored_data:
+            st.session_state.projects = stored_data["projects"]
+            st.session_state.current_proj_id = stored_data["current_proj_id"]
+            st.session_state.proj_counter = stored_data["proj_counter"]
             
-                # Your original delete project logic
-            can_delete = len(st.session_state.projects) > 1
-            if st.button("Hapus", disabled=not can_delete, type="secondary", use_container_width=True):
-                del st.session_state.projects[st.session_state.current_proj_id]
-                st.session_state.current_proj_id = list(st.session_state.projects.keys())[0]
-                save_data()
-                st.rerun()
-            
-            if st.sidebar.button("⚠️ HAPUS SEMUA DATA", type="primary", use_container_width=True):
-                st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
-                st.session_state.proj_counter = 1
-                st.session_state.current_proj_id = "proj_1"
-                save_data()
-                st.rerun()
+            if stored_data.get("app_version", "1.0.0") < "1.1.0":
+                for pid in st.session_state.projects:
+                    p_data = st.session_state.projects[pid].get("data", {})
+                    if "vis_land" not in p_data:
+                        p_data.update({
+                            "vis_land": 1000.0, "vis_floors": 5, "vis_stair": 20.0,
+                            "vis_mep": 20.0, "vis_corr": 50.0, "vis_unit": 100.0,
+                            "vis_lobby": 50.0, "vis_roof": 80.0, "vis_mep_out": 20.0
+                        })
+                        st.session_state.projects[pid]["data"] = p_data
         else:
-            if pw_input: # Only show error if they actually typed something
-                st.sidebar.error("Incorrect Password")
+            st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
+            st.session_state.current_proj_id = "proj_1"
+            st.session_state.proj_counter = 1
+        
+        st.session_state.storage_loaded = True
 
-# --- NEW: GLOBAL PROJECT EDITOR IN SIDEBAR ---
-st.sidebar.markdown("---")
+    #region --- SIDEBAR ----
+    st.sidebar.title("Main Navigation")
+    page_choice = st.sidebar.radio(
+        "Pilih Pekerjaan:",
+        ["Cost Calculator", "Area Calculator", "Database", "Summary"]
+    )
 
+    st.sidebar.markdown("---")
 
-# --- PAGE ROUTING ---
-if page_choice == "Area Calculator":
-    show_area_calculator()
-elif page_choice == "Database":
-    show_project_database()
-elif page_choice == "Cost Calculator":
-    show_cost_estimator()
+    proj_ids = list(st.session_state.projects.keys())
+    proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
+    current_index = proj_ids.index(st.session_state.current_proj_id) if st.session_state.current_proj_id in proj_ids else 0
+
+    curr_id = st.session_state.current_proj_id
+    curr_proj = st.session_state.projects[curr_id]
+
+    new_name = st.sidebar.text_input("Nama Proyek", value=curr_proj["name"], key=f"sb_name_{curr_id}")
+
+    types_list = ["Hotel", "Retail", "Apartment", "Parking", "Luxury Apartment", "Apartment2", "Hotel 3 Star", "Retail2", "Terrace Villa", "Podium Villa", "Parking2"]
+    type_index = types_list.index(curr_proj["type"]) if curr_proj["type"] in types_list else 0
+    new_type = st.sidebar.selectbox("Jenis Proyek", types_list, index=type_index, key=f"sb_type_{curr_id}")
+
+    needs_rerun = False
+    if new_name != curr_proj["name"]:
+        st.session_state.projects[curr_id]["name"] = new_name
+        save_data() # SAVE HERE
+        needs_rerun = True
+
+    if new_type != curr_proj["type"]:
+        st.session_state.projects[curr_id]["type"] = new_type
+        st.session_state.projects[curr_id]["data"] = {}
+        save_data() # SAVE HERE
+        needs_rerun = True
+
+    if needs_rerun:
+        st.rerun()
+
+    st.sidebar.subheader("Daftar Proyek")
+    st.sidebar.radio(
+        "Active Project:",
+        options=proj_labels,
+        index=current_index,
+        key="project_selector",
+        on_change=cb_switch_project,
+        label_visibility="collapsed"
+    )
+
+    c1, c2 = st.sidebar.columns(2)
+
+    with c1:
+        st.button("Tambah", on_click=cb_add_project, type="primary", use_container_width=True)
+        
+    with c2:
+        if st.button("Hapus", type="secondary", use_container_width=True):
+            del st.session_state.projects[st.session_state.current_proj_id]
+            st.session_state.current_proj_id = list(st.session_state.projects.keys())[0]
+            save_data()
+            st.rerun()
+        
+        if st.sidebar.button("Hapus Semua Proyek", type="secondary", use_container_width=True):
+            st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
+            st.session_state.proj_counter = 1
+            st.session_state.current_proj_id = "proj_1"
+            save_data()
+            st.rerun()
+
+    # --- NEW: GLOBAL PROJECT EDITOR IN SIDEBAR ---
+    st.sidebar.markdown("---")
+
+    # --- BACKUP SYSTEM ---
+    if "projects" in st.session_state and st.session_state.get("storage_loaded", False):
+        backup_payload = {
+            "app_version": APP_VERSION,
+            "projects_dict": st.session_state.projects,
+            "current_proj_id": st.session_state.current_proj_id,
+            "proj_counter": st.session_state.proj_counter
+        }
+
+        # Local storage disabled
+        pass
+
+    st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
+    #endregion
+    
+    if page_choice == "Area Calculator":
+        show_area_calculator()
+    elif page_choice == "Database":
+        show_project_database()
+    elif page_choice == "Cost Calculator":
+        show_cost_estimator()
+    else:
+        show_portfolio_summary()
+
+# 4. THE GATEKEEPER LOGIC
+# Replace your entire gatekeeper section at the bottom with this:
+
+if not st.session_state.logged_in:
+    login_screen()
 else:
-    show_portfolio_summary()
-
-# --- BACKUP SYSTEM ---
-if "projects" in st.session_state and st.session_state.get("storage_loaded", False):
-    backup_payload = {
-        "app_version": APP_VERSION,
-        "projects_dict": st.session_state.projects,
-        "current_proj_id": st.session_state.current_proj_id,
-        "proj_counter": st.session_state.proj_counter
-    }
-
-    # Local storage disabled
-    pass
-
-st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
+    # Re-apply token on EVERY script run, not just after login
+    token = st.session_state.get("access_token")
+    if token:
+        supabase.postgrest.auth(token)
+    main_app()
 #endregion
 
 #region --- readme.txt, maybe? ----
