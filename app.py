@@ -288,10 +288,11 @@ def show_snapshots():
         for snap in snapshots:
             col1, col2, col3 = st.columns([5, 1, 1])
             
-            # Format the date nicely
-            from datetime import datetime
-            created = datetime.fromisoformat(snap["created_at"].replace("Z", "+07:00"))
-            formatted_date = created.strftime("%d %b %Y, %H:%M")
+            from datetime import datetime, timedelta
+
+            created_utc = datetime.fromisoformat(snap["created_at"].replace("Z", "+00:00"))
+            created_local = created_utc + timedelta(hours=7)
+            formatted_date = created_local.strftime("%d %b %Y, %H:%M")
             
             col1.markdown(f"**{snap['snapshot_name']}**  \n  *Saved: {formatted_date} WIB*")
             
