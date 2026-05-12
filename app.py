@@ -2824,17 +2824,19 @@ def show_portfolio_summary():
             background-color: #fff;
         }
 
-        /* Sticky Logic (Keep your previous z-indexes) */
-        .sticky-col, .sticky-col2, .sticky-col3, .sticky-col4 { 
+        .sticky-col, .sticky-col2 { 
             position: sticky; 
             background-color: #F2F2F2 !important; 
             z-index: 5; 
         }
+        
+        .sticky-col3, .sticky-col4 { 
+            background-color: #F2F2F2; 
+            z-index: 5; 
+        }
 
         .sticky-col  { left: 0; }
-        .sticky-col2 { left: 25px; text-align: left !important; }
-        .sticky-col3 { left: 160px; } /* Adjusted for mobile width */
-        .sticky-col4 { left: 220px; border-right: 2px solid #000 !important; }
+        .sticky-col2 { left: 20px; text-align: left !important; }
         .bold-row { font-weight: bold; background-color: #F9F9F9; }
         
         </style>
