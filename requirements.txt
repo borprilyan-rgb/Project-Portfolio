@@ -8,3 +8,4 @@ num2words
 supabase
 matplotlib
 openpyxl
+pytz
