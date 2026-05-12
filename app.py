@@ -192,7 +192,7 @@ def save_snapshot(snapshot_name):
         }).execute()
         return True
     except Exception as e:
-        st.error(f"Snapshot Save Error: {e}")
+        st.error(f"Project Save Error: {e}")
         return False
 
 def load_snapshots():
@@ -214,7 +214,7 @@ def load_snapshots():
 
         return response.data if response.data else []
     except Exception as e:
-        st.error(f"Snapshot Load Error: {e}")
+        st.error(f"Project Load Error: {e}")
         return []
 
 def load_snapshot_data(snapshot_id):
@@ -235,7 +235,7 @@ def load_snapshot_data(snapshot_id):
         if response.data:
             return response.data[0]["data"]
     except Exception as e:
-        st.error(f"Snapshot Fetch Error: {e}")
+        st.error(f"Saved Project Fetch Error: {e}")
     return None
 
 def delete_snapshot(snapshot_id):
@@ -254,7 +254,7 @@ def delete_snapshot(snapshot_id):
             .execute()
         return True
     except Exception as e:
-        st.error(f"Snapshot Delete Error: {e}")
+        st.error(f"Project Delete Error: {e}")
         return False
 
 def show_snapshots():
@@ -270,10 +270,10 @@ def show_snapshots():
     col1, _ = st.columns([1, 6])
     if col1.button("Save Project", use_container_width=True):
         if snapshot_name.strip() == "":
-            col1.warning("Please enter a snapshot name.")
+            col1.warning("Please enter Project name.")
         else:
             if save_snapshot(snapshot_name):
-                st.success(f"Snapshot **{snapshot_name}** saved!")
+                st.success(f"Project **{snapshot_name}** saved!")
                 st.rerun()
 
     st.divider()
@@ -288,12 +288,24 @@ def show_snapshots():
         for snap in snapshots:
             col1, col2, col3 = st.columns([5, 1, 1])
             
-            # Format the date nicely
             from datetime import datetime
-            created = datetime.fromisoformat(snap["created_at"].replace("Z", "+00:00"))
-            formatted_date = created.strftime("%d %b %Y, %H:%M")
+            import pytz
+
+            # 1. Parse the UTC string
+            # We replace 'Z' with '+00:00' so fromisoformat recognizes it as UTC
+            created_utc = datetime.fromisoformat(snap["created_at"].replace("Z", "+00:00"))
+
+            # 2. Define the target timezone
+            # For Bekasi/Jakarta, the standard string is "Asia/Jakarta"
+            local_tz = pytz.timezone("Asia/Jakarta")
+
+            # 3. Convert to that timezone
+            created_local = created_utc.astimezone(local_tz)
+
+            # 4. Format for your Streamlit UI
+            formatted_date = created_local.strftime("%d %b %Y, %H:%M")
             
-            col1.markdown(f"**{snap['snapshot_name']}**  \n*Saved: {formatted_date}*")
+            col1.markdown(f"**{snap['snapshot_name']}**  \n  *Saved: {formatted_date}*")
             
             if col2.button("Load Project", key=f"load_{snap['id']}", type="primary", use_container_width=True):
                 data = load_snapshot_data(snap["id"])
@@ -3137,7 +3149,7 @@ def login_screen():
     
     with center_col:
         with st.form("login_gate"):
-            email = st.text_input("Corporate Email")
+            email = st.text_input("Email")
             password = st.text_input("Password", type="password")
             
             if st.form_submit_button("Sign In", use_container_width=True, type="primary"):
@@ -3164,7 +3176,7 @@ def login_screen():
                     time.sleep(1)  # pause so user can see the message
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Invalid Credentials: {e}")
+                    st.error(f"{e}")
 
 # 3. THE ACTUAL APPLICATION
 def main_app():
