@@ -3118,12 +3118,28 @@ if "logged_in" not in st.session_state:
 import time
 
 def login_screen():
-    # 1. Inject Custom CSS for a professional, modern look
     st.markdown("""
         <style>
             /* Hide the default Streamlit sidebar and top header */
             [data-testid="stSidebar"] {display: none;}
             [data-testid="stHeader"] {display: none;}
+            
+            /* --- RESPONSIVE SPACING FIX --- */
+            /* 1. Default spacing for Desktop (PC) */
+            .block-container {
+                padding-top: 4rem !important; 
+            }
+            
+            /* 2. Overrides for Mobile (Screens smaller than 768px) */
+            @media (max-width: 768px) {
+                .block-container {
+                    padding-top: 1rem !important; /* Pulls everything up on mobile */
+                }
+                /* Hides the empty left column on mobile so it doesn't push the form down */
+                [data-testid="column"]:nth-of-type(1) {
+                    display: none !important;
+                }
+            }
             
             /* Typography & Alignment */
             .login-header {
@@ -3132,17 +3148,17 @@ def login_screen():
                 margin-bottom: 1.5rem;
             }
             .login-title {
-                color: #1E3A8A; /* Deep professional corporate blue */
+                color: #1E3A8A;
                 font-size: 26px;
                 font-weight: 700;
                 margin-bottom: 5px;
             }
             .login-subtitle {
-                color: #6B7280; /* Muted gray */
+                color: #6B7280;
                 font-size: 15px;
             }
             
-            /* Target the Streamlit form to turn it into a floating 'Card' */
+            /* Form Card Styling */
             [data-testid="stForm"] {
                 border: 1px solid rgba(49, 51, 63, 0.1);
                 border-radius: 12px;
@@ -3150,9 +3166,19 @@ def login_screen():
                 box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
                 background-color: var(--background-color);
             }
+            
+            /* HTML Logo Styling */
+            .logo-container {
+                display: flex;
+                justify-content: center;
+                margin-bottom: 0.5rem;
+            }
+            .logo-container img {
+                width: 45%; /* Keeps the logo scaled similarly to the old column layout */
+                max-width: 200px;
+            }
         </style>
     """, unsafe_allow_html=True)
-    
         
     # 2. Adjust Layout Proportions (creates a clean, focused center column)
     col1, center_col, col3 = st.columns([1.5, 2, 1.5])
