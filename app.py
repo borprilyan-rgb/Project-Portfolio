@@ -19,7 +19,7 @@ import os
 import tempfile
 
 #uv run streamlit run app.py
-st.set_page_config(page_title="Project Feasibility Study", layout="wide", initial_sidebar_state="expanded",)
+st.set_page_config(page_title="Project Feasibility Study", page_icon="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTkU1xmvS3htlGxuhjZjqlryPZ4kE72KKaBlg&s", layout="wide", initial_sidebar_state="expanded",)
 APP_VERSION = "1.1.0"
 
 MASTER_DELETE_PW = "Jkt12345?"
