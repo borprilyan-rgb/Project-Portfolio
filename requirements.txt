@@ -9,3 +9,4 @@ supabase
 matplotlib
 openpyxl
 pytz
+streamlit_cookies_manager
