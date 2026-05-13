@@ -2318,13 +2318,79 @@ Stacked floor composition by area category
 
     with tab2:
         # ==================================================
-        # TOP-DOWN FEASIBILITY ESTIMATOR — PROFESSIONAL UI
+        # MIXED-USE TOP-DOWN FEASIBILITY ESTIMATOR
+        # Physical Area Ledger + Allocation Matrix
         # ==================================================
-        st.subheader("2. Top-Down Feasibility Study")
+
+        st.subheader("2. Mixed-Use Top-Down Feasibility Study")
         st.caption(
-            "Early-stage feasibility model to estimate NFA, GFA, GBA, parking requirement, "
-            "and development efficiency from high-level assumptions."
+            "Mixed-use area model separating NFA, SGFA, GFA/KLB, GBA/CFA, parking, roof/deck, "
+            "shared services, and project-level burdened area."
         )
+
+        # --------------------------------------------------
+        # HELPERS
+        # --------------------------------------------------
+        def safe_div(a, b, default=0):
+            try:
+                if b in [0, None]:
+                    return default
+                return a / b
+            except Exception:
+                return default
+
+        def fmt_m2(x):
+            return f"{x:,.0f} m²"
+
+        def fmt_num(x):
+            return f"{x:,.0f}"
+
+        def fmt_pct(x):
+            return f"{x:,.1f}%"
+
+        def normalize_weights(weights: dict):
+            cleaned = {k: max(float(v), 0.0) for k, v in weights.items()}
+            total = sum(cleaned.values())
+            if total <= 0:
+                n = len(cleaned)
+                return {k: 1 / n for k in cleaned}
+            return {k: v / total for k, v in cleaned.items()}
+
+        def allocate_area(total_area, basis, project_metrics, manual_weights):
+            projects = list(project_metrics["GFA"].keys())
+
+            if basis == "By GFA":
+                weights = {p: project_metrics["GFA"].get(p, 0) for p in projects}
+
+            elif basis == "By SGFA":
+                weights = {p: project_metrics["SGFA"].get(p, 0) for p in projects}
+
+            elif basis == "By NFA / NLA":
+                weights = {p: project_metrics["NFA"].get(p, 0) for p in projects}
+
+            elif basis == "By Parking Demand":
+                weights = {p: project_metrics["Parking Demand"].get(p, 0) for p in projects}
+
+            elif basis == "Manual %":
+                weights = manual_weights
+
+            elif basis == "100% Apartment":
+                weights = {p: 1 if p == "Apartment" else 0 for p in projects}
+
+            elif basis == "100% Retail":
+                weights = {p: 1 if p == "Retail" else 0 for p in projects}
+
+            elif basis == "100% Office":
+                weights = {p: 1 if p == "Office" else 0 for p in projects}
+
+            elif basis == "100% Facility":
+                weights = {p: 1 if p == "Facility" else 0 for p in projects}
+
+            else:
+                weights = {p: project_metrics["GFA"].get(p, 0) for p in projects}
+
+            normalized = normalize_weights(weights)
+            return {p: total_area * normalized[p] for p in projects}
 
         # --------------------------------------------------
         # STYLE
@@ -2332,30 +2398,6 @@ Stacked floor composition by area category
         st.markdown(
             """
             <style>
-            .td-panel {
-                background: #FFFFFF;
-                border: 1px solid #E5E7EB;
-                border-radius: 14px;
-                padding: 16px 18px;
-                margin-bottom: 14px;
-                box-shadow: 0 1px 2px rgba(16,24,40,0.04);
-            }
-
-            .td-panel-title {
-                font-size: 12px;
-                font-weight: 700;
-                letter-spacing: 0.04em;
-                text-transform: uppercase;
-                color: #111827;
-                margin-bottom: 10px;
-            }
-
-            .td-muted {
-                font-size: 12px;
-                color: #6B7280;
-                line-height: 1.45;
-            }
-
             .td-kpi-grid {
                 display: grid;
                 grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2393,28 +2435,28 @@ Stacked floor composition by area category
                 margin-top: 6px;
             }
 
-            .td-row {
-                display: flex;
-                justify-content: space-between;
-                border-bottom: 1px solid #F0F2F5;
-                padding: 8px 0;
-                gap: 12px;
+            .td-panel {
+                background: #FFFFFF;
+                border: 1px solid #E5E7EB;
+                border-radius: 14px;
+                padding: 16px 18px;
+                margin-bottom: 14px;
+                box-shadow: 0 1px 2px rgba(16,24,40,0.04);
             }
 
-            .td-row:last-child {
-                border-bottom: none;
-            }
-
-            .td-row-label {
-                font-size: 13px;
-                color: #6B7280;
-            }
-
-            .td-row-value {
-                font-size: 13px;
-                color: #111827;
+            .td-panel-title {
+                font-size: 12px;
                 font-weight: 700;
-                text-align: right;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                color: #111827;
+                margin-bottom: 10px;
+            }
+
+            .td-muted {
+                font-size: 12px;
+                color: #6B7280;
+                line-height: 1.45;
             }
 
             .td-status-good {
@@ -2455,323 +2497,1243 @@ Stacked floor composition by area category
         )
 
         # --------------------------------------------------
-        # INPUT ASSUMPTIONS
+        # INPUTS
         # --------------------------------------------------
-        st.markdown("##### Input Assumptions")
+        st.markdown("##### 1. Master Site & Regulation")
 
-        col_t1, col_t2, col_t3 = st.columns(3, gap="large")
+        col_site_1, col_site_2, col_site_3, col_site_4 = st.columns(4, gap="large")
 
-        with col_t1:
-            with st.container(border=True):
-                st.markdown("###### 1. Sales Target")
-                target_units = st.number_input(
-                    "Target Jumlah Unit",
-                    min_value=1,
-                    value=500,
-                    step=10,
-                    key="td_units"
-                )
+        with col_site_1:
+            site_area = st.number_input(
+                "Site Area (m²)",
+                min_value=1.0,
+                value=9072.0,
+                step=100.0,
+                key="td_mix_site_area"
+            )
 
-                avg_unit_size = st.number_input(
-                    "Rata-rata Luas Unit (m²)",
-                    min_value=10.0,
-                    value=35.0,
-                    step=1.0,
-                    key="td_avg_size"
-                )
+        with col_site_2:
+            klb = st.number_input(
+                "KLB / FAR",
+                min_value=0.1,
+                value=7.0,
+                step=0.1,
+                key="td_mix_klb"
+            )
 
-                est_nfa = target_units * avg_unit_size
+        with col_site_3:
+            max_allowable_gfa = site_area * klb
+            st.metric("Max Allowable GFA", fmt_m2(max_allowable_gfa))
 
-                st.markdown(
-                    f"""
-                    <div class="td-panel" style="margin-top:12px; margin-bottom:20px;">
-                        <div class="td-panel-title">Calculated NFA</div>
-                        <div class="td-kpi-value">{est_nfa:,.0f} m²</div>
-                        <div class="td-kpi-sub">{target_units:,.0f} units × {avg_unit_size:,.1f} m²</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+        with col_site_4:
+            target_margin = st.number_input(
+                "Target KLB Buffer (%)",
+                min_value=0.0,
+                value=0.0,
+                step=0.5,
+                help="Optional buffer below maximum KLB. Example: 2% means target GFA is 98% of max KLB.",
+                key="td_mix_klb_buffer"
+            )
 
-        with col_t2:
-            with st.container(border=True):
-                st.markdown("###### 2. Building Efficiency")
-                target_efficiency = st.slider(
-                    "Target Efisiensi Floorplate (%)",
-                    min_value=60,
-                    max_value=95,
-                    value=82,
-                    step=1,
-                    help="NFA / GFA. Untuk apartemen, asumsi awal sering berada di kisaran ±80–85%, tergantung desain core, koridor, dan layout.",
-                    key="td_eff"
-                )
-
-                est_gfa = est_nfa / (target_efficiency / 100)
-                core_area = est_gfa - est_nfa
-
-                st.markdown(
-                    f"""
-                    <div class="td-panel" style="margin-top:12px; margin-bottom:20px;">
-                        <div class="td-panel-title">Calculated GFA</div>
-                        <div class="td-kpi-value">{est_gfa:,.0f} m²</div>
-                        <div class="td-kpi-sub">Core / circulation: {core_area:,.0f} m²</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-        with col_t3:
-            with st.container(border=True):
-                st.markdown("###### 3. Parking Requirement")
-                lot_ratio = st.number_input(
-                    "Rasio Parkir (Lot/Unit)",
-                    min_value=0.0,
-                    value=0.5,
-                    step=0.1,
-                    help="Contoh: 0.5 berarti 1 lot parkir untuk 2 unit.",
-                    key="td_ratio"
-                )
-
-                m2_per_lot = st.number_input(
-                    "Luas GBA per Lot (m²)",
-                    min_value=15.0,
-                    value=30.0,
-                    step=1.0,
-                    help="Termasuk ramp, aisle, driveway, dan area sirkulasi parkir.",
-                    key="td_m2_lot"
-                )
-
-                req_lots = target_units * lot_ratio
-                parking_gba = req_lots * m2_per_lot
-                est_gba = est_gfa + parking_gba
-
-                st.markdown(
-                    f"""
-                    <div class="td-panel" style="margin-top:12px; margin-bottom:20px;">
-                        <div class="td-panel-title">Calculated Parking GBA</div>
-                        <div class="td-kpi-value">{parking_gba:,.0f} m²</div>
-                        <div class="td-kpi-sub">{req_lots:,.0f} lots × {m2_per_lot:,.1f} m²</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+        target_allowable_gfa = max_allowable_gfa * (1 - target_margin / 100)
 
         st.markdown("---")
+        st.markdown("##### 2. Sub-Project Area Modules")
+
+        tab_apt, tab_retail, tab_office, tab_facility, tab_parking_shared = st.tabs(
+            ["Apartment", "Retail", "Office", "Facility / Ballroom", "Parking & Shared Areas"]
+        )
 
         # --------------------------------------------------
-        # DERIVED RATIOS
+        # APARTMENT MODULE
         # --------------------------------------------------
-        gba_to_nfa_ratio = est_gba / est_nfa if est_nfa > 0 else 0
-        gfa_to_gba_ratio = est_gfa / est_gba * 100 if est_gba > 0 else 0
-        parking_burden = parking_gba / est_gba * 100 if est_gba > 0 else 0
-        core_ratio_gfa = core_area / est_gfa * 100 if est_gfa > 0 else 0
+        with tab_apt:
+            col_a1, col_a2, col_a3 = st.columns(3, gap="large")
+
+            with col_a1:
+                apt_units = st.number_input(
+                    "Apartment Units",
+                    min_value=0,
+                    value=336,
+                    step=1,
+                    key="td_mix_apt_units"
+                )
+
+                apt_avg_area = st.number_input(
+                    "Average Unit Area (m²/unit)",
+                    min_value=0.0,
+                    value=65.7,
+                    step=1.0,
+                    key="td_mix_apt_avg_area"
+                )
+
+                apt_area_basis = st.selectbox(
+                    "Average Unit Area Basis",
+                    ["SGFA / Marketed Semi-Gross", "NFA / True Net Area"],
+                    index=0,
+                    key="td_mix_apt_area_basis"
+                )
+
+            with col_a2:
+                apt_nfa_to_sgfa_eff = st.slider(
+                    "Apartment NFA / SGFA Efficiency (%)",
+                    min_value=50,
+                    max_value=100,
+                    value=82,
+                    step=1,
+                    help="Used to translate true net unit area into marketed semi-gross area.",
+                    key="td_mix_apt_nfa_sgfa_eff"
+                )
+
+                apt_sgfa_to_gfa_eff = st.slider(
+                    "Apartment SGFA / GFA Efficiency (%)",
+                    min_value=50,
+                    max_value=95,
+                    value=74,
+                    step=1,
+                    help="Apartment SGFA divided by apartment tower GFA.",
+                    key="td_mix_apt_sgfa_gfa_eff"
+                )
+
+            with col_a3:
+                apt_parking_ratio = st.number_input(
+                    "Apartment Parking Ratio (lot/unit)",
+                    min_value=0.0,
+                    value=1.33,
+                    step=0.05,
+                    key="td_mix_apt_parking_ratio"
+                )
+
+                apt_manual_note = st.text_input(
+                    "Apartment Note",
+                    value="Typical residential tower area.",
+                    key="td_mix_apt_note"
+                )
+
+            if apt_area_basis == "SGFA / Marketed Semi-Gross":
+                apt_sgfa = apt_units * apt_avg_area
+                apt_nfa = apt_sgfa * (apt_nfa_to_sgfa_eff / 100)
+            else:
+                apt_nfa = apt_units * apt_avg_area
+                apt_sgfa = safe_div(apt_nfa, apt_nfa_to_sgfa_eff / 100)
+
+            apt_gfa = safe_div(apt_sgfa, apt_sgfa_to_gfa_eff / 100)
+            apt_gba = apt_gfa
+            apt_parking_demand = apt_units * apt_parking_ratio
+
+            st.markdown(
+                f"""
+                <div class="td-kpi-grid">
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Apartment NFA</div>
+                        <div class="td-kpi-value">{apt_nfa:,.0f} m²</div>
+                        <div class="td-kpi-sub">True net / usable area</div>
+                    </div>
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Apartment SGFA</div>
+                        <div class="td-kpi-value">{apt_sgfa:,.0f} m²</div>
+                        <div class="td-kpi-sub">Semi-gross sales area</div>
+                    </div>
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Apartment GFA</div>
+                        <div class="td-kpi-value">{apt_gfa:,.0f} m²</div>
+                        <div class="td-kpi-sub">KLB-counted tower area</div>
+                    </div>
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Parking Demand</div>
+                        <div class="td-kpi-value">{apt_parking_demand:,.0f}</div>
+                        <div class="td-kpi-sub">Apartment car lots</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
         # --------------------------------------------------
-        # EXECUTIVE KPI SUMMARY
+        # RETAIL MODULE
         # --------------------------------------------------
-        st.markdown("##### Executive Area Summary")
+        with tab_retail:
+            col_r1, col_r2, col_r3 = st.columns(3, gap="large")
+
+            with col_r1:
+                retail_nla = st.number_input(
+                    "Retail NLA (m²)",
+                    min_value=0.0,
+                    value=18206.0,
+                    step=100.0,
+                    key="td_mix_retail_nla"
+                )
+
+                retail_nla_to_sgfa_eff = st.slider(
+                    "Retail NLA / SGFA Efficiency (%)",
+                    min_value=40,
+                    max_value=95,
+                    value=67,
+                    step=1,
+                    help="Retail NLA divided by retail semi-gross area.",
+                    key="td_mix_retail_nla_sgfa_eff"
+                )
+
+            with col_r2:
+                retail_sgfa_to_gfa_eff = st.slider(
+                    "Retail SGFA / GFA Efficiency (%)",
+                    min_value=50,
+                    max_value=100,
+                    value=86,
+                    step=1,
+                    help="Retail semi-gross area divided by retail GFA.",
+                    key="td_mix_retail_sgfa_gfa_eff"
+                )
+
+                retail_m2_per_lot = st.number_input(
+                    "Retail Parking Demand (m² NLA / lot)",
+                    min_value=1.0,
+                    value=60.0,
+                    step=5.0,
+                    key="td_mix_retail_m2_per_lot"
+                )
+
+            with col_r3:
+                retail_manual_note = st.text_input(
+                    "Retail Note",
+                    value="Includes shops plus mall circulation and support area.",
+                    key="td_mix_retail_note"
+                )
+
+            retail_sgfa = safe_div(retail_nla, retail_nla_to_sgfa_eff / 100)
+            retail_gfa = safe_div(retail_sgfa, retail_sgfa_to_gfa_eff / 100)
+            retail_gba = retail_gfa
+            retail_parking_demand = safe_div(retail_nla, retail_m2_per_lot)
+
+            st.markdown(
+                f"""
+                <div class="td-kpi-grid">
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Retail NLA</div>
+                        <div class="td-kpi-value">{retail_nla:,.0f} m²</div>
+                        <div class="td-kpi-sub">Net leasable area</div>
+                    </div>
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Retail SGFA</div>
+                        <div class="td-kpi-value">{retail_sgfa:,.0f} m²</div>
+                        <div class="td-kpi-sub">Semi-gross retail area</div>
+                    </div>
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Retail GFA</div>
+                        <div class="td-kpi-value">{retail_gfa:,.0f} m²</div>
+                        <div class="td-kpi-sub">KLB-counted retail area</div>
+                    </div>
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Parking Demand</div>
+                        <div class="td-kpi-value">{retail_parking_demand:,.0f}</div>
+                        <div class="td-kpi-sub">Retail car lots</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        # --------------------------------------------------
+        # OFFICE MODULE
+        # --------------------------------------------------
+        with tab_office:
+            col_o1, col_o2, col_o3 = st.columns(3, gap="large")
+
+            with col_o1:
+                office_nla = st.number_input(
+                    "Office NLA (m²)",
+                    min_value=0.0,
+                    value=0.0,
+                    step=100.0,
+                    key="td_mix_office_nla"
+                )
+
+                office_nla_to_sgfa_eff = st.slider(
+                    "Office NLA / SGFA Efficiency (%)",
+                    min_value=40,
+                    max_value=95,
+                    value=85,
+                    step=1,
+                    key="td_mix_office_nla_sgfa_eff"
+                )
+
+            with col_o2:
+                office_sgfa_to_gfa_eff = st.slider(
+                    "Office SGFA / GFA Efficiency (%)",
+                    min_value=50,
+                    max_value=100,
+                    value=88,
+                    step=1,
+                    key="td_mix_office_sgfa_gfa_eff"
+                )
+
+                office_m2_per_lot = st.number_input(
+                    "Office Parking Demand (m² NLA / lot)",
+                    min_value=1.0,
+                    value=80.0,
+                    step=5.0,
+                    key="td_mix_office_m2_per_lot"
+                )
+
+            with col_o3:
+                office_manual_note = st.text_input(
+                    "Office Note",
+                    value="Optional office component.",
+                    key="td_mix_office_note"
+                )
+
+            office_sgfa = safe_div(office_nla, office_nla_to_sgfa_eff / 100)
+            office_gfa = safe_div(office_sgfa, office_sgfa_to_gfa_eff / 100)
+            office_gba = office_gfa
+            office_parking_demand = safe_div(office_nla, office_m2_per_lot)
+
+            st.markdown(
+                f"""
+                <div class="td-kpi-grid">
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Office NLA</div>
+                        <div class="td-kpi-value">{office_nla:,.0f} m²</div>
+                        <div class="td-kpi-sub">Net leasable area</div>
+                    </div>
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Office SGFA</div>
+                        <div class="td-kpi-value">{office_sgfa:,.0f} m²</div>
+                        <div class="td-kpi-sub">Semi-gross office area</div>
+                    </div>
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Office GFA</div>
+                        <div class="td-kpi-value">{office_gfa:,.0f} m²</div>
+                        <div class="td-kpi-sub">KLB-counted office area</div>
+                    </div>
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Parking Demand</div>
+                        <div class="td-kpi-value">{office_parking_demand:,.0f}</div>
+                        <div class="td-kpi-sub">Office car lots</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        # --------------------------------------------------
+        # FACILITY / BALLROOM MODULE
+        # --------------------------------------------------
+        with tab_facility:
+            col_f1, col_f2, col_f3 = st.columns(3, gap="large")
+
+            with col_f1:
+                facility_nfa = st.number_input(
+                    "Facility / Ballroom NFA (m²)",
+                    min_value=0.0,
+                    value=2362.0,
+                    step=50.0,
+                    key="td_mix_facility_nfa"
+                )
+
+                facility_nfa_to_sgfa_eff = st.slider(
+                    "Facility NFA / SGFA Efficiency (%)",
+                    min_value=40,
+                    max_value=100,
+                    value=95,
+                    step=1,
+                    key="td_mix_facility_nfa_sgfa_eff"
+                )
+
+            with col_f2:
+                facility_sgfa_to_gfa_eff = st.slider(
+                    "Facility SGFA / GFA Efficiency (%)",
+                    min_value=50,
+                    max_value=100,
+                    value=96,
+                    step=1,
+                    key="td_mix_facility_sgfa_gfa_eff"
+                )
+
+                facility_m2_per_lot = st.number_input(
+                    "Facility Parking Demand (m² NFA / lot)",
+                    min_value=1.0,
+                    value=26.0,
+                    step=1.0,
+                    key="td_mix_facility_m2_per_lot"
+                )
+
+            with col_f3:
+                facility_manual_note = st.text_input(
+                    "Facility Note",
+                    value="Ballroom / amenity / communal facility.",
+                    key="td_mix_facility_note"
+                )
+
+            facility_sgfa = safe_div(facility_nfa, facility_nfa_to_sgfa_eff / 100)
+            facility_gfa = safe_div(facility_sgfa, facility_sgfa_to_gfa_eff / 100)
+            facility_gba = facility_gfa
+            facility_parking_demand = safe_div(facility_nfa, facility_m2_per_lot)
+
+            st.markdown(
+                f"""
+                <div class="td-kpi-grid">
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Facility NFA</div>
+                        <div class="td-kpi-value">{facility_nfa:,.0f} m²</div>
+                        <div class="td-kpi-sub">Usable facility area</div>
+                    </div>
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Facility SGFA</div>
+                        <div class="td-kpi-value">{facility_sgfa:,.0f} m²</div>
+                        <div class="td-kpi-sub">Semi-gross facility area</div>
+                    </div>
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Facility GFA</div>
+                        <div class="td-kpi-value">{facility_gfa:,.0f} m²</div>
+                        <div class="td-kpi-sub">KLB-counted facility area</div>
+                    </div>
+                    <div class="td-kpi-card">
+                        <div class="td-kpi-label">Parking Demand</div>
+                        <div class="td-kpi-value">{facility_parking_demand:,.0f}</div>
+                        <div class="td-kpi-sub">Facility car lots</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        # --------------------------------------------------
+        # PARKING & SHARED AREA MODULE
+        # --------------------------------------------------
+        with tab_parking_shared:
+            st.markdown("###### Parking")
+
+            col_p1, col_p2, col_p3 = st.columns(3, gap="large")
+
+            total_parking_demand_before_buffer = (
+                apt_parking_demand
+                + retail_parking_demand
+                + office_parking_demand
+                + facility_parking_demand
+            )
+
+            with col_p1:
+                parking_supply_buffer = st.number_input(
+                    "Parking Supply Buffer (%)",
+                    min_value=0.0,
+                    value=4.3,
+                    step=0.5,
+                    help="Adds spare lots above calculated demand.",
+                    key="td_mix_parking_buffer"
+                )
+
+            with col_p2:
+                m2_per_parking_lot = st.number_input(
+                    "Parking GBA per Lot (m²/lot)",
+                    min_value=15.0,
+                    value=34.6,
+                    step=0.5,
+                    help="Includes ramp, aisle, driveway, circulation, and parking support area.",
+                    key="td_mix_m2_per_lot"
+                )
+
+            with col_p3:
+                parking_basis = st.selectbox(
+                    "Parking Allocation Basis",
+                    [
+                        "By Parking Demand",
+                        "By GFA",
+                        "By SGFA",
+                        "By NFA / NLA",
+                        "Manual %",
+                        "100% Apartment",
+                        "100% Retail",
+                        "100% Office",
+                        "100% Facility",
+                    ],
+                    index=0,
+                    key="td_mix_parking_basis"
+                )
+
+            provided_parking_lots = total_parking_demand_before_buffer * (1 + parking_supply_buffer / 100)
+            parking_gba = provided_parking_lots * m2_per_parking_lot
+
+            st.markdown("###### Shared / Non-KLB / Construction-Only Areas")
+
+            col_s1, col_s2, col_s3 = st.columns(3, gap="large")
+
+            with col_s1:
+                shared_enclosed_service_gfa = st.number_input(
+                    "Shared Enclosed Service GFA (m²)",
+                    min_value=0.0,
+                    value=300.0,
+                    step=50.0,
+                    help="Roof stair head, lift machine room, roof MEP room, tank room, shared enclosed service rooms. Counts as both GFA and GBA.",
+                    key="td_mix_shared_service_gfa"
+                )
+
+                shared_service_basis = st.selectbox(
+                    "Shared Enclosed Service Allocation",
+                    [
+                        "By GFA",
+                        "By SGFA",
+                        "By NFA / NLA",
+                        "By Parking Demand",
+                        "Manual %",
+                        "100% Apartment",
+                        "100% Retail",
+                        "100% Office",
+                        "100% Facility",
+                    ],
+                    index=0,
+                    key="td_mix_shared_service_basis"
+                )
+
+            with col_s2:
+                roof_open_deck_gba = st.number_input(
+                    "Open Roof / Podium Deck GBA Only (m²)",
+                    min_value=0.0,
+                    value=700.0,
+                    step=50.0,
+                    help="Constructed slab/deck area that may not count as KLB but still affects cost.",
+                    key="td_mix_roof_deck_gba"
+                )
+
+                roof_deck_basis = st.selectbox(
+                    "Roof / Deck Allocation",
+                    [
+                        "By GFA",
+                        "By SGFA",
+                        "By NFA / NLA",
+                        "By Parking Demand",
+                        "Manual %",
+                        "100% Apartment",
+                        "100% Retail",
+                        "100% Office",
+                        "100% Facility",
+                    ],
+                    index=0,
+                    key="td_mix_roof_deck_basis"
+                )
+
+            with col_s3:
+                external_ancillary_gba = st.number_input(
+                    "External / Ancillary GBA (m²)",
+                    min_value=0.0,
+                    value=900.0,
+                    step=50.0,
+                    help="Guardhouse, detached utility, STP/GWT/pump room, external service structures, etc.",
+                    key="td_mix_external_ancillary_gba"
+                )
+
+                external_basis = st.selectbox(
+                    "External / Ancillary Allocation",
+                    [
+                        "By GFA",
+                        "By SGFA",
+                        "By NFA / NLA",
+                        "By Parking Demand",
+                        "Manual %",
+                        "100% Apartment",
+                        "100% Retail",
+                        "100% Office",
+                        "100% Facility",
+                    ],
+                    index=0,
+                    key="td_mix_external_basis"
+                )
+
+            col_s4, col_s5, col_s6 = st.columns(3, gap="large")
+
+            with col_s4:
+                canopy_covered_gba = st.number_input(
+                    "Canopy / Covered Non-KLB Area (m²)",
+                    min_value=0.0,
+                    value=500.0,
+                    step=50.0,
+                    help="Drop-off canopy, covered walkway, non-KLB covered construction area.",
+                    key="td_mix_canopy_gba"
+                )
+
+                canopy_basis = st.selectbox(
+                    "Canopy / Covered Area Allocation",
+                    [
+                        "By GFA",
+                        "By SGFA",
+                        "By NFA / NLA",
+                        "By Parking Demand",
+                        "Manual %",
+                        "100% Apartment",
+                        "100% Retail",
+                        "100% Office",
+                        "100% Facility",
+                    ],
+                    index=0,
+                    key="td_mix_canopy_basis"
+                )
+
+            with col_s5:
+                loading_service_gba = st.number_input(
+                    "Loading / Waste / BOH GBA (m²)",
+                    min_value=0.0,
+                    value=0.0,
+                    step=50.0,
+                    help="If already captured inside retail GFA, keep this as 0. Use this only for extra separate loading/service area.",
+                    key="td_mix_loading_gba"
+                )
+
+                loading_basis = st.selectbox(
+                    "Loading / Waste / BOH Allocation",
+                    [
+                        "100% Retail",
+                        "By GFA",
+                        "By SGFA",
+                        "By NFA / NLA",
+                        "By Parking Demand",
+                        "Manual %",
+                        "100% Apartment",
+                        "100% Office",
+                        "100% Facility",
+                    ],
+                    index=0,
+                    key="td_mix_loading_basis"
+                )
+
+            with col_s6:
+                other_non_klb_gba = st.number_input(
+                    "Other Non-KLB GBA (m²)",
+                    min_value=0.0,
+                    value=0.0,
+                    step=50.0,
+                    key="td_mix_other_non_klb_gba"
+                )
+
+                other_non_klb_basis = st.selectbox(
+                    "Other Non-KLB Allocation",
+                    [
+                        "By GFA",
+                        "By SGFA",
+                        "By NFA / NLA",
+                        "By Parking Demand",
+                        "Manual %",
+                        "100% Apartment",
+                        "100% Retail",
+                        "100% Office",
+                        "100% Facility",
+                    ],
+                    index=0,
+                    key="td_mix_other_non_klb_basis"
+                )
+
+        # --------------------------------------------------
+        # MANUAL ALLOCATION SPLIT
+        # --------------------------------------------------
+        with st.expander("Manual Allocation Split", expanded=False):
+            st.caption(
+                "Used only when a shared item allocation basis is set to 'Manual %'. "
+                "Values do not need to total 100%; the app normalizes them automatically."
+            )
+
+            col_m1, col_m2, col_m3, col_m4 = st.columns(4, gap="large")
+
+            with col_m1:
+                manual_apt = st.number_input(
+                    "Apartment Manual Weight",
+                    min_value=0.0,
+                    value=45.0,
+                    step=1.0,
+                    key="td_mix_manual_apt"
+                )
+
+            with col_m2:
+                manual_retail = st.number_input(
+                    "Retail Manual Weight",
+                    min_value=0.0,
+                    value=45.0,
+                    step=1.0,
+                    key="td_mix_manual_retail"
+                )
+
+            with col_m3:
+                manual_office = st.number_input(
+                    "Office Manual Weight",
+                    min_value=0.0,
+                    value=0.0,
+                    step=1.0,
+                    key="td_mix_manual_office"
+                )
+
+            with col_m4:
+                manual_facility = st.number_input(
+                    "Facility Manual Weight",
+                    min_value=0.0,
+                    value=10.0,
+                    step=1.0,
+                    key="td_mix_manual_facility"
+                )
+
+        manual_weights = {
+            "Apartment": manual_apt,
+            "Retail": manual_retail,
+            "Office": manual_office,
+            "Facility": manual_facility,
+        }
+
+        # --------------------------------------------------
+        # PROJECT METRICS
+        # --------------------------------------------------
+        project_metrics = {
+            "NFA": {
+                "Apartment": apt_nfa,
+                "Retail": retail_nla,
+                "Office": office_nla,
+                "Facility": facility_nfa,
+            },
+            "SGFA": {
+                "Apartment": apt_sgfa,
+                "Retail": retail_sgfa,
+                "Office": office_sgfa,
+                "Facility": facility_sgfa,
+            },
+            "GFA": {
+                "Apartment": apt_gfa,
+                "Retail": retail_gfa,
+                "Office": office_gfa,
+                "Facility": facility_gfa,
+            },
+            "Direct GBA": {
+                "Apartment": apt_gba,
+                "Retail": retail_gba,
+                "Office": office_gba,
+                "Facility": facility_gba,
+            },
+            "Parking Demand": {
+                "Apartment": apt_parking_demand,
+                "Retail": retail_parking_demand,
+                "Office": office_parking_demand,
+                "Facility": facility_parking_demand,
+            },
+        }
+
+        projects = ["Apartment", "Retail", "Office", "Facility"]
+
+        direct_nfa = sum(project_metrics["NFA"].values())
+        direct_sgfa = sum(project_metrics["SGFA"].values())
+        direct_gfa = sum(project_metrics["GFA"].values())
+        direct_gba = sum(project_metrics["Direct GBA"].values())
+
+        # --------------------------------------------------
+        # SHARED ITEM LEDGER
+        # --------------------------------------------------
+        shared_items = [
+            {
+                "Item": "Parking Podium / Basement",
+                "GFA": 0.0,
+                "GBA": parking_gba,
+                "Basis": parking_basis,
+                "Type": "Parking / GBA Only",
+            },
+            {
+                "Item": "Shared Enclosed Service / Roof Rooms",
+                "GFA": shared_enclosed_service_gfa,
+                "GBA": shared_enclosed_service_gfa,
+                "Basis": shared_service_basis,
+                "Type": "Shared / GFA + GBA",
+            },
+            {
+                "Item": "Open Roof / Podium Deck",
+                "GFA": 0.0,
+                "GBA": roof_open_deck_gba,
+                "Basis": roof_deck_basis,
+                "Type": "Non-KLB / GBA Only",
+            },
+            {
+                "Item": "External / Ancillary Structures",
+                "GFA": 0.0,
+                "GBA": external_ancillary_gba,
+                "Basis": external_basis,
+                "Type": "Non-KLB / GBA Only",
+            },
+            {
+                "Item": "Canopy / Covered Non-KLB Area",
+                "GFA": 0.0,
+                "GBA": canopy_covered_gba,
+                "Basis": canopy_basis,
+                "Type": "Non-KLB / GBA Only",
+            },
+            {
+                "Item": "Loading / Waste / BOH Extra Area",
+                "GFA": 0.0,
+                "GBA": loading_service_gba,
+                "Basis": loading_basis,
+                "Type": "Dedicated / Shared Service",
+            },
+            {
+                "Item": "Other Non-KLB GBA",
+                "GFA": 0.0,
+                "GBA": other_non_klb_gba,
+                "Basis": other_non_klb_basis,
+                "Type": "Non-KLB / GBA Only",
+            },
+        ]
+
+        shared_gfa = sum(item["GFA"] for item in shared_items)
+        shared_gba = sum(item["GBA"] for item in shared_items)
+
+        total_gfa = direct_gfa + shared_gfa
+        total_gba = direct_gba + shared_gba
+
+        total_nfa = direct_nfa
+        total_sgfa = direct_sgfa
+
+        klb_utilization = safe_div(total_gfa, max_allowable_gfa) * 100
+        target_klb_utilization = safe_div(total_gfa, target_allowable_gfa) * 100
+
+        total_non_klb_gba = total_gba - total_gfa
+        gba_to_nfa = safe_div(total_gba, total_nfa)
+        gfa_to_gba = safe_div(total_gfa, total_gba) * 100
+        nfa_to_gfa = safe_div(total_nfa, total_gfa) * 100
+        sgfa_to_gfa = safe_div(total_sgfa, total_gfa) * 100
+        parking_burden = safe_div(parking_gba, total_gba) * 100
+
+        # --------------------------------------------------
+        # ALLOCATION MATRIX
+        # --------------------------------------------------
+        allocation_rows = []
+
+        project_allocated_gfa = {p: 0.0 for p in projects}
+        project_allocated_gba = {p: 0.0 for p in projects}
+        project_allocated_parking_gba = {p: 0.0 for p in projects}
+        project_allocated_other_shared_gba = {p: 0.0 for p in projects}
+
+        for item in shared_items:
+            allocated_gfa = allocate_area(
+                item["GFA"],
+                item["Basis"],
+                project_metrics,
+                manual_weights
+            )
+
+            allocated_gba = allocate_area(
+                item["GBA"],
+                item["Basis"],
+                project_metrics,
+                manual_weights
+            )
+
+            for p in projects:
+                project_allocated_gfa[p] += allocated_gfa[p]
+                project_allocated_gba[p] += allocated_gba[p]
+
+                if item["Item"] == "Parking Podium / Basement":
+                    project_allocated_parking_gba[p] += allocated_gba[p]
+                else:
+                    project_allocated_other_shared_gba[p] += allocated_gba[p]
+
+            allocation_rows.append({
+                "Shared Item": item["Item"],
+                "Type": item["Type"],
+                "Basis": item["Basis"],
+                "Total GFA": item["GFA"],
+                "Total GBA": item["GBA"],
+                "Apartment": allocated_gba["Apartment"],
+                "Retail": allocated_gba["Retail"],
+                "Office": allocated_gba["Office"],
+                "Facility": allocated_gba["Facility"],
+                "Check": sum(allocated_gba.values()),
+            })
+
+        allocation_df = pd.DataFrame(allocation_rows)
+
+        # --------------------------------------------------
+        # PHYSICAL AREA LEDGER
+        # --------------------------------------------------
+        physical_rows = [
+            {
+                "Area Item": "Apartment Direct Area",
+                "Type": "Dedicated",
+                "NFA": apt_nfa,
+                "SGFA": apt_sgfa,
+                "GFA / KLB": apt_gfa,
+                "GBA / CFA": apt_gba,
+                "Parking Demand": apt_parking_demand,
+                "KLB Counted": "Yes",
+                "Allocation Logic": "Apartment",
+            },
+            {
+                "Area Item": "Retail Direct Area",
+                "Type": "Dedicated",
+                "NFA": retail_nla,
+                "SGFA": retail_sgfa,
+                "GFA / KLB": retail_gfa,
+                "GBA / CFA": retail_gba,
+                "Parking Demand": retail_parking_demand,
+                "KLB Counted": "Yes",
+                "Allocation Logic": "Retail",
+            },
+            {
+                "Area Item": "Office Direct Area",
+                "Type": "Dedicated",
+                "NFA": office_nla,
+                "SGFA": office_sgfa,
+                "GFA / KLB": office_gfa,
+                "GBA / CFA": office_gba,
+                "Parking Demand": office_parking_demand,
+                "KLB Counted": "Yes",
+                "Allocation Logic": "Office",
+            },
+            {
+                "Area Item": "Facility / Ballroom Direct Area",
+                "Type": "Dedicated",
+                "NFA": facility_nfa,
+                "SGFA": facility_sgfa,
+                "GFA / KLB": facility_gfa,
+                "GBA / CFA": facility_gba,
+                "Parking Demand": facility_parking_demand,
+                "KLB Counted": "Yes",
+                "Allocation Logic": "Facility",
+            },
+        ]
+
+        for item in shared_items:
+            physical_rows.append({
+                "Area Item": item["Item"],
+                "Type": item["Type"],
+                "NFA": 0.0,
+                "SGFA": 0.0,
+                "GFA / KLB": item["GFA"],
+                "GBA / CFA": item["GBA"],
+                "Parking Demand": 0.0,
+                "KLB Counted": "Yes" if item["GFA"] > 0 else "Usually No",
+                "Allocation Logic": item["Basis"],
+            })
+
+        physical_ledger_df = pd.DataFrame(physical_rows)
+
+        # --------------------------------------------------
+        # PROJECT BURDENED SUMMARY
+        # --------------------------------------------------
+        project_summary_rows = []
+
+        for p in projects:
+            nfa = project_metrics["NFA"][p]
+            sgfa = project_metrics["SGFA"][p]
+            gfa = project_metrics["GFA"][p]
+            direct_project_gba = project_metrics["Direct GBA"][p]
+
+            allocated_shared_gfa = project_allocated_gfa[p]
+            allocated_parking_gba = project_allocated_parking_gba[p]
+            allocated_other_gba = project_allocated_other_shared_gba[p]
+            allocated_shared_gba = project_allocated_gba[p]
+
+            burdened_gfa = gfa + allocated_shared_gfa
+            burdened_gba = direct_project_gba + allocated_shared_gba
+
+            project_summary_rows.append({
+                "Project": p,
+                "NFA / NLA": nfa,
+                "SGFA": sgfa,
+                "Direct GFA": gfa,
+                "Allocated Shared GFA": allocated_shared_gfa,
+                "Burdened GFA": burdened_gfa,
+                "Direct GBA": direct_project_gba,
+                "Allocated Parking GBA": allocated_parking_gba,
+                "Other Shared GBA": allocated_other_gba,
+                "Burdened GBA": burdened_gba,
+                "NFA / GFA": safe_div(nfa, gfa) * 100,
+                "SGFA / GFA": safe_div(sgfa, gfa) * 100,
+                "Burdened GBA / NFA": safe_div(burdened_gba, nfa),
+            })
+
+        project_summary_df = pd.DataFrame(project_summary_rows)
+
+        total_allocated_gba = project_summary_df["Burdened GBA"].sum()
+        reconciliation_gap = total_gba - total_allocated_gba
+
+        # --------------------------------------------------
+        # EXECUTIVE SUMMARY
+        # --------------------------------------------------
+        st.markdown("---")
+        st.markdown("##### 3. Executive Area Summary")
+
+        klb_status = (
+            '<span class="td-status-good">Within KLB</span>'
+            if total_gfa <= target_allowable_gfa
+            else '<span class="td-status-risk">Over KLB</span>'
+        )
+
+        recon_status = (
+            '<span class="td-status-good">Balanced</span>'
+            if abs(reconciliation_gap) <= 1
+            else '<span class="td-status-risk">Check Allocation</span>'
+        )
+
+        parking_status = (
+            '<span class="td-status-risk">High Burden</span>'
+            if parking_burden > 35
+            else '<span class="td-status-watch">Moderate Burden</span>'
+            if parking_burden > 22
+            else '<span class="td-status-good">Controlled</span>'
+        )
+
+        efficiency_status = (
+            '<span class="td-status-good">Efficient</span>'
+            if nfa_to_gfa >= 60
+            else '<span class="td-status-watch">Moderate</span>'
+            if nfa_to_gfa >= 50
+            else '<span class="td-status-risk">Low Efficiency</span>'
+        )
 
         st.markdown(
             f"""
-<div class="td-kpi-grid">
-<div class="td-kpi-card">
-<div class="td-kpi-label">Gross Building Area</div>
-<div class="td-kpi-value">{est_gba:,.0f} m²</div>
-<div class="td-kpi-sub">Total built area incl. parking</div>
-</div>
+            <div class="td-kpi-grid">
+                <div class="td-kpi-card">
+                    <div class="td-kpi-label">Total GBA / CFA</div>
+                    <div class="td-kpi-value">{total_gba:,.0f} m²</div>
+                    <div class="td-kpi-sub">Full construction area</div>
+                </div>
+                <div class="td-kpi-card">
+                    <div class="td-kpi-label">Total GFA / KLB</div>
+                    <div class="td-kpi-value">{total_gfa:,.0f} m²</div>
+                    <div class="td-kpi-sub">{klb_utilization:.1f}% of max KLB</div>
+                </div>
+                <div class="td-kpi-card">
+                    <div class="td-kpi-label">Total SGFA</div>
+                    <div class="td-kpi-value">{total_sgfa:,.0f} m²</div>
+                    <div class="td-kpi-sub">{sgfa_to_gfa:.1f}% of GFA</div>
+                </div>
+                <div class="td-kpi-card">
+                    <div class="td-kpi-label">Total NFA / NLA</div>
+                    <div class="td-kpi-value">{total_nfa:,.0f} m²</div>
+                    <div class="td-kpi-sub">{nfa_to_gfa:.1f}% of GFA</div>
+                </div>
+            </div>
 
-<div class="td-kpi-card">
-<div class="td-kpi-label">Gross Floor Area</div>
-<div class="td-kpi-value">{est_gfa:,.0f} m²</div>
-<div class="td-kpi-sub">{gfa_to_gba_ratio:.1f}% of GBA</div>
-</div>
-
-<div class="td-kpi-card">
-<div class="td-kpi-label">Net Floor Area</div>
-<div class="td-kpi-value">{est_nfa:,.0f} m²</div>
-<div class="td-kpi-sub">{target_efficiency:.1f}% of GFA</div>
-</div>
-
-<div class="td-kpi-card">
-<div class="td-kpi-label">Parking Capacity</div>
-<div class="td-kpi-value">{req_lots:,.0f}</div>
-<div class="td-kpi-sub">car lots required</div>
-</div>
-</div>
+            <div class="td-kpi-grid">
+                <div class="td-kpi-card">
+                    <div class="td-kpi-label">Parking Lots</div>
+                    <div class="td-kpi-value">{provided_parking_lots:,.0f}</div>
+                    <div class="td-kpi-sub">Demand incl. buffer</div>
+                </div>
+                <div class="td-kpi-card">
+                    <div class="td-kpi-label">Parking GBA</div>
+                    <div class="td-kpi-value">{parking_gba:,.0f} m²</div>
+                    <div class="td-kpi-sub">{parking_burden:.1f}% of GBA</div>
+                </div>
+                <div class="td-kpi-card">
+                    <div class="td-kpi-label">Non-KLB GBA</div>
+                    <div class="td-kpi-value">{total_non_klb_gba:,.0f} m²</div>
+                    <div class="td-kpi-sub">GBA minus GFA</div>
+                </div>
+                <div class="td-kpi-card">
+                    <div class="td-kpi-label">GBA / NFA Multiplier</div>
+                    <div class="td-kpi-value">{gba_to_nfa:.2f}x</div>
+                    <div class="td-kpi-sub">Construction area burden</div>
+                </div>
+            </div>
             """,
             unsafe_allow_html=True
         )
 
         # --------------------------------------------------
-        # TWO-COLUMN ANALYSIS LAYOUT
+        # CONTROL NOTES
         # --------------------------------------------------
-        col_chart, col_notes = st.columns([1.45, 1], gap="large")
+        col_control_1, col_control_2, col_control_3, col_control_4 = st.columns(4, gap="large")
 
-        with col_chart:
-            st.markdown("##### Area Bridge: NFA → GBA")
+        with col_control_1:
+            st.markdown(
+                f"""
+                <div class="td-panel">
+                    <div class="td-panel-title">KLB Check</div>
+                    <div style="margin-bottom:10px;">{klb_status}</div>
+                    <div class="td-muted">
+                        Max GFA: <b>{max_allowable_gfa:,.0f} m²</b><br>
+                        Target GFA after buffer: <b>{target_allowable_gfa:,.0f} m²</b><br>
+                        Current GFA: <b>{total_gfa:,.0f} m²</b>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-            bridge_categories = ["NFA", "Core / Circulation", "Parking / Podium"]
-            bridge_values = [est_nfa, core_area, parking_gba]
-            bridge_colors = ["#9FBBD6", "#CCC7BE", "#AEB3BA"]
+        with col_control_2:
+            st.markdown(
+                f"""
+                <div class="td-panel">
+                    <div class="td-panel-title">Allocation Check</div>
+                    <div style="margin-bottom:10px;">{recon_status}</div>
+                    <div class="td-muted">
+                        Physical GBA: <b>{total_gba:,.0f} m²</b><br>
+                        Allocated GBA: <b>{total_allocated_gba:,.0f} m²</b><br>
+                        Gap: <b>{reconciliation_gap:,.1f} m²</b>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-            bridge_total = sum(bridge_values)
+        with col_control_3:
+            st.markdown(
+                f"""
+                <div class="td-panel">
+                    <div class="td-panel-title">Parking Burden</div>
+                    <div style="margin-bottom:10px;">{parking_status}</div>
+                    <div class="td-muted">
+                        Parking GBA: <b>{parking_gba:,.0f} m²</b><br>
+                        Parking share: <b>{parking_burden:.1f}%</b><br>
+                        m²/lot: <b>{m2_per_parking_lot:.1f}</b>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-            fig_bridge = go.Figure()
+        with col_control_4:
+            st.markdown(
+                f"""
+                <div class="td-panel">
+                    <div class="td-panel-title">Revenue Efficiency</div>
+                    <div style="margin-bottom:10px;">{efficiency_status}</div>
+                    <div class="td-muted">
+                        NFA/GFA: <b>{nfa_to_gfa:.1f}%</b><br>
+                        SGFA/GFA: <b>{sgfa_to_gfa:.1f}%</b><br>
+                        GFA/GBA: <b>{gfa_to_gba:.1f}%</b>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        # --------------------------------------------------
+        # VISUALS
+        # --------------------------------------------------
+        st.markdown("---")
+        st.markdown("##### 4. Area Composition & Interrelation")
+
+        col_chart_1, col_chart_2 = st.columns([1.4, 1], gap="large")
+
+        with col_chart_1:
+            composition_items = {
+                "Apartment Direct": apt_gba,
+                "Retail Direct": retail_gba,
+                "Office Direct": office_gba,
+                "Facility Direct": facility_gba,
+                "Parking": parking_gba,
+                "Shared Enclosed Service": shared_enclosed_service_gfa,
+                "Roof / Deck GBA Only": roof_open_deck_gba,
+                "External / Ancillary": external_ancillary_gba,
+                "Canopy / Covered": canopy_covered_gba,
+                "Loading / BOH Extra": loading_service_gba,
+                "Other Non-KLB": other_non_klb_gba,
+            }
+
+            composition_items = {k: v for k, v in composition_items.items() if v > 0}
+
+            fig_gba = go.Figure()
 
             cumulative = 0
+            for label, value in composition_items.items():
+                pct = safe_div(value, total_gba) * 100
 
-            for label, value, color in zip(bridge_categories, bridge_values, bridge_colors):
-                pct = value / bridge_total * 100 if bridge_total > 0 else 0
-
-                # Shorter label for inside the bar
-                if label == "Core / Circulation":
-                    inside_label = "Core"
-                elif label == "Parking / Podium":
-                    inside_label = "Parking"
-                else:
-                    inside_label = label
-
-                fig_bridge.add_trace(
+                fig_gba.add_trace(
                     go.Bar(
                         x=[value],
-                        y=[""],
+                        y=["GBA"],
                         orientation="h",
                         base=[cumulative],
                         name=label,
-                        marker=dict(
-                            color=color,
-                            line=dict(color="#111827", width=1.0)
-                        ),
-                        text=[f"{inside_label}<br>{value:,.0f} m²<br>{pct:.1f}%"],
+                        text=[f"{label}<br>{value:,.0f} m²<br>{pct:.1f}%"],
                         textposition="inside",
                         insidetextanchor="middle",
-                        textfont=dict(
-                            color="#111827",
-                            size=11,
-                            family="Arial"
-                        ),
+                        textfont=dict(size=10, color="#111827"),
+                        marker=dict(line=dict(color="#111827", width=1)),
                         hovertemplate=(
                             f"<b>{label}</b>"
                             "<br>Area: %{x:,.0f} m²"
                             f"<br>Share: {pct:.1f}%"
                             "<extra></extra>"
                         ),
-                        cliponaxis=False
                     )
                 )
 
                 cumulative += value
 
-            fig_bridge.update_layout(
+            fig_gba.update_layout(
+                height=330,
                 barmode="overlay",
-                height=300,
-                margin=dict(l=10, r=20, t=18, b=72),
+                margin=dict(l=10, r=20, t=20, b=70),
                 plot_bgcolor="#FFFFFF",
                 paper_bgcolor="#FFFFFF",
                 showlegend=True,
                 legend=dict(
                     orientation="h",
                     yanchor="top",
-                    y=-0.28,
+                    y=-0.25,
                     xanchor="center",
                     x=0.5,
-                    font=dict(size=11, color="#6B7280"),
-                    traceorder="normal"
+                    font=dict(size=10),
                 ),
                 xaxis=dict(
-                    range=[0, est_gba * 1.03 if est_gba > 0 else 1],
+                    range=[0, total_gba * 1.03 if total_gba > 0 else 1],
                     showgrid=True,
                     gridcolor="#E5E7EB",
-                    zeroline=False,
-                    tickfont=dict(size=10, color="#6B7280"),
                     tickformat=",.0f",
-                    title=None
+                    title=None,
                 ),
                 yaxis=dict(
                     showticklabels=False,
                     showgrid=False,
-                    zeroline=False,
-                    fixedrange=True
-                )
-            )
-
-            # Add x-axis title manually so it does not collide with legend
-            fig_bridge.add_annotation(
-                x=0.5,
-                y=-0.16,
-                xref="paper",
-                yref="paper",
-                text="Total Built Area (m²)",
-                showarrow=False,
-                font=dict(size=11, color="#6B7280"),
-                yanchor="top"
+                ),
             )
 
             st.plotly_chart(
-                fig_bridge,
+                fig_gba,
                 use_container_width=True,
                 config={"displayModeBar": False}
             )
 
-            st.markdown("##### Efficiency Ratios")
-
-            ratio_labels = [
-                "NFA / GFA Efficiency",
-                "Core / GFA Burden",
-                "Parking / GBA Burden",
-                "GFA / GBA Ratio"
-            ]
-
-            ratio_values = [
-                target_efficiency,
-                core_ratio_gfa,
-                parking_burden,
-                gfa_to_gba_ratio
-            ]
-
-            ratio_colors = [
-                "#9FBBD6",
-                "#CCC7BE",
-                "#AEB3BA",
-                "#B6D0AA"
-            ]
+        with col_chart_2:
+            ratio_df = pd.DataFrame({
+                "Ratio": [
+                    "NFA / GFA",
+                    "SGFA / GFA",
+                    "GFA / GBA",
+                    "Parking / GBA",
+                    "KLB Utilization",
+                ],
+                "Value": [
+                    nfa_to_gfa,
+                    sgfa_to_gfa,
+                    gfa_to_gba,
+                    parking_burden,
+                    klb_utilization,
+                ]
+            })
 
             fig_ratio = go.Figure()
 
             fig_ratio.add_trace(
                 go.Bar(
-                    x=ratio_values,
-                    y=ratio_labels,
+                    x=ratio_df["Value"],
+                    y=ratio_df["Ratio"],
                     orientation="h",
-                    marker=dict(
-                        color=ratio_colors,
-                        line=dict(color="#111827", width=1)
-                    ),
-                    text=[f"{v:.1f}%" for v in ratio_values],
+                    text=[f"{v:.1f}%" for v in ratio_df["Value"]],
                     textposition="outside",
-                    textfont=dict(color="#111827", size=11),
-                    hovertemplate="<b>%{y}</b><br>%{x:.1f}%<extra></extra>"
+                    marker=dict(line=dict(color="#111827", width=1)),
+                    hovertemplate="<b>%{y}</b><br>%{x:.1f}%<extra></extra>",
                 )
             )
 
             fig_ratio.update_layout(
-                height=260,
-                margin=dict(l=10, r=42, t=10, b=10),
+                height=330,
+                margin=dict(l=10, r=45, t=20, b=20),
                 plot_bgcolor="#FFFFFF",
                 paper_bgcolor="#FFFFFF",
                 showlegend=False,
                 xaxis=dict(
-                    range=[0, max(ratio_values) * 1.18 if max(ratio_values) > 0 else 100],
+                    range=[0, max(100, ratio_df["Value"].max() * 1.18)],
                     ticksuffix="%",
                     showgrid=True,
                     gridcolor="#E5E7EB",
-                    zeroline=False,
-                    tickfont=dict(size=10, color="#6B7280")
                 ),
                 yaxis=dict(
                     autorange="reversed",
-                    tickfont=dict(size=11, color="#111827")
-                )
+                ),
             )
 
             st.plotly_chart(
@@ -2780,119 +3742,149 @@ Stacked floor composition by area category
                 config={"displayModeBar": False}
             )
 
-        with col_notes:
-            st.markdown("##### Feasibility Control Notes")
-
-            if target_efficiency >= 85:
-                eff_status = '<span class="td-status-watch">Aggressive</span>'
-                eff_note = "Efficiency target is high. Validate against actual core, corridor, shaft, and unit layout."
-            elif target_efficiency >= 78:
-                eff_status = '<span class="td-status-good">Normal</span>'
-                eff_note = "Efficiency assumption is within a generally practical early-stage range."
-            else:
-                eff_status = '<span class="td-status-risk">Inefficient</span>'
-                eff_note = "Low efficiency will increase GFA and may pressure construction cost."
-
-            if parking_burden > 30:
-                park_status = '<span class="td-status-risk">High Burden</span>'
-                park_note = "Parking takes a large share of GBA. Check podium/basement strategy and local parking requirement."
-            elif parking_burden > 18:
-                park_status = '<span class="td-status-watch">Moderate</span>'
-                park_note = "Parking burden is material. Confirm whether parking is podium, basement, or separate structure."
-            else:
-                park_status = '<span class="td-status-good">Controlled</span>'
-                park_note = "Parking burden is relatively controlled against total GBA."
-
-            if gba_to_nfa_ratio > 1.65:
-                gba_status = '<span class="td-status-risk">Heavy GBA</span>'
-                gba_note = "Total built area is high compared to sellable area. Cost efficiency needs close review."
-            elif gba_to_nfa_ratio > 1.35:
-                gba_status = '<span class="td-status-watch">Moderate</span>'
-                gba_note = "GBA to NFA ratio is acceptable but should still be checked against project positioning."
-            else:
-                gba_status = '<span class="td-status-good">Efficient</span>'
-                gba_note = "Built area is relatively efficient against sellable area."
-
-            st.markdown(
-                f"""
-<div class="td-panel">
-<div class="td-panel-title">Efficiency Review</div>
-<div style="margin-bottom:10px;">{eff_status}</div>
-<div class="td-muted">{eff_note}</div>
-</div>
-
-<div class="td-panel">
-<div class="td-panel-title">Parking Review</div>
-<div style="margin-bottom:10px;">{park_status}</div>
-<div class="td-muted">{park_note}</div>
-</div>
-
-<div class="td-panel">
-<div class="td-panel-title">GBA / NFA Review</div>
-<div style="margin-bottom:10px;">{gba_status}</div>
-<div class="td-muted">{gba_note}</div>
-</div>
-
-<div class="td-panel">
-<div class="td-panel-title">Development Ratios</div>
-
-<div class="td-row">
-<div class="td-row-label">GBA / NFA Multiplier</div>
-<div class="td-row-value">{gba_to_nfa_ratio:.2f}x</div>
-</div>
-
-<div class="td-row">
-<div class="td-row-label">Core + Circulation</div>
-<div class="td-row-value">{core_area:,.0f} m²</div>
-</div>
-
-<div class="td-row">
-<div class="td-row-label">Parking GBA</div>
-<div class="td-row-value">{parking_gba:,.0f} m²</div>
-</div>
-
-<div class="td-row">
-<div class="td-row-label">Area per Unit incl. GBA</div>
-<div class="td-row-value">{(est_gba / target_units):,.1f} m²/unit</div>
-</div>
-</div>
-                """,
-                unsafe_allow_html=True
-            )
-
         # --------------------------------------------------
-        # SENSITIVITY TABLE
+        # PROJECT SUMMARY TABLE
         # --------------------------------------------------
         st.markdown("---")
-        st.markdown("##### Quick Sensitivity Check")
-        st.caption("Shows how GFA and GBA move if the assumed floorplate efficiency changes.")
+        st.markdown("##### 5. Project-Level Burdened Output")
 
-        sensitivity_rows = []
+        project_summary_display = project_summary_df.copy()
 
-        for eff in [75, 78, 80, 82, 85, 88]:
-            sens_gfa = est_nfa / (eff / 100)
-            sens_core = sens_gfa - est_nfa
-            sens_gba = sens_gfa + parking_gba
-            sens_multiplier = sens_gba / est_nfa if est_nfa > 0 else 0
+        area_cols = [
+            "NFA / NLA",
+            "SGFA",
+            "Direct GFA",
+            "Allocated Shared GFA",
+            "Burdened GFA",
+            "Direct GBA",
+            "Allocated Parking GBA",
+            "Other Shared GBA",
+            "Burdened GBA",
+        ]
 
-            sensitivity_rows.append({
-                "Efficiency": f"{eff:.0f}%",
-                "NFA": f"{est_nfa:,.0f} m²",
-                "Core / Circ.": f"{sens_core:,.0f} m²",
-                "GFA": f"{sens_gfa:,.0f} m²",
-                "Parking": f"{parking_gba:,.0f} m²",
-                "GBA": f"{sens_gba:,.0f} m²",
-                "GBA / NFA": f"{sens_multiplier:.2f}x"
-            })
+        pct_cols = ["NFA / GFA", "SGFA / GFA"]
+        mult_cols = ["Burdened GBA / NFA"]
 
-        sensitivity_df = pd.DataFrame(sensitivity_rows)
+        for c in area_cols:
+            project_summary_display[c] = project_summary_display[c].map(lambda x: f"{x:,.0f} m²")
+
+        for c in pct_cols:
+            project_summary_display[c] = project_summary_display[c].map(lambda x: f"{x:,.1f}%")
+
+        for c in mult_cols:
+            project_summary_display[c] = project_summary_display[c].map(lambda x: f"{x:.2f}x")
 
         st.dataframe(
-            sensitivity_df,
+            project_summary_display,
             use_container_width=True,
             hide_index=True
         )
-      
+
+        # --------------------------------------------------
+        # PHYSICAL LEDGER
+        # --------------------------------------------------
+        st.markdown("##### 6. Physical Area Ledger")
+
+        physical_display = physical_ledger_df.copy()
+
+        for c in ["NFA", "SGFA", "GFA / KLB", "GBA / CFA"]:
+            physical_display[c] = physical_display[c].map(lambda x: f"{x:,.0f} m²")
+
+        physical_display["Parking Demand"] = physical_display["Parking Demand"].map(lambda x: f"{x:,.0f}")
+
+        st.dataframe(
+            physical_display,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        # --------------------------------------------------
+        # ALLOCATION MATRIX
+        # --------------------------------------------------
+        st.markdown("##### 7. Shared Area Allocation Matrix")
+
+        allocation_display = allocation_df.copy()
+
+        for c in ["Total GFA", "Total GBA", "Apartment", "Retail", "Office", "Facility", "Check"]:
+            allocation_display[c] = allocation_display[c].map(lambda x: f"{x:,.0f} m²")
+
+        st.dataframe(
+            allocation_display,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        # --------------------------------------------------
+        # CHECKLIST / WARNINGS
+        # --------------------------------------------------
+        st.markdown("##### 8. Missing Item / Risk Checklist")
+
+        checklist_rows = []
+
+        checklist_rows.append({
+            "Check Item": "Roof enclosed rooms included as GFA + GBA",
+            "Status": "Included" if shared_enclosed_service_gfa > 0 else "Missing / 0 input",
+            "Comment": "Use for stair headroom, lift machine room, tank room, roof MEP room.",
+        })
+
+        checklist_rows.append({
+            "Check Item": "Open roof / podium deck included as GBA only",
+            "Status": "Included" if roof_open_deck_gba > 0 else "Missing / 0 input",
+            "Comment": "Open constructed deck may not count as KLB but still affects construction cost.",
+        })
+
+        checklist_rows.append({
+            "Check Item": "Parking area includes ramp and circulation",
+            "Status": "Check" if m2_per_parking_lot < 28 else "Reasonable",
+            "Comment": "If using less than ±28 m²/lot, ramp and circulation may be undercounted.",
+        })
+
+        checklist_rows.append({
+            "Check Item": "Shared services allocated to projects",
+            "Status": "Balanced" if abs(reconciliation_gap) <= 1 else "Unbalanced",
+            "Comment": "Total allocated GBA should equal total physical GBA.",
+        })
+
+        checklist_rows.append({
+            "Check Item": "KLB compliance",
+            "Status": "Within limit" if total_gfa <= target_allowable_gfa else "Over limit",
+            "Comment": f"Current GFA is {total_gfa:,.0f} m² against target allowable {target_allowable_gfa:,.0f} m².",
+        })
+
+        checklist_rows.append({
+            "Check Item": "External / ancillary structures",
+            "Status": "Included" if external_ancillary_gba > 0 else "Missing / 0 input",
+            "Comment": "Guardhouse, GWT, pump room, STP, genset/trafo, and detached service structures.",
+        })
+
+        checklist_rows.append({
+            "Check Item": "Retail loading / waste / BOH",
+            "Status": "Separate input" if loading_service_gba > 0 else "Assumed inside retail GFA",
+            "Comment": "Keep as 0 only if already included in retail GFA.",
+        })
+
+        checklist_df = pd.DataFrame(checklist_rows)
+
+        st.dataframe(
+            checklist_df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        # --------------------------------------------------
+        # RAW DATA EXPORT OBJECTS FOR LATER CALCULATOR USE
+        # --------------------------------------------------
+        st.session_state["td_mix_project_summary_df"] = project_summary_df
+        st.session_state["td_mix_physical_ledger_df"] = physical_ledger_df
+        st.session_state["td_mix_allocation_df"] = allocation_df
+
+        st.caption(
+            "For later calculator integration, use: "
+            "`st.session_state['td_mix_project_summary_df']`, "
+            "`st.session_state['td_mix_physical_ledger_df']`, and "
+            "`st.session_state['td_mix_allocation_df']`."
+        )
+
 def update_price(metric_key, db_key): #this function pulls~
     """Update flooring price based on spec radio selection."""
     c_id = st.session_state.current_proj_id
@@ -5753,7 +6745,6 @@ def show_snapshots():
                 type="primary" 
             )
 
-
 #region --- LOGIN SCREEN AND SIDE BAR(INSIDE MAIN APP) ---
 from supabase import create_client, Client
 
@@ -5975,8 +6966,6 @@ def main_app():
             use_container_width=True,
             on_click=cb_delete_project
         )
-
-    st.sidebar.markdown("---")
 
     if st.sidebar.button("Hapus Semua Proyek", type="secondary", use_container_width=True):
         st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
