@@ -24,6 +24,234 @@ APP_VERSION = "1.1.0" #app version for future compatibility check
 st.set_page_config(page_title="Project Portfolio", layout="wide") #streamlit page config
 #endregion
 
+#region 
+import copy
+
+# ==================================================
+# CENTRAL APP CONFIG DEFAULTS
+# ==================================================
+DEFAULT_REPORT_CONFIG = {
+    "port_meta": {
+        "title": "PROJECT PORTFOLIO | PIK2.D2.GINZA.MIDTOWN OPT.2 R(1)",
+        "ref": "REF. DATA R(0) | CONCEPT DWG 2026-02-02.DPA",
+        "version": "R (1) OPT2",
+        "updated": "02-02-2026",
+        "created": "02-02-2026"
+    },
+    "export_settings": {
+        "prepared_by": "",
+        "checked_by": ""
+    },
+    "port_assumptions": [
+        {"No.": str(i), "Assumption Description": desc}
+        for i, desc in enumerate([
+            "Include Vacuum Project + Urugan kembali asumsi 1m",
+            "Foundation System standard pilecaps.",
+            "No Basement and No Parking Podium.",
+            "Parking provison limited to ON STREET LEVEL parking; Floor Hardener finish",
+            "Floor to Floor Height at 3.5M",
+            "Facade Alumunium Window Wall - + Grill Outdoor AC",
+            "External Façade Precast, No double skin for parking podium if any.",
+            "Ground Lobby Finishes completed with Artificial stone & HT.",
+            "Typical Corridor | Floor finishes : HT | Wall Finishes : Cement Sand Plaster c/w Emulsion Paint.",
+            "Aircon System | Apartement : AC Split | Hotel : VRF SYSTEM",
+            "SBO Rebars @ Rp. 10.000/kg",
+            "Excluded Smarthome",
+            "Lift : Luxury Apartment : 8 Private Lift + 2 Services Lift | Hotel 3* : 3 Passenger Lift + 1 Services Lift\nTerrace Village : 16 Private Lift + 8 Services Lift | Retail : No Elevator + Escalator 12 units\nApartment 2 : 4 Passenger Lift + 2 Services Lift\nPodium Village : 10 Private Lift + 5 Services Lift",
+            "Exclude Wardrobe",
+            "FFE : Kitchen cabinet, Hob & Hood, Refrigerator & Washing Machine",
+            "Water Heater : Installation only",
+            "Based on Resume Calculation DP dated on 2026.02.02"
+        ], 1)
+    ],
+}
+
+def init_report_config():
+    """
+    Creates one global/report-level config bucket.
+    Old port_meta / port_assumptions are only migrated ONCE
+    when report_config does not exist yet.
+    """
+    if "report_config" not in st.session_state:
+        st.session_state.report_config = copy.deepcopy(DEFAULT_REPORT_CONFIG)
+
+        # One-time migration from old keys
+        if "port_meta" in st.session_state:
+            st.session_state.report_config["port_meta"] = st.session_state.port_meta
+
+        if "port_assumptions" in st.session_state:
+            if isinstance(st.session_state.port_assumptions, pd.DataFrame):
+                st.session_state.report_config["port_assumptions"] = (
+                    st.session_state.port_assumptions.to_dict("records")
+                )
+            else:
+                st.session_state.report_config["port_assumptions"] = st.session_state.port_assumptions
+
+    st.session_state.report_config.setdefault(
+        "port_meta",
+        copy.deepcopy(DEFAULT_REPORT_CONFIG["port_meta"])
+    )
+
+    st.session_state.report_config.setdefault(
+        "export_settings",
+        copy.deepcopy(DEFAULT_REPORT_CONFIG["export_settings"])
+    )
+
+    st.session_state.report_config.setdefault(
+        "port_assumptions",
+        copy.deepcopy(DEFAULT_REPORT_CONFIG["port_assumptions"])
+    )
+
+def get_report_config():
+    init_report_config()
+    return st.session_state.report_config
+
+
+def get_port_meta():
+    cfg = get_report_config()
+    cfg.setdefault("port_meta", copy.deepcopy(DEFAULT_REPORT_CONFIG["port_meta"]))
+    return cfg["port_meta"]
+
+
+def get_port_assumptions_df():
+    cfg = get_report_config()
+    cfg.setdefault(
+        "port_assumptions",
+        copy.deepcopy(DEFAULT_REPORT_CONFIG["port_assumptions"])
+    )
+
+    assumptions = cfg["port_assumptions"]
+
+    if isinstance(assumptions, pd.DataFrame):
+        return assumptions.copy()
+
+    return pd.DataFrame(assumptions)
+
+
+def set_port_assumptions_df(df):
+    cfg = get_report_config()
+    cfg["port_assumptions"] = df.to_dict("records")
+
+
+def build_app_payload():
+    """
+    Single source of truth for saving.
+    save_data() and save_snapshot() should both use this.
+    """
+    init_report_config()
+
+    curr_id, _ = repair_projects_state(save=False)
+
+    return {
+        "app_version": APP_VERSION,
+        "projects": st.session_state.get("projects", make_default_projects()),
+        "current_proj_id": curr_id,
+        "proj_counter": st.session_state.get("proj_counter", 1),
+
+        "report_config": st.session_state.get(
+            "report_config",
+            copy.deepcopy(DEFAULT_REPORT_CONFIG)
+        )
+    }
+
+def make_default_projects():
+    return {
+        "proj_1": {
+            "name": "New Project 1",
+            "type": "Hotel",
+            "data": {}
+        }
+    }
+
+
+def repair_projects_state(save=False):
+    projects = st.session_state.get("projects", {})
+
+    # Guard 1: projects must be a non-empty dict
+    if not isinstance(projects, dict) or len(projects) == 0:
+        st.session_state.projects = make_default_projects()
+        st.session_state.current_proj_id = "proj_1"
+        st.session_state.proj_counter = 1
+        if save:
+            save_data()
+        return "proj_1", st.session_state.projects["proj_1"]
+
+    # Guard 2: remove any corrupt project entries (non-dict values)
+    corrupt_keys = [k for k, v in projects.items() if not isinstance(v, dict)]
+    for k in corrupt_keys:
+        del projects[k]
+
+    # If all entries were corrupt, rebuild from scratch
+    if len(projects) == 0:
+        st.session_state.projects = make_default_projects()
+        st.session_state.current_proj_id = "proj_1"
+        st.session_state.proj_counter = 1
+        if save:
+            save_data()
+        return "proj_1", st.session_state.projects["proj_1"]
+
+    # Guard 3: current_proj_id must be a valid string key in projects
+    curr_id = st.session_state.get("current_proj_id")
+
+    if not isinstance(curr_id, str) or curr_id not in projects:
+        curr_id = list(projects.keys())[0]
+        st.session_state.current_proj_id = curr_id
+        if save:
+            save_data()
+
+    return curr_id, projects[curr_id]
+
+def get_current_project():
+    return repair_projects_state(save=True)
+
+def restore_app_payload(data):
+    """
+    Single source of truth for loading.
+    Snapshot load and startup load should both use this.
+    """
+    if not data:
+        data = {}
+
+    projects = data.get("projects", make_default_projects())
+
+    # Critical guard: prevent empty project dictionary
+    if not isinstance(projects, dict) or len(projects) == 0:
+        projects = make_default_projects()
+
+    st.session_state.projects = projects
+
+    saved_curr_id = data.get("current_proj_id")
+
+    if isinstance(saved_curr_id, str) and saved_curr_id in st.session_state.projects:
+        st.session_state.current_proj_id = saved_curr_id
+    else:
+        st.session_state.current_proj_id = list(st.session_state.projects.keys())[0]
+
+    st.session_state.proj_counter = data.get(
+        "proj_counter",
+        len(st.session_state.projects)
+    )
+
+    # New format
+    report_config = copy.deepcopy(DEFAULT_REPORT_CONFIG)
+    report_config.update(data.get("report_config", {}))
+
+    # Backward compatibility with old snapshots
+    if "port_meta" in data:
+        report_config["port_meta"] = data["port_meta"]
+
+    if "port_assumptions" in data:
+        report_config["port_assumptions"] = data["port_assumptions"]
+
+    st.session_state.report_config = report_config
+
+    # Optional backward compatibility aliases
+    st.session_state.port_meta = st.session_state.report_config["port_meta"]
+    st.session_state.port_assumptions = pd.DataFrame(
+        st.session_state.report_config["port_assumptions"]
+    )
+    #endregion 
+
 #region --- DO NOT CHANGE (OR I WILL KICK YOUR BUTT)---
 from supabase import create_client, Client
 url: str = st.secrets["SUPABASE_URL"]
@@ -168,7 +396,8 @@ def calculate_project_totals(pdata, curr_type):
 
 def save_snapshot(snapshot_name):
     token = st.session_state.get("access_token")
-    user_id = st.session_state.get("user").id
+    user = st.session_state.get("user")
+    user_id = getattr(user, "id", None)
 
     if not token or not user_id:
         st.error("Not authenticated.")
@@ -177,12 +406,7 @@ def save_snapshot(snapshot_name):
     authed_client = create_client(url, key)
     authed_client.postgrest.auth(token)
 
-    payload = {
-        "app_version": APP_VERSION,
-        "projects": st.session_state.projects,
-        "current_proj_id": st.session_state.current_proj_id,
-        "proj_counter": st.session_state.proj_counter
-    }
+    payload = build_app_payload()
 
     try:
         authed_client.table("project_snapshots").insert({
@@ -264,21 +488,17 @@ def save_data():
         return
 
     token = st.session_state.get("access_token")
-    user_id = st.session_state.get("user").id  # get the logged-in user's ID
+    user = st.session_state.get("user")
+    user_id = getattr(user, "id", None)
 
     if not token or not user_id:
         st.error("Not authenticated.")
-        return
+        return False
 
     authed_client = create_client(url, key)
     authed_client.postgrest.auth(token)
 
-    payload = {
-        "app_version": APP_VERSION,
-        "projects": st.session_state.projects,
-        "current_proj_id": st.session_state.current_proj_id,
-        "proj_counter": st.session_state.proj_counter
-    }
+    payload = build_app_payload()
 
     try:
         authed_client.table("project_storage").upsert({
@@ -310,6 +530,36 @@ def load_data():
     except Exception as e:
         st.error(f"Cloud Load Error: {e}")
     return None
+
+def ensure_app_state_loaded():
+    """
+    Load cloud state only after login.
+    This prevents Streamlit from creating default projects before user authentication.
+    """
+    if st.session_state.get("storage_loaded", False):
+        repair_projects_state(save=False)
+        return
+
+    stored_data = load_data()
+
+    if stored_data:
+        restore_app_payload(stored_data)
+    else:
+        restore_app_payload({
+            "app_version": APP_VERSION,
+            "projects": make_default_projects(),
+            "current_proj_id": "proj_1",
+            "proj_counter": 1,
+            "report_config": copy.deepcopy(DEFAULT_REPORT_CONFIG)
+        })
+
+    # Repair after load in case old cloud data contains broken/empty projects
+    repair_projects_state(save=False)
+
+    st.session_state.storage_loaded = True
+
+    # Save repaired state back to cloud
+    save_data()
 
 def n2w(amount):
     try:
@@ -572,12 +822,27 @@ PROJECT_DATABASE = { #Change only when asked
 def cb_add_project():
     st.session_state.proj_counter += 1
     new_id = f"proj_{st.session_state.proj_counter}"
-    st.session_state.projects[new_id] = {"name": f"New Project {st.session_state.proj_counter}", "type": "Hotel", "data": {}}
+    st.session_state.projects[new_id] = {
+        "name": f"New Project {st.session_state.proj_counter}",
+        "type": "Hotel",
+        "data": {}
+    }
     st.session_state.current_proj_id = new_id
+    save_data()
 
 def cb_delete_project():
-    del st.session_state.projects[st.session_state.current_proj_id]
-    st.session_state.current_proj_id = list(st.session_state.projects.keys())[0]
+    projects = st.session_state.get("projects", {})
+    curr_id = st.session_state.get("current_proj_id")
+
+    if not isinstance(projects, dict) or len(projects) <= 1:
+        st.warning("At least one project must remain.")
+        repair_projects_state(save=True)
+        return
+
+    if curr_id in projects:
+        del projects[curr_id]
+
+    repair_projects_state(save=True)
 
 def cb_switch_project():
     # Use .get() to avoid the AttributeError if the key is missing
@@ -594,34 +859,6 @@ def cb_switch_project():
         st.session_state.current_proj_id = proj_ids[selected_idx]
         save_data()     
 
-# Initialization
-if "projects" not in st.session_state:
-    stored_data = load_data()
-    
-    if stored_data:
-        # Restore from JSON
-        st.session_state.projects = stored_data["projects"]
-        st.session_state.current_proj_id = stored_data["current_proj_id"]
-        st.session_state.proj_counter = stored_data["proj_counter"]
-        
-        # Migration check (v1.0.0 -> v1.1.0)
-        if stored_data.get("app_version", "1.0.0") < "1.1.0":
-            for pid in st.session_state.projects:
-                p_data = st.session_state.projects[pid].get("data", {})
-                if "vis_land" not in p_data:
-                    p_data.update({
-                        "vis_land": 1000.0, "vis_floors": 5, "vis_stair": 20.0,
-                        "vis_mep": 20.0, "vis_corr": 50.0, "vis_unit": 100.0,
-                        "vis_lobby": 50.0, "vis_roof": 80.0, "vis_mep_out": 20.0
-                    })
-                    st.session_state.projects[pid]["data"] = p_data
-    else:
-        # Default fresh start
-        st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
-        st.session_state.current_proj_id = "proj_1"
-        st.session_state.proj_counter = 1
-    
-    st.session_state.storage_loaded = True
 #endregion
 
 def show_project_database():  # database page
@@ -1322,8 +1559,7 @@ def show_area_calculator(): #area calculator page
     st.title("Area Calculator")
     
     # 1. Identify the Active Project
-    curr_id = st.session_state.current_proj_id
-    curr_proj = st.session_state.projects[curr_id]
+    curr_id, curr_proj = get_current_project()
     
     def get_area_val(key, default=0.0):
         return curr_proj["data"].get(key, default)
@@ -2732,8 +2968,7 @@ def show_cost_estimator(): #cost calculator page
         </style>
         """, unsafe_allow_html=True)
 
-    curr_id = st.session_state.current_proj_id
-    curr_proj = st.session_state.projects[curr_id]
+    curr_id, curr_proj = get_current_project()
 
     if "data" not in curr_proj:
         st.session_state.projects[curr_id]["data"] = {}
@@ -4589,71 +4824,427 @@ def show_portfolio_summary():
     # ==========================================
     # 1. INITIALIZE EDITABLE SESSION STATE
     # ==========================================
-    if "port_meta" not in st.session_state:
-        st.session_state.port_meta = {
-            "title": "PROJECT PORTFOLIO | PIK2.D2.GINZA.MIDTOWN OPT.2 R(1)",
-            "ref": "REF. DATA R(0) | CONCEPT DWG 2026-02-02.DPA",
-            "version": "R (1) OPT2",
-            "updated": "02-02-2026",
-            "created": "02-02-2026"
+    init_report_config()
+
+    port_meta = get_port_meta()
+    port_assumptions_df = get_port_assumptions_df()
+
+    # ==========================================
+    # 1B. SHARED SUMMARY UI + HEADER RENDERER
+    # ==========================================
+    from html import escape
+
+    def safe_text(value):
+        return escape(str(value if value is not None else ""))
+
+    def render_portfolio_header(meta):
+        title = safe_text(meta.get("title", ""))
+        ref = safe_text(meta.get("ref", ""))
+        version = safe_text(meta.get("version", ""))
+        updated = safe_text(meta.get("updated", ""))
+        created = safe_text(meta.get("created", ""))
+
+        return f"""
+<div class="asg-header">
+<div class="asg-header-left">
+ASG GROUP PROPERTY DEVELOPMENT<br>
+QS & PROCUREMENT DIVISION<br>
+{title}<br>
+{ref}
+</div>
+<div class="asg-header-right">
+VERSION &nbsp;&nbsp;: {version}<br>
+UPDATED &nbsp;: {updated}<br>
+CREATED &nbsp;: {created}
+</div>
+</div>
+        """
+
+    SUMMARY_CSS = """
+    <style>
+        /* ===============================
+           CONFIG PAGE
+        =============================== */
+        .summary-config-panel {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 14px;
+            padding: 16px 18px;
+            margin-bottom: 14px;
+            box-shadow: 0 1px 3px rgba(16,24,40,0.04);
         }
 
-    if "port_assumptions" not in st.session_state:
-        st.session_state.port_assumptions = pd.DataFrame({
-            "No.": [str(i) for i in range(1, 18)],
-            "Assumption Description": [
-                "Include Vacuum Project + Urugan kembali asumsi 1m",
-                "Foundation System standard pilecaps.",
-                "No Basement and No Parking Podium.",
-                "Parking provison limited to ON STREET LEVEL parking; Floor Hardener finish",
-                "Floor to Floor Height at 3.5M",
-                "Facade Alumunium Window Wall - + Grill Outdoor AC",
-                "External Façade Precast, No double skin for parking podium if any.",
-                "Ground Lobby Finishes completed with Artificial stone & HT.",
-                "Typical Corridor | Floor finishes : HT | Wall Finishes : Cement Sand Plaster c/w Emulsion Paint.",
-                "Aircon System | Apartement : AC Split | Hotel : VRF SYSTEM",
-                "SBO Rebars @ Rp. 10.000/kg",
-                "Excluded Smarthome",
-                "Lift : Luxury Apartment : 8 Private Lift + 2 Services Lift | Hotel 3* : 3 Passenger Lift + 1 Services Lift\nTerrace Village : 16 Private Lift + 8 Services Lift | Retail : No Elevator + Escalator 12 units\nApartment 2 : 4 Passenger Lift + 2 Services Lift\nPodium Village : 10 Private Lift + 5 Services Lift",
-                "Exclude Wardrobe",
-                "FFE : Kitchen cabinet, Hob & Hood, Refrigerator & Washing Machine",
-                "Water Heater : Installation only",
-                "Based on Resume Calculation DP dated on 2026.02.02"
-            ]
-        })
+        .summary-config-title {
+            font-size: 12px;
+            font-weight: 750;
+            color: #111827;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .summary-config-desc {
+            font-size: 13px;
+            color: #6B7280;
+            line-height: 1.55;
+            margin-bottom: 12px;
+        }
+
+        .summary-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .summary-kpi-card {
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 12px 14px;
+        }
+
+        .summary-kpi-label {
+            font-size: 11px;
+            color: #6B7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .summary-kpi-value {
+            font-size: 16px;
+            color: #111827;
+            font-weight: 750;
+            line-height: 1.35;
+        }
+
+        .summary-note-box {
+            background: #F8F9FF;
+            border: 1px solid #DDE1FF;
+            border-left: 4px solid #3E4095;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 13px;
+            color: #4B5563;
+            line-height: 1.55;
+            margin-bottom: 14px;
+        }
+
+        /* ===============================
+           SHARED ASG REPORT PREVIEW
+        =============================== */
+        .asg-container {
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 13px;
+            color: #000000 !important;
+            background-color: #FFFFFF !important;
+            padding: 15px;
+            border: 1px solid #D1D5DB;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(16,24,40,0.05);
+            overflow-x: auto;
+        }
+
+        .asg-header {
+            background-color: #0070C0 !important;
+            color: #FFFFFF !important;
+            padding: 7px 12px;
+            font-weight: bold;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            line-height: 1.45;
+            margin-bottom: 15px;
+            border: 1px solid #005A9C;
+        }
+
+        .asg-header-left {
+            text-align: left;
+        }
+
+        .asg-header-right {
+            text-align: right;
+            min-width: 190px;
+        }
+
+        .asg-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background-color: #FFFFFF !important;
+        }
+
+        .asg-table th,
+        .asg-table td {
+            border: 2px solid #000000 !important;
+            padding: 5px 8px;
+            text-align: right;
+            vertical-align: middle;
+            color: #000000 !important;
+        }
+
+        .asg-table th {
+            background-color: #F2F2F2 !important;
+            text-align: center;
+            font-weight: bold;
+            color: #000000 !important;
+        }
+
+        .asg-table td.left {
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .asg-table td.center {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .asg-table .bold-row td {
+            font-weight: bold;
+        }
+
+        .asg-assumptions {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            background-color: #FFFFFF !important;
+        }
+
+        .asg-assumptions td {
+            border: 1px solid #D9D9D9 !important;
+            padding: 4px 8px;
+            color: #000000 !important;
+            vertical-align: top;
+        }
+
+        .asg-assumptions .yellow-header {
+            background-color: #FFD966 !important;
+            font-weight: bold;
+            text-align: left;
+            color: #000000 !important;
+        }
+
+        /* ===============================
+           REKAP TABLE CONTAINER
+        =============================== */
+        .recap-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 11px;
+        }
+
+        .recap-table {
+            border-collapse: separate;
+            border-spacing: 0;
+            white-space: nowrap;
+        }
+
+        .recap-table th {
+            text-align: center !important;
+            font-weight: bold;
+            vertical-align: middle;
+            border: 1px solid #000;
+            padding: 4px 6px;
+            background-color: #FFFFFF;
+        }
+
+        .recap-table td {
+            border-right: 1px solid #000;
+            border-bottom: 1px solid #000;
+            border-left: 1px solid #000;
+            padding: 4px 6px;
+            background-color: #FFFFFF;
+        }
+
+        .sticky-col,
+        .sticky-col2 {
+            position: sticky;
+            background-color: #F2F2F2 !important;
+            z-index: 5;
+        }
+
+        .sticky-col3,
+        .sticky-col4 {
+            background-color: #F2F2F2 !important;
+            z-index: 5;
+        }
+
+        .sticky-col {
+            left: 0;
+        }
+
+        .sticky-col2 {
+            left: 20px;
+            text-align: left !important;
+            min-width: 200px;
+        }
+
+        .bold-row {
+            font-weight: bold;
+            background-color: #F9F9F9;
+        }
+
+        @media (max-width: 900px) {
+            .summary-kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .asg-header {
+                display: block;
+            }
+
+            .asg-header-right {
+                text-align: left;
+                margin-top: 8px;
+            }
+        }
+    </style>
+    """
+
+    st.markdown(SUMMARY_CSS, unsafe_allow_html=True)
 
     # ==========================================
     # 2. TABS SETUP
     # ==========================================
-    summary_list = ["Pengaturan", "FAD", "Rekap"]
+    summary_list = ["Config", "FAD", "Rekap"]
     summary_tabs = st.tabs(summary_list)
     
     # --- TAB 1: EDITABLE NATIVE COMPONENTS ---
+    # --- TAB 1: CONFIG ---
     with summary_tabs[0]:
-        st.subheader("1. Header Configuration")
-        col1, col2 = st.columns(2)
-        st.session_state.port_meta["title"] = col1.text_input("Project Title", value=st.session_state.port_meta["title"])
-        st.session_state.port_meta["ref"] = col2.text_input("Reference Data", value=st.session_state.port_meta["ref"])
-        
-        col3, col4, col5 = st.columns(3)
-        st.session_state.port_meta["version"] = col3.text_input("Version", value=st.session_state.port_meta["version"])
-        st.session_state.port_meta["updated"] = col4.text_input("Updated Date", value=st.session_state.port_meta["updated"])
-        st.session_state.port_meta["created"] = col5.text_input("Created Date", value=st.session_state.port_meta["created"])
+        st.subheader("Config")
+        st.caption("Configure the report header and assumptions used in both FAD and Rekap previews.")
 
-        st.markdown("---")
-        
-        st.subheader("2. Assumptions Configuration")
+        cfg = get_report_config()
+        export_settings = cfg.setdefault("export_settings", {
+            "prepared_by": "",
+            "checked_by": ""
+        })
+
+        st.markdown("##### Approval / Export Settings")
+
+        c_prepared, c_checked = st.columns(2)
+
+        export_settings["prepared_by"] = c_prepared.text_input(
+            "Prepared By",
+            value=export_settings.get("prepared_by", "")
+        )
+
+        export_settings["checked_by"] = c_checked.text_input(
+            "Checked By",
+            value=export_settings.get("checked_by", "")
+        )
+
+        project_count = len(st.session_state.projects)
+        assumption_count = len(port_assumptions_df)
+
+        st.markdown(
+            f"""
+            <div class="summary-kpi-grid">
+                <div class="summary-kpi-card">
+                    <div class="summary-kpi-label">Active Projects</div>
+                    <div class="summary-kpi-value">{project_count}</div>
+                </div>
+                <div class="summary-kpi-card">
+                    <div class="summary-kpi-label">Assumptions</div>
+                    <div class="summary-kpi-value">{assumption_count} items</div>
+                </div>
+                <div class="summary-kpi-card">
+                    <div class="summary-kpi-label">Output Format</div>
+                    <div class="summary-kpi-value">FAD + Rekap</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        col_cfg, col_preview = st.columns([1.1, 1], gap="large")
+
+        with col_cfg:
+            with st.container(border=True):
+                st.markdown("##### Header Configuration")
+
+                st.markdown(
+                    """
+                    <div class="summary-config-desc">
+                        These fields control the blue report header. The same header will appear in both FAD and Rekap.
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                port_meta["title"] = st.text_area(
+                    "Project Title",
+                    value=port_meta["title"],
+                    height=80
+                )
+
+                port_meta["ref"] = st.text_area(
+                    "Reference Data",
+                    value=port_meta["ref"],
+                    height=70,
+                    help="Drawing reference, data source, or revision reference."
+                )
+
+                c1, c2, c3 = st.columns(3)
+
+                port_meta["version"] = c1.text_input(
+                    "Version",
+                    value=port_meta["version"]
+                )
+
+                port_meta["updated"] = c2.text_input(
+                    "Updated Date",
+                    value=port_meta["updated"]
+                )
+
+                port_meta["created"] = c3.text_input(
+                    "Created Date",
+                    value=port_meta["created"]
+                )
+
+        with col_preview:
+            st.markdown("##### Header Preview")
+
+            st.markdown(
+                f"""
+<div class="summary-note-box">
+This preview uses the same header renderer used in FAD and Rekap.
+Adjust the fields on the left and the preview will update automatically.
+</div>
+<div class="asg-container">
+{render_portfolio_header(port_meta)}
+</div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        st.divider()
+
+        st.markdown("##### Assumptions Configuration")
+        st.caption("These assumptions are displayed below the FAD table. Keep the wording aligned with the required report format.")
+
         edited_assumptions = st.data_editor(
-            st.session_state.port_assumptions,
+            get_port_assumptions_df(),
             num_rows="dynamic",
             use_container_width=True,
             hide_index=True,
             column_config={
-                "No.": st.column_config.NumberColumn("No.", width="small"),
+                "No.": st.column_config.TextColumn("No.", width="small"),
                 "Assumption Description": st.column_config.TextColumn("Assumption Description", width="large"),
             }
         )
-        st.session_state.port_assumptions = edited_assumptions
+
+        set_port_assumptions_df(edited_assumptions)
+
+        if st.button("Save Config", type="primary"):
+            save_data()
+            st.success("Config saved.")
 
     # --- TAB 2: EXACT FORMAT MIRROR (HTML/CSS) ---
     with summary_tabs[1]:
@@ -4703,9 +5294,9 @@ def show_portfolio_summary():
         with col_btn1:
             # This will now work because raw_data was defined in Step 1
             excel_output = generate_exact_portfolio_excel(
-                st.session_state.port_meta, 
-                raw_data, 
-                st.session_state.port_assumptions
+                port_meta,
+                raw_data,
+                get_port_assumptions_df()
             )
             
             st.download_button(
@@ -4717,66 +5308,31 @@ def show_portfolio_summary():
                 type="primary"
             )
                 
-        # 1. CSS Styles (Flush left to avoid markdown code blocks)
-        css_styles = """<style>
-.asg-container { 
-    font-family: Calibri, sans-serif; 
-    font-size: 13px; 
-    color: #000000 !important; 
-    background-color: #FFFFFF !important; 
-    padding: 15px;
-    border-radius: 5px;
-}
-.asg-header {
-    background-color: #0070C0 !important; color: #FFFFFF !important; padding: 6px 12px; 
-    font-weight: bold; font-size: 13px; display: flex; justify-content: space-between;
-    line-height: 1.4; margin-bottom: 15px;
-}
-.asg-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background-color: #FFFFFF !important; }
-.asg-table th, .asg-table td { border: 2px solid #000000 !important; padding: 5px 8px; text-align: right; vertical-align: middle; color: #000000 !important; }
-.asg-table th { background-color: #F2F2F2 !important; text-align: center; font-weight: bold; color: #000000 !important; }
-.asg-table td.left { text-align: left; font-weight: bold; }
-.asg-table td.center { text-align: center; font-weight: bold; }
-.asg-table .bold-row td { font-weight: bold; }
-.asg-assumptions { width: 100%; border-collapse: collapse; font-size: 12px; background-color: #FFFFFF !important; }
-.asg-assumptions td { border: 1px solid #D9D9D9 !important; padding: 4px 8px; color: #000000 !important; }
-.asg-assumptions .yellow-header { background-color: #FFD966 !important; font-weight: bold; text-align: left; color: #000000 !important; }
-</style>"""
-
-        # 2. Dynamic Header Block
-        header_html = f"""<div class="asg-container">
-<div class="asg-header">
-    <div>
-        ASG GROUP PROPERTY DEVELOPMENT<br>
-        QS & PROCUREMENT DIVISION<br>
-        {st.session_state.port_meta["title"]}<br>
-        {st.session_state.port_meta["ref"]}
-    </div>
-    <div style="text-align: right;">
-        VERSION &nbsp;&nbsp;: {st.session_state.port_meta["version"]}<br>
-        UPDATED &nbsp;: {st.session_state.port_meta["updated"]}<br>
-        CREATED &nbsp;: {st.session_state.port_meta["created"]}
-    </div>
-</div>"""
+        header_html = f"""
+        <div class="asg-container">
+            {render_portfolio_header(port_meta)}
+        """
 
         # 3. Dynamic Data Table Core
-        table_start = """<table class="asg-table">
+        table_start = """
+<table class="asg-table">
 <thead>
-    <tr>
-        <th rowspan="2" style="width: 3%;">SN</th>
-        <th rowspan="2" style="width: 18%;">AREA</th>
-        <th colspan="3">BUILDING AREA (M2)</th>
-        <th colspan="2" style="width: 10%;">UNIT</th>
-        <th rowspan="2" style="width: 14%;">BUDGET ESTIMATE<br>RP</th>
-        <th colspan="3">COST RATIO RP/M2</th>
-    </tr>
-    <tr>
-        <th>GBA</th><th>GFA</th><th>SGFA</th>
-        <th></th><th></th>
-        <th>GBA</th><th>GFA</th><th>SGFA</th>
-    </tr>
+<tr>
+<th rowspan="2" style="width: 3%;">SN</th>
+<th rowspan="2" style="width: 18%;">AREA</th>
+<th colspan="3">BUILDING AREA (M2)</th>
+<th colspan="2" style="width: 10%;">UNIT</th>
+<th rowspan="2" style="width: 14%;">BUDGET ESTIMATE<br>RP</th>
+<th colspan="3">COST RATIO RP/M2</th>
+</tr>
+<tr>
+<th>GBA</th><th>GFA</th><th>SGFA</th>
+<th></th><th></th>
+<th>GBA</th><th>GFA</th><th>SGFA</th>
+</tr>
 </thead>
-<tbody>"""
+<tbody>
+        """
         
         # 4. Generate Dynamic Rows from Active Projects
         table_rows = ""
@@ -4834,7 +5390,7 @@ def show_portfolio_summary():
     <td class="yellow-header" style="width: 3%;">I.</td>
     <td class="yellow-header">ASSUMPTIONS</td>
 </tr>"""
-        for _, row in st.session_state.port_assumptions.iterrows():
+        for _, row in get_port_assumptions_df().iterrows():
             num = row.get("No.", "")
             desc = row.get("Assumption Description", "")
             if pd.notna(desc) and str(desc).strip() != "":
@@ -4842,10 +5398,10 @@ def show_portfolio_summary():
 <td style="text-align: center;">{num}</td>
 <td>{desc}</td>
 </tr>"""
-        assumptions_html += """</table></div>"""
+        assumptions_html += """</table>"""
 
-        full_html = css_styles + header_html + table_start + table_rows + table_end + assumptions_html
-        
+        full_html = header_html + table_start + table_rows + table_end + assumptions_html + "</div>"
+
         st.markdown(full_html, unsafe_allow_html=True)
 
 # --- TAB 3: WIDE RECAP COST ---
@@ -4853,16 +5409,13 @@ def show_portfolio_summary():
         st.subheader("Comprehensive Recap Matrix (Cost & Ratios)")
         
         if "recap_math_engine" not in st.session_state:
-            _ = generate_recap_excel(st.session_state.port_meta, st.session_state.projects)
+            _ = generate_recap_excel(port_meta, st.session_state.projects)
             
         math_engine = st.session_state.recap_math_engine
         
         col_btn, col_info = st.columns([1.5, 4.5])
         with col_btn:
-            recap_excel_data = generate_recap_excel(
-                st.session_state.port_meta, 
-                st.session_state.projects
-            )
+            recap_excel_data = generate_recap_excel(port_meta, st.session_state.projects)
             st.download_button(
                 label="Download Excel",
                 data=recap_excel_data,
@@ -4888,78 +5441,19 @@ def show_portfolio_summary():
         global_hc = global_cost.get("HARDCOST", 0); safe_hc = global_hc if global_hc > 0 else 1
         global_sc = global_cost.get("SOFTCOST", 0); safe_sc = global_sc if global_sc > 0 else 1
 
-        html_str = """
-        <style>
-        .recap-wrapper { 
-            width: 100%; 
-            overflow-x: auto; 
-            font-family: Calibri, sans-serif; 
-            font-size: 11px; 
-        }
+        html_str = f"""
+        <div class="asg-container">
+        {render_portfolio_header(port_meta)}
 
-        /* DESKTOP ONLY: Add the comparison space */
-        @media (min-width: 1024px) {
-            .recap-wrapper { 
-                padding-right: 600px; 
-            }
-        }
-
-        /* MOBILE SPECIFIC: Ensure it takes the full width and handles sticky better */
-        @media (max-width: 1023px) {
-            .recap-wrapper { 
-                padding-right: 0px; 
-            }
-            .sticky-col2 { 
-                min-width: 120px !important; /* Shrink description for small screens */
-            }
-        }
-
-        .recap-table { 
-            border-collapse: separate; 
-            border-spacing: 0; 
-            white-space: nowrap; 
-        }
-
-        .recap-table th {
-            text-align: center !important; /* Forces all header text to center */
-            font-weight: bold; 
-            vertical-align: middle;
-            border-top: 1px solid #000;
-            border-right: 1px solid #000;
-            border-bottom: 1px solid #000;
-            border-left: 1px solid #000;
-            padding: 4px 6px;
-            background-color: #fff;
-        }
-        
-        .recap-table td {
-            border-right: 1px solid #000;
-            border-bottom: 1px solid #000;
-            border-left: 1px solid #000;
-            padding: 4px 6px;
-            background-color: #fff;
-        }
-
-        .sticky-col, .sticky-col2 { 
-            position: sticky; 
-            background-color: #F2F2F2 !important; 
-            z-index: 5; 
-        }
-        
-        .sticky-col3, .sticky-col4 { 
-            background-color: #F2F2F2 !important; 
-            z-index: 5; 
-        }
-
-        .sticky-col  { left: 0; }
-        .sticky-col2 { left: 20px; text-align: left !important; }
-        .bold-row { font-weight: bold; background-color: #F9F9F9; }
-        
-        </style>
-        <div class="recap-wrapper"><table class="recap-table">
+<div class="recap-wrapper">
+<table class="recap-table">
         """
 
-        html_str += "<tr><th rowspan='4' class='sticky-col'>SN</th><th rowspan='4' class='sticky-col2' style='min-width:200px;'>DESCRIPTION</th><th rowspan='4' class='sticky-col3'>COA</th><th rowspan='4' class='sticky-col4'>%</th>"
+        html_str += """
+<tr><th rowspan='4' class='sticky-col'>SN</th>
+<th rowspan='4' class='sticky-col2' style='min-width:200px;'>DESCRIPTION</th>
+<th rowspan='4' class='sticky-col3'>COA</th><th rowspan='4' class='sticky-col4'>%</th>
+        """
         for i, (pid, pdata) in enumerate(project_list):
             color = bg_colors[i % len(bg_colors)]
             html_str += f"<th colspan='5' style='background-color:{color}; color:#000;'>{pdata.get('name', 'PROJECT').upper()}</th>"
@@ -5039,15 +5533,14 @@ def show_portfolio_summary():
             html_str += "<td style='border:none; background:transparent; min-width:600px;'></td>"
             html_str += "</tr>"
 
-        html_str += "</table></div>"
+        html_str += "</table></div></div>"
         st.markdown(html_str, unsafe_allow_html=True)
 
 def show_snapshots():
     st.title("Project Archive")
     
 
-    curr_id = st.session_state.current_proj_id
-    curr_proj = st.session_state.projects[curr_id]
+    curr_id, curr_proj = get_current_project()
 
     atab1, atab2= st.tabs([
         "Save to Cloud", "Save to Computer"
@@ -5091,9 +5584,7 @@ def show_snapshots():
                 if col2.button("Load Project", key=f"load_{snap['id']}", type="primary", use_container_width=True):
                     data = load_snapshot_data(snap["id"])
                     if data:
-                        st.session_state.projects = data["projects"]
-                        st.session_state.current_proj_id = data["current_proj_id"]
-                        st.session_state.proj_counter = data["proj_counter"]
+                        restore_app_payload(data)
                         save_data()  # also update the main auto-save slot
                         st.success(f"Loaded **{snap['snapshot_name']}**!")
                         st.rerun()
@@ -5204,6 +5695,7 @@ def show_snapshots():
                                 del st.session_state[k]
 
                             st.session_state.last_loaded_file = file_key
+                            save_data()
                             st.success(f"✅ Import Successful! New projects created to avoid overwrites.")
                             st.rerun()
                         else:
@@ -5233,7 +5725,12 @@ def show_snapshots():
                 all_projects_csv.append({"Project_ID": pid, "Metric_Key": "proj_type", "Value": pdata["type"]})
                 for k, v in pdata["data"].items():
                     if k not in ("header_info", "assumptions"):
-                        all_projects_csv.append({"Project_ID": pid, "Metric_Key": k, "Value": v})
+                        serialized_v = _json.dumps(v) if isinstance(v, list) else v
+                        all_projects_csv.append({
+                            "Project_ID": pid,
+                            "Metric_Key": k,
+                            "Value": serialized_v
+                        })
 
             df_all = pd.DataFrame(all_projects_csv)
             csv_all_buffer = df_all.to_csv(index=False).encode("utf-8")
@@ -5405,38 +5902,17 @@ def login_screen():
 # 3. THE ACTUAL APPLICATION
 def main_app():
     # The 'Assembler'
-    if "projects" not in st.session_state:
-        stored_data = load_data()
-        
-        if stored_data:
-            st.session_state.projects = stored_data["projects"]
-            st.session_state.current_proj_id = stored_data["current_proj_id"]
-            st.session_state.proj_counter = stored_data["proj_counter"]
-            
-            if stored_data.get("app_version", "1.0.0") < "1.1.0":
-                for pid in st.session_state.projects:
-                    p_data = st.session_state.projects[pid].get("data", {})
-                    if "vis_land" not in p_data:
-                        p_data.update({
-                            "vis_land": 1000.0, "vis_floors": 5, "vis_stair": 20.0,
-                            "vis_mep": 20.0, "vis_corr": 50.0, "vis_unit": 100.0,
-                            "vis_lobby": 50.0, "vis_roof": 80.0, "vis_mep_out": 20.0
-                        })
-                        st.session_state.projects[pid]["data"] = p_data
-        else:
-            st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
-            st.session_state.current_proj_id = "proj_1"
-            st.session_state.proj_counter = 1
-        
-        st.session_state.storage_loaded = True
+    ensure_app_state_loaded()
+
+    curr_id, curr_proj = get_current_project()
 
     #region --- SIDEBAR ----
     st.sidebar.title("Main Navigation")
 
-    user_email = st.session_state.get("user").email
+    user = st.session_state.get("user")
+    user_email = getattr(user, "email", "user@example.com")
     username = user_email.split("@")[0]
     st.sidebar.markdown(f"Hello, **{username}**!")
-
 
     page_choice = st.sidebar.radio(
         "Pilih Pekerjaan:",
@@ -5445,12 +5921,16 @@ def main_app():
 
     st.sidebar.markdown("---")
 
-    proj_ids = list(st.session_state.projects.keys())
-    proj_labels = [f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})" for pid in proj_ids]
-    current_index = proj_ids.index(st.session_state.current_proj_id) if st.session_state.current_proj_id in proj_ids else 0
+    # Always build sidebar list AFTER project repair
+    curr_id, curr_proj = get_current_project()
 
-    curr_id = st.session_state.current_proj_id
-    curr_proj = st.session_state.projects[curr_id]
+    proj_ids = list(st.session_state.projects.keys())
+    proj_labels = [
+        f"{st.session_state.projects[pid]['name']} ({st.session_state.projects[pid]['type']})"
+        for pid in proj_ids
+    ]
+
+    current_index = proj_ids.index(curr_id) if curr_id in proj_ids else 0
 
     new_name = st.sidebar.text_input("Nama Proyek", value=curr_proj["name"], key=f"sb_name_{curr_id}")
 
@@ -5489,11 +5969,21 @@ def main_app():
         st.button("Tambah", on_click=cb_add_project, type="primary", use_container_width=True)
         
     with c2:
-        if st.button("Hapus", type="secondary", use_container_width=True):
-            del st.session_state.projects[st.session_state.current_proj_id]
-            st.session_state.current_proj_id = list(st.session_state.projects.keys())[0]
-            save_data()
-            st.rerun()
+        st.button(
+            "Hapus",
+            type="secondary",
+            use_container_width=True,
+            on_click=cb_delete_project
+        )
+
+    st.sidebar.markdown("---")
+
+    if st.sidebar.button("Hapus Semua Proyek", type="secondary", use_container_width=True):
+        st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
+        st.session_state.proj_counter = 1
+        st.session_state.current_proj_id = "proj_1"
+        save_data()
+        st.rerun()
         
         if st.sidebar.button("Hapus Semua Proyek", type="secondary", use_container_width=True):
             st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
@@ -5521,8 +6011,17 @@ def main_app():
         st.session_state.logged_in = False
         st.session_state.access_token = None
         st.session_state.user = None
-        del st.session_state["projects"]
-        del st.session_state["storage_loaded"]
+
+        for key_to_clear in [
+            "projects",
+            "storage_loaded",
+            "report_config",
+            "port_meta",
+            "port_assumptions"
+        ]:
+            if key_to_clear in st.session_state:
+                del st.session_state[key_to_clear]
+
         st.rerun()
         
     st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
