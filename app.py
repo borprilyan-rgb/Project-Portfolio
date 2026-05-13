@@ -257,59 +257,6 @@ def delete_snapshot(snapshot_id):
         st.error(f"Project Delete Error: {e}")
         return False
 
-def show_snapshots():
-    st.title("Project Archive")
-
-    # --- SAVE NEW SNAPSHOT ---
-    st.subheader("Save Project")
-    snapshot_name = st.text_input(
-        "Project Name", 
-        placeholder="e.g. ASG Tower - Option 2 - Rev3"
-    )
-    col1, _ = st.columns([1, 6])
-    if col1.button("Save Project", use_container_width=True):
-        if snapshot_name.strip() == "":
-            col1.warning("Please enter Project name.")
-        else:
-            if save_snapshot(snapshot_name):
-                st.success(f"Project **{snapshot_name}** saved!")
-                st.rerun()
-
-    st.divider()
-
-    # --- LIST EXISTING SNAPSHOTS ---
-    st.subheader("Load Project:")
-    snapshots = load_snapshots()
-
-    if not snapshots:
-        st.info("No saved projects yet.")
-    else:
-        for snap in snapshots:
-            col1, col2, col3 = st.columns([5, 1, 1])
-            
-            from datetime import datetime, timedelta
-
-            created_utc = datetime.fromisoformat(snap["created_at"].replace("Z", "+00:00"))
-            created_local = created_utc + timedelta(hours=7)
-            formatted_date = created_local.strftime("%d %b %Y, %H:%M")
-            
-            col1.markdown(f"**{snap['snapshot_name']}**  \n  *Saved: {formatted_date} WIB*")
-            
-            if col2.button("Load Project", key=f"load_{snap['id']}", type="primary", use_container_width=True):
-                data = load_snapshot_data(snap["id"])
-                if data:
-                    st.session_state.projects = data["projects"]
-                    st.session_state.current_proj_id = data["current_proj_id"]
-                    st.session_state.proj_counter = data["proj_counter"]
-                    save_data()  # also update the main auto-save slot
-                    st.success(f"Loaded **{snap['snapshot_name']}**!")
-                    st.rerun()
-
-            if col3.button("Delete Project", key=f"del_{snap['id']}", use_container_width=True):
-                if delete_snapshot(snap["id"]):
-                    st.success("Snapshot deleted.")
-                    st.rerun()
-
 def save_data():
     if not st.session_state.get("storage_loaded", False):
         return
@@ -677,39 +624,698 @@ if "projects" not in st.session_state:
     st.session_state.storage_loaded = True
 #endregion
 
-def show_project_database(): #database page
-    tab1, tab2 = st.tabs([
-    "Database", " "
+def show_project_database():  # database page
+    st.title("Project Database")
+
+    # ==================================================
+    # CONTEXT MAP
+    # Converts internal database keys into readable QS labels
+    # ==================================================
+    FIELD_CONTEXT = {
+        # Structure
+        "struc_earth": {
+            "Group": "Structure",
+            "Item": "Earthwork",
+            "Basis": "Rp / m² GBA",
+            "Type": "currency",
+            "Note": "Applied to gross building area."
+        },
+        "struc_found": {
+            "Group": "Structure",
+            "Item": "Foundation Work",
+            "Basis": "Rp / m² GBA",
+            "Type": "currency",
+            "Note": "Applied to gross building area."
+        },
+        "struc_work": {
+            "Group": "Structure",
+            "Item": "Main Structure Work",
+            "Basis": "Rp / m² GBA",
+            "Type": "currency",
+            "Note": "Applied to gross building area."
+        },
+
+        # Architecture Base
+        "arch_base": {
+            "Group": "Architecture",
+            "Item": "Base Architectural Work",
+            "Basis": "Rp / m² GFA",
+            "Type": "currency",
+            "Note": "General architectural finishing rate."
+        },
+        "lobby": {
+            "Group": "Architecture",
+            "Item": "Lobby Finishing Premium",
+            "Basis": "Rp / m²",
+            "Type": "currency",
+            "Note": "Additional lobby finishing allowance."
+        },
+
+        # Facade
+        "facade_precast_rate": {
+            "Group": "Facade",
+            "Item": "Precast Facade Rate",
+            "Basis": "Rp / m² facade",
+            "Type": "currency",
+            "Note": "Applied according to precast facade ratio."
+        },
+        "facade_window_rate": {
+            "Group": "Facade",
+            "Item": "Window / Glass Facade Rate",
+            "Basis": "Rp / m² facade",
+            "Type": "currency",
+            "Note": "Applied according to window facade ratio."
+        },
+        "facade_double_rate": {
+            "Group": "Facade",
+            "Item": "Double Facade Rate",
+            "Basis": "Rp / m² facade",
+            "Type": "currency",
+            "Note": "Applied according to double facade ratio."
+        },
+        "facade_precast_pct": {
+            "Group": "Facade",
+            "Item": "Precast Facade Ratio",
+            "Basis": "% of facade area",
+            "Type": "percent",
+            "Note": "Facade composition assumption."
+        },
+        "facade_window_pct": {
+            "Group": "Facade",
+            "Item": "Window Facade Ratio",
+            "Basis": "% of facade area",
+            "Type": "percent",
+            "Note": "Facade composition assumption."
+        },
+        "facade_double_pct": {
+            "Group": "Facade",
+            "Item": "Double Facade Ratio",
+            "Basis": "% of facade area",
+            "Type": "percent",
+            "Note": "Facade composition assumption."
+        },
+
+        # Doors & Hardware
+        "door_wood": {
+            "Group": "Doors & Hardware",
+            "Item": "Wooden Door",
+            "Basis": "Rp / unit",
+            "Type": "currency",
+            "Note": "Door supply and installation allowance."
+        },
+        "door_steel": {
+            "Group": "Doors & Hardware",
+            "Item": "Steel Door",
+            "Basis": "Rp / unit",
+            "Type": "currency",
+            "Note": "Door supply and installation allowance."
+        },
+        "door_glass": {
+            "Group": "Doors & Hardware",
+            "Item": "Glass Door",
+            "Basis": "Rp / unit",
+            "Type": "currency",
+            "Note": "Door supply and installation allowance."
+        },
+        "hw_wood": {
+            "Group": "Doors & Hardware",
+            "Item": "Wooden Door Hardware",
+            "Basis": "Rp / set",
+            "Type": "currency",
+            "Note": "Hardware set allowance."
+        },
+        "hw_steel": {
+            "Group": "Doors & Hardware",
+            "Item": "Steel Door Hardware",
+            "Basis": "Rp / set",
+            "Type": "currency",
+            "Note": "Hardware set allowance."
+        },
+
+        # Flooring
+        "fl_waste": {
+            "Group": "Flooring",
+            "Item": "Flooring Wastage",
+            "Basis": "%",
+            "Type": "percent",
+            "Note": "Material waste allowance."
+        },
+        "fl_ht_pct": {
+            "Group": "Flooring",
+            "Item": "Homogeneous Tile Ratio",
+            "Basis": "% of floor area",
+            "Type": "percent",
+            "Note": "Floor finish composition."
+        },
+        "fl_vinyl_pct": {
+            "Group": "Flooring",
+            "Item": "Vinyl Floor Ratio",
+            "Basis": "% of floor area",
+            "Type": "percent",
+            "Note": "Floor finish composition."
+        },
+        "fl_marmer_pct": {
+            "Group": "Flooring",
+            "Item": "Marble Floor Ratio",
+            "Basis": "% of floor area",
+            "Type": "percent",
+            "Note": "Floor finish composition."
+        },
+
+        # Interior / Specialist
+        "gondola": {
+            "Group": "Specialist Works",
+            "Item": "Gondola System",
+            "Basis": "Rp / project",
+            "Type": "currency",
+            "Note": "Facade maintenance equipment allowance."
+        },
+        "carpet": {
+            "Group": "Interior",
+            "Item": "Carpet Finish",
+            "Basis": "Rp / m²",
+            "Type": "currency",
+            "Note": "Carpet finishing rate."
+        },
+        "glass": {
+            "Group": "Interior",
+            "Item": "Interior Glass / Mirror",
+            "Basis": "Rp / m²",
+            "Type": "currency",
+            "Note": "Interior glass allowance."
+        },
+        "ffe": {
+            "Group": "Interior",
+            "Item": "FF&E",
+            "Basis": "Rp / room or unit",
+            "Type": "currency",
+            "Note": "Furniture, fixtures, and equipment allowance."
+        },
+        "misc": {
+            "Group": "Interior",
+            "Item": "Miscellaneous Interior Allowance",
+            "Basis": "Rp allowance",
+            "Type": "currency",
+            "Note": "Project-specific miscellaneous allowance."
+        },
+        "kitchen": {
+            "Group": "Interior",
+            "Item": "Kitchen Equipment",
+            "Basis": "Rp allowance",
+            "Type": "currency",
+            "Note": "Kitchen equipment allowance."
+        },
+
+        # Sanitary
+        "san_room_rate": {
+            "Group": "Sanitary",
+            "Item": "Typical Room Sanitary",
+            "Basis": "Rp / room",
+            "Type": "currency",
+            "Note": "Sanitary allowance for typical room or unit."
+        },
+        "san_pub_f": {
+            "Group": "Sanitary",
+            "Item": "Public Female Toilet",
+            "Basis": "Rp / toilet set",
+            "Type": "currency",
+            "Note": "Public toilet sanitary allowance."
+        },
+        "san_pub_m": {
+            "Group": "Sanitary",
+            "Item": "Public Male Toilet",
+            "Basis": "Rp / toilet set",
+            "Type": "currency",
+            "Note": "Public toilet sanitary allowance."
+        },
+        "san_dis": {
+            "Group": "Sanitary",
+            "Item": "Accessible Toilet",
+            "Basis": "Rp / toilet set",
+            "Type": "currency",
+            "Note": "Disabled toilet sanitary allowance."
+        },
+        "san_mushola": {
+            "Group": "Sanitary",
+            "Item": "Mushola Ablution Area",
+            "Basis": "Rp / area",
+            "Type": "currency",
+            "Note": "Wudhu / mushola sanitary allowance."
+        },
+        "san_room_qty": {
+            "Group": "Sanitary",
+            "Item": "Sanitary Quantity per Room",
+            "Basis": "Qty / room",
+            "Type": "number",
+            "Note": "Typical sanitary quantity assumption."
+        },
+
+        # MEP & Utility
+        "mep": {
+            "Group": "MEP",
+            "Item": "MEP Works",
+            "Basis": "Rp / m² GBA",
+            "Type": "currency",
+            "Note": "Mechanical, electrical, and plumbing rate."
+        },
+        "utility": {
+            "Group": "Utility",
+            "Item": "Infrastructure / Utility Works",
+            "Basis": "Rp / m² GBA",
+            "Type": "currency",
+            "Note": "External or supporting utility allowance."
+        },
+
+        # External Works
+        "ext_land": {
+            "Group": "External Works",
+            "Item": "Landscape / External Works",
+            "Basis": "Rp / m²",
+            "Type": "currency",
+            "Note": "External area and landscape allowance."
+        },
+        "railing_rate": {
+            "Group": "External Works",
+            "Item": "Railing",
+            "Basis": "Rp / m",
+            "Type": "currency",
+            "Note": "Railing work allowance."
+        },
+        "railing_qty": {
+            "Group": "External Works",
+            "Item": "Railing Quantity Ratio",
+            "Basis": "Qty",
+            "Type": "number",
+            "Note": "Default railing quantity assumption."
+        },
+        "skylight_rate": {
+            "Group": "External Works",
+            "Item": "Skylight",
+            "Basis": "Rp / m²",
+            "Type": "currency",
+            "Note": "Skylight work allowance."
+        },
+
+        # Facilities
+        "fac_pub": {
+            "Group": "Facilities",
+            "Item": "Public Facility Allowance",
+            "Basis": "Rp / room or unit",
+            "Type": "currency",
+            "Note": "Public facility cost allowance."
+        },
+        "fac_res": {
+            "Group": "Facilities",
+            "Item": "Residential Facility Allowance",
+            "Basis": "Rp / room or unit",
+            "Type": "currency",
+            "Note": "Residential facility cost allowance."
+        },
+        "fac_proj": {
+            "Group": "Facilities",
+            "Item": "Project Facility Allowance",
+            "Basis": "Rp / project",
+            "Type": "currency",
+            "Note": "Lump-sum project facility allowance."
+        },
+
+        # Soft Cost
+        "cons": {
+            "Group": "Soft Cost",
+            "Item": "Consultancy Cost",
+            "Basis": "Rp / m² GFA",
+            "Type": "currency",
+            "Note": "Consultant / professional fee allowance."
+        },
+    }
+
+    GROUP_ORDER = [
+        "Structure",
+        "Architecture",
+        "Facade",
+        "Doors & Hardware",
+        "Flooring",
+        "Interior",
+        "Sanitary",
+        "MEP",
+        "Utility",
+        "External Works",
+        "Facilities",
+        "Specialist Works",
+        "Soft Cost",
+        "Other"
+    ]
+
+    # ==================================================
+    # HELPER FUNCTIONS
+    # ==================================================
+    def prettify_key(raw_key):
+        text = raw_key.replace("_", " ").replace(".", " - ")
+        return text.title()
+
+    def get_field_context(raw_key):
+        # Exact match
+        if raw_key in FIELD_CONTEXT:
+            return FIELD_CONTEXT[raw_key]
+
+        # Nested flooring rates, e.g. fl_ht_rate.Type1
+        if raw_key.startswith("fl_ht_rate."):
+            subtype = raw_key.split(".", 1)[1]
+            return {
+                "Group": "Flooring",
+                "Item": f"Homogeneous Tile Rate - {subtype}",
+                "Basis": "Rp / m²",
+                "Type": "currency",
+                "Note": "Floor finish unit rate."
+            }
+
+        if raw_key.startswith("fl_vinyl_rate."):
+            subtype = raw_key.split(".", 1)[1]
+            return {
+                "Group": "Flooring",
+                "Item": f"Vinyl Floor Rate - {subtype}",
+                "Basis": "Rp / m²",
+                "Type": "currency",
+                "Note": "Floor finish unit rate."
+            }
+
+        if raw_key.startswith("fl_marmer_rate."):
+            subtype = raw_key.split(".", 1)[1]
+            return {
+                "Group": "Flooring",
+                "Item": f"Marble Floor Rate - {subtype}",
+                "Basis": "Rp / m²",
+                "Type": "currency",
+                "Note": "Floor finish unit rate."
+            }
+
+        return {
+            "Group": "Other",
+            "Item": prettify_key(raw_key),
+            "Basis": "-",
+            "Type": "number",
+            "Note": "Unmapped database item."
+        }
+
+    def format_value(value, value_type):
+        try:
+            num = float(value)
+        except Exception:
+            return str(value)
+
+        if value_type == "currency":
+            return f"Rp {num:,.0f}"
+        elif value_type == "percent":
+            return f"{num:,.1f}%"
+        elif value_type == "number":
+            return f"{num:,.2f}".rstrip("0").rstrip(".")
+        else:
+            return str(value)
+
+    def flatten_project_database():
+        rows = []
+
+        for project_type, metrics in PROJECT_DATABASE.items():
+            for key_name, value in metrics.items():
+
+                if isinstance(value, dict):
+                    for sub_key, sub_value in value.items():
+                        raw_key = f"{key_name}.{sub_key}"
+                        ctx = get_field_context(raw_key)
+
+                        rows.append({
+                            "Project Type": project_type,
+                            "Group": ctx["Group"],
+                            "Cost Item": ctx["Item"],
+                            "Basis": ctx["Basis"],
+                            "Value": sub_value,
+                            "Formatted Value": format_value(sub_value, ctx["Type"]),
+                            "Note": ctx["Note"],
+                            "Internal Key": raw_key
+                        })
+
+                else:
+                    raw_key = key_name
+                    ctx = get_field_context(raw_key)
+
+                    rows.append({
+                        "Project Type": project_type,
+                        "Group": ctx["Group"],
+                        "Cost Item": ctx["Item"],
+                        "Basis": ctx["Basis"],
+                        "Value": value,
+                        "Formatted Value": format_value(value, ctx["Type"]),
+                        "Note": ctx["Note"],
+                        "Internal Key": raw_key
+                    })
+
+        df = pd.DataFrame(rows)
+
+        df["Group Sort"] = df["Group"].apply(
+            lambda x: GROUP_ORDER.index(x) if x in GROUP_ORDER else 999
+        )
+
+        df = df.sort_values(
+            by=["Group Sort", "Cost Item", "Project Type"]
+        ).drop(columns=["Group Sort"])
+
+        return df
+
+    df_long = flatten_project_database()
+
+    project_types = list(PROJECT_DATABASE.keys())
+
+    # ==================================================
+    # PAGE STYLE
+    # ==================================================
+    st.markdown("""
+    <style>
+        .db-card {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 14px;
+            padding: 14px 16px;
+            box-shadow: 0 1px 3px rgba(16,24,40,0.04);
+        }
+
+        .db-label {
+            font-size: 11px;
+            color: #6B7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .db-value {
+            font-size: 20px;
+            color: #111827;
+            font-weight: 750;
+            line-height: 1.2;
+        }
+
+        .db-sub {
+            font-size: 12px;
+            color: #6B7280;
+            margin-top: 4px;
+        }
+
+        .db-note {
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            border-left: 4px solid #3E4095;
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            font-size: 13px;
+            color: #4B5563;
+            line-height: 1.55;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ==================================================
+    # SUMMARY CARDS
+    # ==================================================
+    total_project_types = len(project_types)
+    total_items = df_long["Cost Item"].nunique()
+    total_groups = df_long["Group"].nunique()
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        st.markdown(
+            f"""
+            <div class="db-card">
+                <div class="db-label">Project Types</div>
+                <div class="db-value">{total_project_types}</div>
+                <div class="db-sub">Available benchmark templates</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with c2:
+        st.markdown(
+            f"""
+            <div class="db-card">
+                <div class="db-label">Cost Items</div>
+                <div class="db-value">{total_items}</div>
+                <div class="db-sub">Contextual database fields</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with c3:
+        st.markdown(
+            f"""
+            <div class="db-card">
+                <div class="db-label">Cost Groups</div>
+                <div class="db-value">{total_groups}</div>
+                <div class="db-sub">Grouped by QS discipline</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="db-note">
+        This page displays the project database using contextual QS labels instead of internal database keys.
+        Use the detailed view for one project type, or the comparison matrix to compare rates across project templates.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ==================================================
+    # MAIN TABS
+    # ==================================================
+    tab_project, tab_matrix, tab_raw = st.tabs([
+        "Project Type View",
+        "Comparison Matrix",
+        "Raw Audit View"
     ])
 
-# --- TAB 1: PETUNJUK PEMAKAIAN ---
-    with tab1:
-        flattened_data = []
-        for project_type, metrics in PROJECT_DATABASE.items():
-            row = {"Project Type": project_type}
-            for key, value in metrics.items():
-                # Handle nested rate dictionaries (e.g., fl_ht_rate)
-                if isinstance(value, dict):
-                    for sub_key, sub_val in value.items():
-                        row[f"{key}_{sub_key}"] = sub_val
-                else:
-                    row[key] = value
-            flattened_data.append(row)
+    # ==================================================
+    # TAB 1: PROJECT TYPE VIEW
+    # ==================================================
+    with tab_project:
+        selected_project_type = st.selectbox(
+            "Select Project Type",
+            options=project_types,
+            index=0
+        )
 
-        # 2. Create DataFrame
-        df_db = pd.DataFrame(flattened_data)
+        selected_groups = st.multiselect(
+            "Filter Cost Group",
+            options=GROUP_ORDER,
+            default=[
+                "Structure",
+                "Architecture",
+                "Facade",
+                "Flooring",
+                "MEP",
+                "Utility",
+                "Soft Cost"
+            ]
+        )
 
-        # 3. Display in Streamlit
-        st.subheader("Standard Project Database Rates")
+        df_project = df_long[
+            (df_long["Project Type"] == selected_project_type)
+            & (df_long["Group"].isin(selected_groups))
+        ].copy()
+
+        display_df = df_project[[
+            "Group",
+            "Cost Item",
+            "Basis",
+            "Formatted Value",
+            "Note"
+        ]].rename(columns={
+            "Formatted Value": "Rate / Assumption"
+        })
+
         st.dataframe(
-            df_db, 
-            use_container_width=True, 
+            display_df,
+            use_container_width=True,
             hide_index=True,
             column_config={
-                "Project Type": st.column_config.TextColumn("Project Type", width="medium"),
-                "struc_work": st.column_config.NumberColumn("Structure Rate", format="Rp %,.0f"),
-                "arch_base": st.column_config.NumberColumn("Arch Base", format="Rp %,.0f"),
+                "Group": st.column_config.TextColumn("Cost Group", width="medium"),
+                "Cost Item": st.column_config.TextColumn("Cost Item", width="large"),
+                "Basis": st.column_config.TextColumn("Basis", width="medium"),
+                "Rate / Assumption": st.column_config.TextColumn("Rate / Assumption", width="medium"),
+                "Note": st.column_config.TextColumn("Context", width="large"),
             }
+        )
+
+    # ==================================================
+    # TAB 2: COMPARISON MATRIX
+    # ==================================================
+    with tab_matrix:
+        st.caption("Compare contextual cost items across project types.")
+
+        matrix_groups = st.multiselect(
+            "Select Groups to Compare",
+            options=GROUP_ORDER,
+            default=["Structure", "Architecture", "Facade", "MEP", "Utility", "Soft Cost"],
+            key="db_matrix_groups"
+        )
+
+        compare_project_types = st.multiselect(
+            "Select Project Types",
+            options=project_types,
+            default=project_types[:5],
+            key="db_compare_project_types"
+        )
+
+        df_matrix_source = df_long[
+            (df_long["Group"].isin(matrix_groups))
+            & (df_long["Project Type"].isin(compare_project_types))
+        ].copy()
+
+        matrix_df = df_matrix_source.pivot_table(
+            index=["Group", "Cost Item", "Basis"],
+            columns="Project Type",
+            values="Formatted Value",
+            aggfunc="first"
+        ).reset_index()
+
+        st.dataframe(
+            matrix_df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    # ==================================================
+    # TAB 3: RAW AUDIT VIEW
+    # ==================================================
+    with tab_raw:
+        st.caption("Audit view showing internal keys beside contextual labels.")
+
+        raw_groups = st.multiselect(
+            "Filter Raw View by Group",
+            options=GROUP_ORDER,
+            default=GROUP_ORDER,
+            key="db_raw_groups"
+        )
+
+        raw_df = df_long[df_long["Group"].isin(raw_groups)].copy()
+
+        st.dataframe(
+            raw_df[[
+                "Project Type",
+                "Group",
+                "Cost Item",
+                "Basis",
+                "Formatted Value",
+                "Internal Key",
+                "Note"
+            ]].rename(columns={
+                "Formatted Value": "Rate / Assumption"
+            }),
+            use_container_width=True,
+            hide_index=True
         )
 
 def show_area_calculator(): #area calculator page
@@ -722,10 +1328,10 @@ def show_area_calculator(): #area calculator page
     def get_area_val(key, default=0.0):
         return curr_proj["data"].get(key, default)
 
-    tab1, tab2 = st.tabs(["Calculator", "Trial"])
+    tab1, tab2 = st.tabs(["Bottom-Up", "Top-Down"])
     
     with tab1:
-        st.subheader("1. Detailed Area Breakdown - Floor Stacking")
+        st.subheader("1. Bottom-Up Feasibility Study")
         st.caption("Input your breakdown per floor. GBA, GFA, SGFA, and NFA will be calculated automatically.")
 
         # ==========================================
@@ -852,296 +1458,1204 @@ def show_area_calculator(): #area calculator page
 
         st.divider()
 
-        # [ ... Your PLOTLY code continues exactly the same from here ... ]
-
-# ==========================================
-        # VISUALIZATION DASHBOARD SECTION (PLOTLY EDITION)
         # ==========================================
-        col_viz_left, col_viz_right = st.columns([1.5, 1], gap="large")
+        # VISUALIZATION DASHBOARD SECTION — PROFESSIONAL SETTINGS DASHBOARD STYLE
+        # ==========================================
 
-        # Crisp Web-Safe Architectural Colors
-        CAT_COLORS = {
-            "Unit": "#709DE1",            # Muted Blue
-            "Office": "#A9C4F0",          # Light Blue
-            "Koridor/Lobby": "#94C37D",   # Muted Green
-            "Stair, MEP, Etc": "#F4B16A", # Soft Orange
-            "Parkir": "#B7B7B7",          # Dark Gray
-            "Roof/Deck": "#D9D9D9",       # Light Gray
-            "MEP Outdoor": "#8C8C8C",     # Medium Gray
-            "Lobby_Override": "#C17AA0"   # Muted Purple
+        col_viz_left, col_viz_right = st.columns([1.55, 1], gap="large")
+
+        # --------------------------------------------------
+        # PROFESSIONAL LIGHT CORPORATE PALETTE
+        # Light enough for black text, but not too pale
+        # --------------------------------------------------
+        PRO_COLORS = {
+            "Unit": "#9FBBD6",             # Main residential blue
+            "Office": "#B5CEE5",           # Office blue
+            "Koridor/Lobby": "#B6D0AA",    # Circulation sage
+            "Stair, MEP, Etc": "#CCC7BE",  # Service warm gray
+            "Parkir": "#AEB3BA",           # Parking gray
+            "Roof/Deck": "#D1D8E2",        # Roof slate
+            "MEP Outdoor": "#BDC5CF",      # Outdoor MEP gray
+            "Lobby_Override": "#C8B4D2"    # Lobby lavender
         }
 
-        # --- LEFT: CONCEPTUAL SECTION (PLOTLY) ---
+        PRO_TEXT = "#111827"
+        PRO_MUTED = "#6B7280"
+        PRO_BORDER = "#111827"
+        PRO_CARD_BORDER = "#E5E7EB"
+        PRO_BG = "#FFFFFF"
+        PRO_PANEL_BG = "#F9FAFB"
+        PRO_GRID = "#E5E7EB"
+
+        area_cols = [
+            "Office",
+            "Unit",
+            "Koridor/Lobby",
+            "Stair, MEP, Etc",
+            "Parkir",
+            "MEP Outdoor",
+            "Roof/Deck"
+        ]
+
+        # --------------------------------------------------
+        # DEFENSIVE NUMERIC CLEANUP
+        # --------------------------------------------------
+        for c in ["GBA", "GFA", "SGFA", "NFA"] + area_cols:
+            if c not in edited_df.columns:
+                edited_df[c] = 0
+            edited_df[c] = pd.to_numeric(edited_df[c], errors="coerce").fillna(0)
+
+
+        def safe_sum(df, col):
+            return float(df[col].sum()) if col in df.columns else 0.0
+
+
+        # ==================================================
+        # LEFT: BUILDING AREA SECTION — STYLIZED BOX + FLOOR LINES
+        # ==================================================
         with col_viz_left:
-            st.markdown("##### BUILDING AREA VISUALIZATION")
-            
-            draw_df = edited_df.iloc[::-1].reset_index(drop=True)
-            floor_labels = draw_df['FL'].tolist()
-            
-            draw_order = ["Office", "Unit", "Koridor/Lobby", "Stair, MEP, Etc", "Parkir", "MEP Outdoor", "Roof/Deck"]
+            # Stylized Streamlit container
+            with st.container(border=True):
+                st.markdown(
+                    """
+<div style="
+padding: 2px 2px 4px 2px;
+">
+<div style="
+font-size: 13px;
+font-weight: 700;
+letter-spacing: 0.04em;
+text-transform: uppercase;
+color: #111827;
+margin-bottom: 2px;
+">
+Building Area Section
+</div>
+<div style="
+font-size: 12px;
+color: #6B7280;
+margin-bottom: 8px;
+">
+Stacked floor composition by area category
+</div>
+</div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-            # Initialize data structures for Plotly
-            bases = {col: [] for col in draw_order}
-            widths = {col: [] for col in draw_order}
-            hover_texts = {col: [] for col in draw_order}
-            text_labels = {col: [] for col in draw_order}
-            unit_colors = [] # Special handling for Unit vs Lobby color
+                draw_df = edited_df.iloc[::-1].reset_index(drop=True).copy()
 
-            # Calculate the exact starting X coordinate for each block to center the floor
-            for idx, row in draw_df.iterrows():
-                gba = row["GBA"]
-                sp_type = str(row["Space Type"])
-                
-                # Center the floor mass
-                curr_x = -gba / 2
-                
-                # Check for Lobby override
-                if "Lobby" in sp_type:
-                    unit_colors.append(CAT_COLORS["Lobby_Override"])
-                else:
-                    unit_colors.append(CAT_COLORS["Unit"])
+                floor_labels = draw_df["FL"].astype(str).tolist()
+                y_positions = list(range(len(draw_df)))
 
-                for col in draw_order:
-                    val = row.get(col, 0)
-                    if val > 0:
-                        widths[col].append(val)
-                        bases[col].append(curr_x)
-                        
-                        # Formatting hover and inside text
-                        display_name = "LOBBY" if (col == "Unit" and "Lobby" in sp_type) else col
-                        hover_texts[col].append(f"<b>{display_name}</b><br>{val:,.0f} m²")
-                        
-                        # Only show text inside if the block is relatively wide (> 10% of GBA)
-                        if val / gba > 0.1:
-                            short_name = "CORR" if col == "Koridor/Lobby" else ("MEP" if col in ["Stair, MEP, Etc", "MEP Outdoor"] else display_name)
-                            text_labels[col].append(f"{short_name}<br>{val:,.0f}m²")
+                bases = {col: [] for col in area_cols}
+                widths = {col: [] for col in area_cols}
+                hover_texts = {col: [] for col in area_cols}
+                text_labels = {col: [] for col in area_cols}
+                unit_colors = []
+
+                for _, row in draw_df.iterrows():
+                    gba = float(row.get("GBA", 0))
+                    sp_type = str(row.get("Space Type", ""))
+
+                    curr_x = -gba / 2 if gba > 0 else 0
+
+                    is_lobby = "Lobby" in sp_type
+                    unit_colors.append(
+                        PRO_COLORS["Lobby_Override"] if is_lobby else PRO_COLORS["Unit"]
+                    )
+
+                    for col in area_cols:
+                        val = float(row.get(col, 0))
+
+                        if val > 0 and gba > 0:
+                            bases[col].append(curr_x)
+                            widths[col].append(val)
+
+                            display_name = "Lobby" if col == "Unit" and is_lobby else col
+
+                            hover_texts[col].append(
+                                f"<b>{display_name}</b>"
+                                f"<br>Area: {val:,.0f} m²"
+                                f"<br>Floor GBA: {gba:,.0f} m²"
+                                f"<br>Share: {(val / gba * 100):.1f}%"
+                            )
+
+                            if val / gba >= 0.115:
+                                if col == "Koridor/Lobby":
+                                    short_name = "Corridor"
+                                elif col == "Stair, MEP, Etc":
+                                    short_name = "Service"
+                                elif col == "MEP Outdoor":
+                                    short_name = "MEP Out."
+                                elif col == "Roof/Deck":
+                                    short_name = "Roof"
+                                else:
+                                    short_name = display_name
+
+                                text_labels[col].append(f"{short_name}<br>{val:,.0f}")
+                            else:
+                                text_labels[col].append("")
+
+                            curr_x += val
                         else:
+                            bases[col].append(0)
+                            widths[col].append(0)
+                            hover_texts[col].append("")
                             text_labels[col].append("")
-                            
-                        curr_x += val
-                    else:
-                        # Append 0/empty to keep arrays aligned with the Y-axis
-                        widths[col].append(0)
-                        bases[col].append(0)
-                        hover_texts[col].append("")
-                        text_labels[col].append("")
 
-            # Build the Plotly Figure
-            fig = go.Figure()
+                fig_mass = go.Figure()
 
-            for col in draw_order:
-                # Apply the specific color array if it's the Unit column, otherwise use standard color
-                marker_color = unit_colors if col == "Unit" else CAT_COLORS.get(col, "#ffffff")
-                
-                fig.add_trace(go.Bar(
-                    y=floor_labels,
-                    x=widths[col],
-                    base=bases[col],
-                    name=col,
-                    orientation='h',
-                    marker=dict(
-                        color=marker_color,
-                        line=dict(color='#111111', width=1.5) # Crisp borders
+                floor_bar_height = 0.84
+
+                for col in area_cols:
+                    marker_color = unit_colors if col == "Unit" else PRO_COLORS.get(col, "#DDDDDD")
+
+                    fig_mass.add_trace(
+                        go.Bar(
+                            y=y_positions,
+                            x=widths[col],
+                            base=bases[col],
+                            width=floor_bar_height,
+                            name=col,
+                            orientation="h",
+                            marker=dict(
+                                color=marker_color,
+                                line=dict(
+                                    color="#111827",
+                                    width=0.75
+                                )
+                            ),
+                            text=text_labels[col],
+                            textposition="inside",
+                            insidetextanchor="middle",
+                            hoverinfo="text",
+                            hovertext=hover_texts[col],
+                            textfont=dict(
+                                color="#111827",
+                                size=10.5,
+                                family="Arial"
+                            ),
+                            cliponaxis=False
+                        )
+                    )
+
+                max_gba = float(draw_df["GBA"].max()) if len(draw_df) else 0
+
+                # --------------------------------------------------
+                # FULL OUTER BUILDING OUTLINE PER FLOOR
+                # Keeps every floor clearly boxed regardless of area composition
+                # --------------------------------------------------
+                for i, row in draw_df.iterrows():
+                    gba = float(row.get("GBA", 0))
+
+                    if gba > 0:
+                        fig_mass.add_shape(
+                            type="rect",
+                            x0=-gba / 2,
+                            x1=gba / 2,
+                            y0=i - floor_bar_height / 2,
+                            y1=i + floor_bar_height / 2,
+                            line=dict(
+                                color="#111827",
+                                width=1.8
+                            ),
+                            fillcolor="rgba(0,0,0,0)",
+                            layer="above"
+                        )
+
+                # --------------------------------------------------
+                # HORIZONTAL FLOOR SEPARATION LINES
+                # These read like floor slabs / level lines
+                # --------------------------------------------------
+                for i, row in draw_df.iterrows():
+                    gba = float(row.get("GBA", 0))
+
+                    if gba > 0:
+                        # Top slab line
+                        fig_mass.add_shape(
+                            type="line",
+                            x0=-gba / 2,
+                            x1=gba / 2,
+                            y0=i + floor_bar_height / 2,
+                            y1=i + floor_bar_height / 2,
+                            line=dict(
+                                color="#111827",
+                                width=2.2
+                            ),
+                            layer="above"
+                        )
+
+                        # Bottom slab line
+                        fig_mass.add_shape(
+                            type="line",
+                            x0=-gba / 2,
+                            x1=gba / 2,
+                            y0=i - floor_bar_height / 2,
+                            y1=i - floor_bar_height / 2,
+                            line=dict(
+                                color="#111827",
+                                width=1.2
+                            ),
+                            layer="above"
+                        )
+
+                # --------------------------------------------------
+                # Optional: subtle background frame inside the chart
+                # --------------------------------------------------
+                if max_gba > 0 and len(draw_df) > 0:
+                    fig_mass.add_shape(
+                        type="rect",
+                        x0=-max_gba * 0.585,
+                        x1=max_gba * 0.585,
+                        y0=-0.75,
+                        y1=len(draw_df) - 0.25,
+                        line=dict(
+                            color="#D1D5DB",
+                            width=1
+                        ),
+                        fillcolor="rgba(249,250,251,0.45)",
+                        layer="below"
+                    )
+
+                fig_mass.update_layout(
+                    barmode="stack",
+                    height=max(500, len(draw_df) * 40),
+                    margin=dict(l=8, r=8, t=30, b=12),
+                    plot_bgcolor="#FFFFFF",
+                    paper_bgcolor="#FFFFFF",
+                    hovermode="closest",
+                    showlegend=True,
+                    bargap=0.02,
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.015,
+                        xanchor="left",
+                        x=0,
+                        font=dict(
+                            size=10,
+                            color="#6B7280"
+                        ),
+                        itemclick=False,
+                        itemdoubleclick=False
                     ),
-                    text=text_labels[col],
-                    textposition='inside',
-                    insidetextanchor='middle',
-                    hoverinfo='text',
-                    hovertext=hover_texts[col],
-                    textfont=dict(color='black', size=11, family="Arial")
-                ))
+                    xaxis=dict(
+                        range=[-max_gba * 0.60, max_gba * 0.60] if max_gba > 0 else None,
+                        showgrid=False,
+                        zeroline=False,
+                        showticklabels=False,
+                        title=None,
+                        fixedrange=True
+                    ),
+                    yaxis=dict(
+                        tickmode="array",
+                        tickvals=y_positions,
+                        ticktext=floor_labels,
+                        showgrid=False,
+                        tickfont=dict(
+                            size=12,
+                            color="#111827"
+                        ),
+                        title=None,
+                        fixedrange=True
+                    ),
+                    uniformtext=dict(
+                        minsize=8,
+                        mode="hide"
+                    )
+                )
 
-            # Layout Styling
-            fig.update_layout(
-                barmode='stack',
-                showlegend=False,
-                height=max(450, len(draw_df) * 45), # Dynamic height
-                margin=dict(l=10, r=10, t=10, b=10),
-                plot_bgcolor='white',
-                paper_bgcolor='white',
-                hovermode='closest',
-                xaxis=dict(
-                    showgrid=False, 
-                    zeroline=False, 
-                    showticklabels=False # Hide X axis numbers to keep architectural look
-                ),
-                yaxis=dict(
-                    showgrid=False,
-                    tickfont=dict(size=14, color='black', weight='bold')
+                # Ground datum line
+                fig_mass.add_hline(
+                    y=-0.5,
+                    line_width=3,
+                    line_color="#111827"
+                )
+
+                st.plotly_chart(
+                    fig_mass,
+                    use_container_width=True,
+                    config={"displayModeBar": False}
+                )
+
+
+        # ==================================================
+        # RIGHT: PROFESSIONAL DASHBOARD / SETTINGS PANEL
+        # ==================================================
+        with col_viz_right:
+            total_gba = safe_sum(edited_df, "GBA")
+            total_gfa = safe_sum(edited_df, "GFA")
+            total_sgfa = safe_sum(edited_df, "SGFA")
+            total_nfa = safe_sum(edited_df, "NFA")
+
+            total_circ = safe_sum(edited_df, "Koridor/Lobby")
+            total_serv = safe_sum(edited_df, "Stair, MEP, Etc")
+            total_non_gfa = (
+                safe_sum(edited_df, "Parkir")
+                + safe_sum(edited_df, "Roof/Deck")
+                + safe_sum(edited_df, "MEP Outdoor")
+            )
+
+            efficiency = (total_nfa / total_gfa * 100) if total_gfa > 0 else 0
+            sgfa_ratio = (total_sgfa / total_gba * 100) if total_gba > 0 else 0
+            gfa_ratio = (total_gfa / total_gba * 100) if total_gba > 0 else 0
+
+            floor_count = len(edited_df)
+
+            composition = [
+                ("NFA", total_nfa, PRO_COLORS["Unit"]),
+                ("Circulation", total_circ, PRO_COLORS["Koridor/Lobby"]),
+                ("Services", total_serv, PRO_COLORS["Stair, MEP, Etc"]),
+                ("Non-GFA", total_non_gfa, PRO_COLORS["Parkir"])
+            ]
+
+            st.markdown("##### PROJECT CONTROL PANEL")
+
+            # --------------------------------------------------
+            # SETTINGS DASHBOARD STYLE CSS
+            # --------------------------------------------------
+            st.markdown(
+                f"""
+<style>
+.pro-panel {{
+    background: {PRO_BG};
+    border: 1px solid {PRO_CARD_BORDER};
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+}}
+
+.pro-panel-title {{
+    font-size: 12px;
+    font-weight: 700;
+    color: {PRO_TEXT};
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}}
+
+.pro-metric-main {{
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid {PRO_CARD_BORDER};
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}}
+
+.pro-metric-label {{
+    font-size: 12px;
+    color: {PRO_MUTED};
+    text-transform: uppercase;
+    letter-spacing: 0.035em;
+    font-weight: 600;
+}}
+
+.pro-metric-value {{
+    font-size: 24px;
+    color: {PRO_TEXT};
+    font-weight: 750;
+    line-height: 1.1;
+}}
+
+.pro-row {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #F0F2F5;
+}}
+
+.pro-row:last-child {{
+    border-bottom: none;
+}}
+
+.pro-row-label {{
+    font-size: 13px;
+    color: {PRO_MUTED};
+}}
+
+.pro-row-value {{
+    font-size: 13px;
+    color: {PRO_TEXT};
+    font-weight: 700;
+}}
+
+.pro-chip-row {{
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}}
+
+.pro-chip {{
+    background: {PRO_PANEL_BG};
+    border: 1px solid {PRO_CARD_BORDER};
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 12px;
+    color: {PRO_TEXT};
+    font-weight: 600;
+}}
+
+.pro-bar-item {{
+    margin-bottom: 12px;
+}}
+
+.pro-bar-top {{
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+    margin-bottom: 5px;
+}}
+
+.pro-bar-label {{
+    color: {PRO_TEXT};
+    font-weight: 650;
+}}
+
+.pro-bar-value {{
+    color: {PRO_MUTED};
+    font-weight: 650;
+}}
+
+.pro-bar-track {{
+    height: 10px;
+    background: #EEF1F5;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid #E5E7EB;
+}}
+
+.pro-bar-fill {{
+    height: 100%;
+    border-right: 1px solid rgba(17,24,39,0.35);
+}}
+</style>
+                """,
+                unsafe_allow_html=True
+            )
+
+            # --------------------------------------------------
+            # MAIN KPI PANEL
+            # --------------------------------------------------
+            st.markdown(
+                f"""
+<div class="pro-panel">
+<div class="pro-panel-title">Primary Area Metrics</div>
+
+<div class="pro-metric-main">
+<div>
+<div class="pro-metric-label">Efficiency (NFA/GFA)</div>
+<div class="pro-metric-value">{efficiency:.1f}%</div>
+</div>
+<div style="text-align:right;">
+<div class="pro-metric-label">Gross Building Area (GBA)</div>
+<div class="pro-metric-value">{total_gba:,.0f} m²</div>
+</div>
+</div>
+
+<div class="pro-row">
+<div class="pro-row-label">Gross Floor Area (GFA)</div>
+<div class="pro-row-value">{total_gfa:,.0f} m²</div>
+</div>
+
+<div class="pro-row">
+<div class="pro-row-label">Semi-Gross Floor Area (SGFA)</div>
+<div class="pro-row-value">{total_sgfa:,.0f} m²</div>
+</div>
+
+<div class="pro-row">
+<div class="pro-row-label">Net Floor Area (NFA)</div>
+<div class="pro-row-value">{total_nfa:,.0f} m²</div>
+</div>
+
+<div class="pro-chip-row">
+<div class="pro-chip">{floor_count} Floors</div>
+<div class="pro-chip">GFA/GBA {gfa_ratio:.1f}%</div>
+<div class="pro-chip">SGFA/GBA {sgfa_ratio:.1f}%</div>
+</div>
+</div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            # --------------------------------------------------
+            # AREA COMPOSITION PANEL
+            # --------------------------------------------------
+            comp_html = """
+            <div class="pro-panel">
+                <div class="pro-panel-title">Area Composition</div>
+            """
+
+            for label, value, color in composition:
+                pct = (value / total_gba * 100) if total_gba > 0 else 0
+                bar_width = min(max(pct, 0), 100)
+
+                comp_html += f"""
+<div class="pro-bar-item">
+    <div class="pro-bar-top">
+        <div class="pro-bar-label">{label}</div>
+        <div class="pro-bar-value">{value:,.0f} m² · {pct:.1f}%</div>
+    </div>
+    <div class="pro-bar-track">
+        <div class="pro-bar-fill" style="width:{bar_width:.1f}%; background:{color};"></div>
+    </div>
+</div>
+                """
+
+            comp_html += "</div>"
+
+            st.markdown(comp_html, unsafe_allow_html=True)
+
+            # --------------------------------------------------
+            # COMPACT REFERENCE CHART
+            # --------------------------------------------------
+            st.markdown("##### DISTRIBUTION REFERENCE")
+
+            categories = [x[0] for x in composition]
+            percentages = [
+                (x[1] / total_gba * 100) if total_gba > 0 else 0
+                for x in composition
+            ]
+            chart_colors = [x[2] for x in composition]
+
+            fig_dist = go.Figure()
+
+            fig_dist.add_trace(
+                go.Bar(
+                    x=percentages,
+                    y=categories,
+                    orientation="h",
+                    marker=dict(
+                        color=chart_colors,
+                        line=dict(
+                            color=PRO_BORDER,
+                            width=1
+                        )
+                    ),
+                    text=[f"{p:.1f}%" for p in percentages],
+                    textposition="outside",
+                    textfont=dict(
+                        color=PRO_TEXT,
+                        size=11
+                    ),
+                    hovertemplate="<b>%{y}</b><br>%{x:.1f}% of GBA<extra></extra>"
                 )
             )
 
-            # Add Ground Line
-            fig.add_hline(y=-0.5, line_width=4, line_color="black")
+            fig_dist.update_layout(
+                height=260,
+                margin=dict(l=8, r=42, t=8, b=8),
+                plot_bgcolor=PRO_BG,
+                paper_bgcolor=PRO_BG,
+                showlegend=False,
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor=PRO_GRID,
+                    zeroline=False,
+                    ticksuffix="%",
+                    tickfont=dict(
+                        size=10,
+                        color=PRO_MUTED
+                    ),
+                    range=[0, max(percentages) * 1.22 if max(percentages) > 0 else 100],
+                    fixedrange=True
+                ),
+                yaxis=dict(
+                    tickfont=dict(
+                        size=11,
+                        color=PRO_TEXT
+                    ),
+                    autorange="reversed",
+                    fixedrange=True
+                )
+            )
 
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-
-
-# --- RIGHT: DATA SUMMARY & DISTRIBUTION (ARCHITECTURAL SPEC STYLE) ---
-        with col_viz_right:
-            st.markdown("##### PROJECT SUMMARY & ANALYSIS")
-            
-            # 1. Calculation Logic
-            total_gba = edited_df["GBA"].sum()
-            total_gfa = edited_df["GFA"].sum()
-            total_sgfa = edited_df["SGFA"].sum()
-            total_nfa = edited_df["NFA"].sum()
-            total_circ = edited_df["Koridor/Lobby"].sum()
-            total_serv = edited_df["Stair, MEP, Etc"].sum()
-            total_non_gfa = edited_df[["Parkir", "Roof/Deck", "MEP Outdoor"]].sum().sum()
-            
-            # Efficiency is NFA / GFA (common QS metric)
-            efficiency = (total_nfa / total_gfa * 100) if total_gfa > 0 else 0
-
-            # 2. Create the "Spec Sheet" using Matplotlib
-            # Slightly taller figure to accommodate the 5 rows comfortably
-            fig_sum, ax_sum = plt.subplots(figsize=(5, 3.2))
-            fig_sum.patch.set_facecolor('#ffffff')
-            ax_sum.set_facecolor('#ffffff')
-            
-            # Y-Positions for the 5 rows
-            rows = [0.80, 0.60, 0.40, 0.20, 0.00]
-            row_height = 0.18
-            
-            # Background boxes for metrics - Colors matching your Excel reference
-            ax_sum.add_patch(patches.Rectangle((0, rows[0]), 1, row_height, color='#d9ead3', zorder=1)) # Green: NFA/Efficiency
-            ax_sum.add_patch(patches.Rectangle((0, rows[1]), 1, row_height, color='#f3f3f3', zorder=1)) # Gray: SGFA
-            ax_sum.add_patch(patches.Rectangle((0, rows[2]), 1, row_height, color='#e6f2ff', zorder=1)) # Blue: GFA
-            ax_sum.add_patch(patches.Rectangle((0, rows[3]), 1, row_height, color='#e2e2e2', zorder=1)) # Gray: GBA
-            ax_sum.add_patch(patches.Rectangle((0, rows[4]), 1, row_height, color='#ffffff', zorder=1)) # White: Info
-
-            # Text Styling
-            text_params = {'ha': 'left', 'va': 'center', 'fontsize': 10, 'color': '#444', 'family': 'sans-serif'}
-            val_params = {'ha': 'right', 'va': 'center', 'fontsize': 11, 'weight': 'bold', 'color': '#000'}
-
-            # Row 1: NFA & Efficiency
-            ax_sum.text(0.05, rows[0] + row_height/2, f"NFA (Efficiency: {efficiency:.1f}%)", **text_params)
-            ax_sum.text(0.95, rows[0] + row_height/2, f"{total_nfa:,.0f} m²", **val_params)
-            
-            # Row 2: SGFA
-            ax_sum.text(0.05, rows[1] + row_height/2, "SGFA (Semi-Gross Floor Area)", **text_params)
-            ax_sum.text(0.95, rows[1] + row_height/2, f"{total_sgfa:,.0f} m²", **val_params)
-            
-            # Row 3: GFA
-            ax_sum.text(0.05, rows[2] + row_height/2, "GFA (Gross Floor Area)", **text_params)
-            ax_sum.text(0.95, rows[2] + row_height/2, f"{total_gfa:,.0f} m²", **val_params)
-            
-            # Row 4: GBA
-            ax_sum.text(0.05, rows[3] + row_height/2, "GBA (Gross Building Area)", **text_params)
-            ax_sum.text(0.95, rows[3] + row_height/2, f"{total_gba:,.0f} m²", **val_params)
-            
-            # Row 5: Building Info
-            ax_sum.text(0.05, rows[4] + row_height/2, f"DATA SUMMARY: {len(edited_df)} Total Floors", 
-                        ha='left', va='center', fontsize=9, color='#777', style='italic')
-
-            ax_sum.set_xlim(0, 1)
-            ax_sum.set_ylim(-0.05, 1.05)
-            ax_sum.axis('off')
-            st.pyplot(fig_sum)
-
-            st.markdown("##### AREA DISTRIBUTION (%)")
-
-            # 3. Distribution Bar Chart
-            fig2, ax2 = plt.subplots(figsize=(5, 3.5))
-            fig2.patch.set_facecolor('#ffffff')
-            
-            categories = ['NFA', 'Circ.', 'Services', 'Non-GFA']
-            values = [total_nfa, total_circ, total_serv, total_non_gfa]
-            colors = [CAT_COLORS["Unit"], CAT_COLORS["Koridor/Lobby"], CAT_COLORS["Stair, MEP, Etc"], CAT_COLORS["Roof/Deck"]]
-            percentages = [(v / total_gba * 100) if total_gba > 0 else 0 for v in values]
-
-            bars = ax2.bar(categories, percentages, color=colors, edgecolor='#111', linewidth=1.2, width=0.6)
-
-            for bar, pct in zip(bars, percentages):
-                height = bar.get_height()
-                ax2.text(bar.get_x() + bar.get_width()/2., height + 1, f'{pct:.1f}%', 
-                         ha='center', va='bottom', fontsize=10, weight='bold')
-
-            ax2.set_ylim(0, max(percentages) + 15 if max(percentages) > 0 else 100)
-            ax2.axis('off')
-            
-            # Add category labels manually to keep it clean
-            for i, cat in enumerate(categories):
-                ax2.text(i, -max(percentages)*0.1, cat, ha='center', fontsize=9, weight='bold', color='#444')
-
-            st.pyplot(fig2, use_container_width=True)
+            st.plotly_chart(
+                fig_dist,
+                use_container_width=True,
+                config={"displayModeBar": False}
+            )
 
     with tab2:
-        st.subheader("2. Top-Down Feasibility Estimator")
-        st.caption("Hitung cepat kebutuhan GBA dan GFA berdasarkan target unit penjualan dan efisiensi.")
+        # ==================================================
+        # TOP-DOWN FEASIBILITY ESTIMATOR — PROFESSIONAL UI
+        # ==================================================
+        st.subheader("2. Top-Down Feasibility Study")
+        st.caption(
+            "Early-stage feasibility model to estimate NFA, GFA, GBA, parking requirement, "
+            "and development efficiency from high-level assumptions."
+        )
 
-        col_t1, col_t2, col_t3 = st.columns(3)
+        # --------------------------------------------------
+        # STYLE
+        # --------------------------------------------------
+        st.markdown(
+            """
+            <style>
+            .td-panel {
+                background: #FFFFFF;
+                border: 1px solid #E5E7EB;
+                border-radius: 14px;
+                padding: 16px 18px;
+                margin-bottom: 14px;
+                box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+            }
+
+            .td-panel-title {
+                font-size: 12px;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                color: #111827;
+                margin-bottom: 10px;
+            }
+
+            .td-muted {
+                font-size: 12px;
+                color: #6B7280;
+                line-height: 1.45;
+            }
+
+            .td-kpi-grid {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 12px;
+                margin-bottom: 14px;
+            }
+
+            .td-kpi-card {
+                background: #FFFFFF;
+                border: 1px solid #E5E7EB;
+                border-radius: 14px;
+                padding: 14px 16px;
+                box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+            }
+
+            .td-kpi-label {
+                font-size: 11px;
+                color: #6B7280;
+                text-transform: uppercase;
+                letter-spacing: 0.045em;
+                font-weight: 700;
+                margin-bottom: 6px;
+            }
+
+            .td-kpi-value {
+                font-size: 22px;
+                color: #111827;
+                font-weight: 750;
+                line-height: 1.1;
+            }
+
+            .td-kpi-sub {
+                font-size: 12px;
+                color: #6B7280;
+                margin-top: 6px;
+            }
+
+            .td-row {
+                display: flex;
+                justify-content: space-between;
+                border-bottom: 1px solid #F0F2F5;
+                padding: 8px 0;
+                gap: 12px;
+            }
+
+            .td-row:last-child {
+                border-bottom: none;
+            }
+
+            .td-row-label {
+                font-size: 13px;
+                color: #6B7280;
+            }
+
+            .td-row-value {
+                font-size: 13px;
+                color: #111827;
+                font-weight: 700;
+                text-align: right;
+            }
+
+            .td-status-good {
+                display: inline-block;
+                background: #ECFDF3;
+                color: #027A48;
+                border: 1px solid #ABEFC6;
+                border-radius: 999px;
+                padding: 4px 10px;
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            .td-status-watch {
+                display: inline-block;
+                background: #FFFAEB;
+                color: #B54708;
+                border: 1px solid #FEDF89;
+                border-radius: 999px;
+                padding: 4px 10px;
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            .td-status-risk {
+                display: inline-block;
+                background: #FEF3F2;
+                color: #B42318;
+                border: 1px solid #FECDCA;
+                border-radius: 999px;
+                padding: 4px 10px;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # --------------------------------------------------
+        # INPUT ASSUMPTIONS
+        # --------------------------------------------------
+        st.markdown("##### Input Assumptions")
+
+        col_t1, col_t2, col_t3 = st.columns(3, gap="large")
 
         with col_t1:
-            st.markdown("#### 1. Target Penjualan (NFA)")
-            target_units = st.number_input("Target Jumlah Unit", min_value=1, value=500, step=10, key="td_units")
-            avg_unit_size = st.number_input("Rata-rata Luas Unit (m²)", min_value=10.0, value=35.0, step=1.0, key="td_avg_size")
-            
-            # Math: Target NFA
-            est_nfa = target_units * avg_unit_size
-            st.info(f"**Total NFA:** {est_nfa:,.0f} m²")
+            with st.container(border=True):
+                st.markdown("###### 1. Sales Target")
+                target_units = st.number_input(
+                    "Target Jumlah Unit",
+                    min_value=1,
+                    value=500,
+                    step=10,
+                    key="td_units"
+                )
+
+                avg_unit_size = st.number_input(
+                    "Rata-rata Luas Unit (m²)",
+                    min_value=10.0,
+                    value=35.0,
+                    step=1.0,
+                    key="td_avg_size"
+                )
+
+                est_nfa = target_units * avg_unit_size
+
+                st.markdown(
+                    f"""
+                    <div class="td-panel" style="margin-top:12px; margin-bottom:20px;">
+                        <div class="td-panel-title">Calculated NFA</div>
+                        <div class="td-kpi-value">{est_nfa:,.0f} m²</div>
+                        <div class="td-kpi-sub">{target_units:,.0f} units × {avg_unit_size:,.1f} m²</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
         with col_t2:
-            st.markdown("#### 2. Efisiensi Bangunan (GFA)")
-            target_efficiency = st.slider("Target Efisiensi Floorplate (%)", min_value=60, max_value=95, value=82, step=1, help="NFA dibagi GFA. Standar Apartemen ~82-85%.", key="td_eff")
-            
-            # Math: GFA based on efficiency
-            est_gfa = est_nfa / (target_efficiency / 100)
-            core_area = est_gfa - est_nfa
-            st.info(f"**Total GFA:** {est_gfa:,.0f} m²\n\n*(Core/Sirkulasi: {core_area:,.0f} m²)*")
+            with st.container(border=True):
+                st.markdown("###### 2. Building Efficiency")
+                target_efficiency = st.slider(
+                    "Target Efisiensi Floorplate (%)",
+                    min_value=60,
+                    max_value=95,
+                    value=82,
+                    step=1,
+                    help="NFA / GFA. Untuk apartemen, asumsi awal sering berada di kisaran ±80–85%, tergantung desain core, koridor, dan layout.",
+                    key="td_eff"
+                )
+
+                est_gfa = est_nfa / (target_efficiency / 100)
+                core_area = est_gfa - est_nfa
+
+                st.markdown(
+                    f"""
+                    <div class="td-panel" style="margin-top:12px; margin-bottom:20px;">
+                        <div class="td-panel-title">Calculated GFA</div>
+                        <div class="td-kpi-value">{est_gfa:,.0f} m²</div>
+                        <div class="td-kpi-sub">Core / circulation: {core_area:,.0f} m²</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
         with col_t3:
-            st.markdown("#### 3. Kebutuhan Parkir (GBA)")
-            lot_ratio = st.number_input("Rasio Parkir (Lot/Unit)", min_value=0.0, value=0.5, step=0.1, help="Misal 0.5 = 1 lot untuk 2 unit.", key="td_ratio")
-            m2_per_lot = st.number_input("Luas GBA per Lot (m²)", min_value=15.0, value=30.0, step=1.0, help="Termasuk ramp & jalan. Standar ~28-30m².", key="td_m2_lot")
-            
-            # Math: Parking & GBA
-            req_lots = target_units * lot_ratio
-            parking_gba = req_lots * m2_per_lot
-            est_gba = est_gfa + parking_gba
-            st.info(f"**Total GBA:** {est_gba:,.0f} m²\n\n*(Kebutuhan: {req_lots:,.0f} Lot)*")
+            with st.container(border=True):
+                st.markdown("###### 3. Parking Requirement")
+                lot_ratio = st.number_input(
+                    "Rasio Parkir (Lot/Unit)",
+                    min_value=0.0,
+                    value=0.5,
+                    step=0.1,
+                    help="Contoh: 0.5 berarti 1 lot parkir untuk 2 unit.",
+                    key="td_ratio"
+                )
+
+                m2_per_lot = st.number_input(
+                    "Luas GBA per Lot (m²)",
+                    min_value=15.0,
+                    value=30.0,
+                    step=1.0,
+                    help="Termasuk ramp, aisle, driveway, dan area sirkulasi parkir.",
+                    key="td_m2_lot"
+                )
+
+                req_lots = target_units * lot_ratio
+                parking_gba = req_lots * m2_per_lot
+                est_gba = est_gfa + parking_gba
+
+                st.markdown(
+                    f"""
+                    <div class="td-panel" style="margin-top:12px; margin-bottom:20px;">
+                        <div class="td-panel-title">Calculated Parking GBA</div>
+                        <div class="td-kpi-value">{parking_gba:,.0f} m²</div>
+                        <div class="td-kpi-sub">{req_lots:,.0f} lots × {m2_per_lot:,.1f} m²</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
         st.markdown("---")
-        
-        # --- SUMMARY DASHBOARD ---
-        st.markdown("### Ringkasan Area Makro")
-        sc1, sc2, sc3, sc4 = st.columns(4)
-        sc1.metric("GBA (Gross Building Area)", f"{est_gba:,.0f} m²", help="Total area terbangun termasuk parkir.")
-        sc2.metric("GFA (Gross Floor Area)", f"{est_gfa:,.0f} m²", help="Total area tertutup (Unit + Core).")
-        sc3.metric("NFA (Net Floor Area)", f"{est_nfa:,.0f} m²", help="Total area yang bisa dijual/disewakan.")
-        sc4.metric("Kapasitas Parkir", f"{req_lots:,.0f} Mobil", help=f"Berdasarkan rasio {lot_ratio} lot per unit.")
 
-        # --- PROPORTIONAL VISUALIZATION ---
-        st.markdown("#### Proporsi Area Terbangun (GBA Breakdown)")
-        st.caption("Visualisasi ini menunjukkan berapa banyak area non-jual (Core & Parkir) yang harus dibangun untuk mendukung target NFA Anda.")
-        
-        # A clean horizontal stacked bar chart using matplotlib
-        fig, ax = plt.subplots(figsize=(10, 2.5))
-        
-        # Plotting [NFA] + [Core] + [Parking] = GBA
-        ax.barh(0, est_nfa, color='#FAD7A0', edgecolor='black', label=f'NFA (Sellable)')
-        ax.barh(0, core_area, left=est_nfa, color='#AED6F1', edgecolor='black', label=f'Core & Sirkulasi')
-        ax.barh(0, parking_gba, left=(est_nfa + core_area), color='#95A5A6', edgecolor='black', label=f'Area Parkir / Podium')
-        
-        # Adding text labels inside the bars
-        if est_nfa > (est_gba * 0.05): # Only show text if the bar is wide enough
-            ax.text(est_nfa/2, 0, f"NFA\n{est_nfa:,.0f} m²\n({(est_nfa/est_gba*100):.1f}%)", ha='center', va='center', fontsize=9, weight='bold')
-        if core_area > (est_gba * 0.05):
-            ax.text(est_nfa + core_area/2, 0, f"CORE\n{core_area:,.0f} m²\n({(core_area/est_gba*100):.1f}%)", ha='center', va='center', fontsize=9)
-        if parking_gba > (est_gba * 0.05):
-            ax.text(est_nfa + core_area + parking_gba/2, 0, f"PARKIR\n{parking_gba:,.0f} m²\n({(parking_gba/est_gba*100):.1f}%)", ha='center', va='center', fontsize=9, color='white', weight='bold')
+        # --------------------------------------------------
+        # DERIVED RATIOS
+        # --------------------------------------------------
+        gba_to_nfa_ratio = est_gba / est_nfa if est_nfa > 0 else 0
+        gfa_to_gba_ratio = est_gfa / est_gba * 100 if est_gba > 0 else 0
+        parking_burden = parking_gba / est_gba * 100 if est_gba > 0 else 0
+        core_ratio_gfa = core_area / est_gfa * 100 if est_gfa > 0 else 0
 
-        # Clean up the chart
-        ax.set_yticks([])
-        ax.set_xlim(0, est_gba * 1.02)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['left'].set_visible(False)
-        ax.set_xlabel("Total Area Terbangun (m²)")
-        
-        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.3), ncol=3, frameon=False)
-        
-        st.pyplot(fig)
+        # --------------------------------------------------
+        # EXECUTIVE KPI SUMMARY
+        # --------------------------------------------------
+        st.markdown("##### Executive Area Summary")
+
+        st.markdown(
+            f"""
+<div class="td-kpi-grid">
+<div class="td-kpi-card">
+<div class="td-kpi-label">Gross Building Area</div>
+<div class="td-kpi-value">{est_gba:,.0f} m²</div>
+<div class="td-kpi-sub">Total built area incl. parking</div>
+</div>
+
+<div class="td-kpi-card">
+<div class="td-kpi-label">Gross Floor Area</div>
+<div class="td-kpi-value">{est_gfa:,.0f} m²</div>
+<div class="td-kpi-sub">{gfa_to_gba_ratio:.1f}% of GBA</div>
+</div>
+
+<div class="td-kpi-card">
+<div class="td-kpi-label">Net Floor Area</div>
+<div class="td-kpi-value">{est_nfa:,.0f} m²</div>
+<div class="td-kpi-sub">{target_efficiency:.1f}% of GFA</div>
+</div>
+
+<div class="td-kpi-card">
+<div class="td-kpi-label">Parking Capacity</div>
+<div class="td-kpi-value">{req_lots:,.0f}</div>
+<div class="td-kpi-sub">car lots required</div>
+</div>
+</div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # --------------------------------------------------
+        # TWO-COLUMN ANALYSIS LAYOUT
+        # --------------------------------------------------
+        col_chart, col_notes = st.columns([1.45, 1], gap="large")
+
+        with col_chart:
+            st.markdown("##### Area Bridge: NFA → GBA")
+
+            bridge_categories = ["NFA", "Core / Circulation", "Parking / Podium"]
+            bridge_values = [est_nfa, core_area, parking_gba]
+            bridge_colors = ["#9FBBD6", "#CCC7BE", "#AEB3BA"]
+
+            bridge_total = sum(bridge_values)
+
+            fig_bridge = go.Figure()
+
+            cumulative = 0
+
+            for label, value, color in zip(bridge_categories, bridge_values, bridge_colors):
+                pct = value / bridge_total * 100 if bridge_total > 0 else 0
+
+                # Shorter label for inside the bar
+                if label == "Core / Circulation":
+                    inside_label = "Core"
+                elif label == "Parking / Podium":
+                    inside_label = "Parking"
+                else:
+                    inside_label = label
+
+                fig_bridge.add_trace(
+                    go.Bar(
+                        x=[value],
+                        y=[""],
+                        orientation="h",
+                        base=[cumulative],
+                        name=label,
+                        marker=dict(
+                            color=color,
+                            line=dict(color="#111827", width=1.0)
+                        ),
+                        text=[f"{inside_label}<br>{value:,.0f} m²<br>{pct:.1f}%"],
+                        textposition="inside",
+                        insidetextanchor="middle",
+                        textfont=dict(
+                            color="#111827",
+                            size=11,
+                            family="Arial"
+                        ),
+                        hovertemplate=(
+                            f"<b>{label}</b>"
+                            "<br>Area: %{x:,.0f} m²"
+                            f"<br>Share: {pct:.1f}%"
+                            "<extra></extra>"
+                        ),
+                        cliponaxis=False
+                    )
+                )
+
+                cumulative += value
+
+            fig_bridge.update_layout(
+                barmode="overlay",
+                height=300,
+                margin=dict(l=10, r=20, t=18, b=72),
+                plot_bgcolor="#FFFFFF",
+                paper_bgcolor="#FFFFFF",
+                showlegend=True,
+                legend=dict(
+                    orientation="h",
+                    yanchor="top",
+                    y=-0.28,
+                    xanchor="center",
+                    x=0.5,
+                    font=dict(size=11, color="#6B7280"),
+                    traceorder="normal"
+                ),
+                xaxis=dict(
+                    range=[0, est_gba * 1.03 if est_gba > 0 else 1],
+                    showgrid=True,
+                    gridcolor="#E5E7EB",
+                    zeroline=False,
+                    tickfont=dict(size=10, color="#6B7280"),
+                    tickformat=",.0f",
+                    title=None
+                ),
+                yaxis=dict(
+                    showticklabels=False,
+                    showgrid=False,
+                    zeroline=False,
+                    fixedrange=True
+                )
+            )
+
+            # Add x-axis title manually so it does not collide with legend
+            fig_bridge.add_annotation(
+                x=0.5,
+                y=-0.16,
+                xref="paper",
+                yref="paper",
+                text="Total Built Area (m²)",
+                showarrow=False,
+                font=dict(size=11, color="#6B7280"),
+                yanchor="top"
+            )
+
+            st.plotly_chart(
+                fig_bridge,
+                use_container_width=True,
+                config={"displayModeBar": False}
+            )
+
+            st.markdown("##### Efficiency Ratios")
+
+            ratio_labels = [
+                "NFA / GFA Efficiency",
+                "Core / GFA Burden",
+                "Parking / GBA Burden",
+                "GFA / GBA Ratio"
+            ]
+
+            ratio_values = [
+                target_efficiency,
+                core_ratio_gfa,
+                parking_burden,
+                gfa_to_gba_ratio
+            ]
+
+            ratio_colors = [
+                "#9FBBD6",
+                "#CCC7BE",
+                "#AEB3BA",
+                "#B6D0AA"
+            ]
+
+            fig_ratio = go.Figure()
+
+            fig_ratio.add_trace(
+                go.Bar(
+                    x=ratio_values,
+                    y=ratio_labels,
+                    orientation="h",
+                    marker=dict(
+                        color=ratio_colors,
+                        line=dict(color="#111827", width=1)
+                    ),
+                    text=[f"{v:.1f}%" for v in ratio_values],
+                    textposition="outside",
+                    textfont=dict(color="#111827", size=11),
+                    hovertemplate="<b>%{y}</b><br>%{x:.1f}%<extra></extra>"
+                )
+            )
+
+            fig_ratio.update_layout(
+                height=260,
+                margin=dict(l=10, r=42, t=10, b=10),
+                plot_bgcolor="#FFFFFF",
+                paper_bgcolor="#FFFFFF",
+                showlegend=False,
+                xaxis=dict(
+                    range=[0, max(ratio_values) * 1.18 if max(ratio_values) > 0 else 100],
+                    ticksuffix="%",
+                    showgrid=True,
+                    gridcolor="#E5E7EB",
+                    zeroline=False,
+                    tickfont=dict(size=10, color="#6B7280")
+                ),
+                yaxis=dict(
+                    autorange="reversed",
+                    tickfont=dict(size=11, color="#111827")
+                )
+            )
+
+            st.plotly_chart(
+                fig_ratio,
+                use_container_width=True,
+                config={"displayModeBar": False}
+            )
+
+        with col_notes:
+            st.markdown("##### Feasibility Control Notes")
+
+            if target_efficiency >= 85:
+                eff_status = '<span class="td-status-watch">Aggressive</span>'
+                eff_note = "Efficiency target is high. Validate against actual core, corridor, shaft, and unit layout."
+            elif target_efficiency >= 78:
+                eff_status = '<span class="td-status-good">Normal</span>'
+                eff_note = "Efficiency assumption is within a generally practical early-stage range."
+            else:
+                eff_status = '<span class="td-status-risk">Inefficient</span>'
+                eff_note = "Low efficiency will increase GFA and may pressure construction cost."
+
+            if parking_burden > 30:
+                park_status = '<span class="td-status-risk">High Burden</span>'
+                park_note = "Parking takes a large share of GBA. Check podium/basement strategy and local parking requirement."
+            elif parking_burden > 18:
+                park_status = '<span class="td-status-watch">Moderate</span>'
+                park_note = "Parking burden is material. Confirm whether parking is podium, basement, or separate structure."
+            else:
+                park_status = '<span class="td-status-good">Controlled</span>'
+                park_note = "Parking burden is relatively controlled against total GBA."
+
+            if gba_to_nfa_ratio > 1.65:
+                gba_status = '<span class="td-status-risk">Heavy GBA</span>'
+                gba_note = "Total built area is high compared to sellable area. Cost efficiency needs close review."
+            elif gba_to_nfa_ratio > 1.35:
+                gba_status = '<span class="td-status-watch">Moderate</span>'
+                gba_note = "GBA to NFA ratio is acceptable but should still be checked against project positioning."
+            else:
+                gba_status = '<span class="td-status-good">Efficient</span>'
+                gba_note = "Built area is relatively efficient against sellable area."
+
+            st.markdown(
+                f"""
+<div class="td-panel">
+<div class="td-panel-title">Efficiency Review</div>
+<div style="margin-bottom:10px;">{eff_status}</div>
+<div class="td-muted">{eff_note}</div>
+</div>
+
+<div class="td-panel">
+<div class="td-panel-title">Parking Review</div>
+<div style="margin-bottom:10px;">{park_status}</div>
+<div class="td-muted">{park_note}</div>
+</div>
+
+<div class="td-panel">
+<div class="td-panel-title">GBA / NFA Review</div>
+<div style="margin-bottom:10px;">{gba_status}</div>
+<div class="td-muted">{gba_note}</div>
+</div>
+
+<div class="td-panel">
+<div class="td-panel-title">Development Ratios</div>
+
+<div class="td-row">
+<div class="td-row-label">GBA / NFA Multiplier</div>
+<div class="td-row-value">{gba_to_nfa_ratio:.2f}x</div>
+</div>
+
+<div class="td-row">
+<div class="td-row-label">Core + Circulation</div>
+<div class="td-row-value">{core_area:,.0f} m²</div>
+</div>
+
+<div class="td-row">
+<div class="td-row-label">Parking GBA</div>
+<div class="td-row-value">{parking_gba:,.0f} m²</div>
+</div>
+
+<div class="td-row">
+<div class="td-row-label">Area per Unit incl. GBA</div>
+<div class="td-row-value">{(est_gba / target_units):,.1f} m²/unit</div>
+</div>
+</div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        # --------------------------------------------------
+        # SENSITIVITY TABLE
+        # --------------------------------------------------
+        st.markdown("---")
+        st.markdown("##### Quick Sensitivity Check")
+        st.caption("Shows how GFA and GBA move if the assumed floorplate efficiency changes.")
+
+        sensitivity_rows = []
+
+        for eff in [75, 78, 80, 82, 85, 88]:
+            sens_gfa = est_nfa / (eff / 100)
+            sens_core = sens_gfa - est_nfa
+            sens_gba = sens_gfa + parking_gba
+            sens_multiplier = sens_gba / est_nfa if est_nfa > 0 else 0
+
+            sensitivity_rows.append({
+                "Efficiency": f"{eff:.0f}%",
+                "NFA": f"{est_nfa:,.0f} m²",
+                "Core / Circ.": f"{sens_core:,.0f} m²",
+                "GFA": f"{sens_gfa:,.0f} m²",
+                "Parking": f"{parking_gba:,.0f} m²",
+                "GBA": f"{sens_gba:,.0f} m²",
+                "GBA / NFA": f"{sens_multiplier:.2f}x"
+            })
+
+        sensitivity_df = pd.DataFrame(sensitivity_rows)
+
+        st.dataframe(
+            sensitivity_df,
+            use_container_width=True,
+            hide_index=True
+        )
       
 def update_price(metric_key, db_key): #this function pulls~
     """Update flooring price based on spec radio selection."""
@@ -1245,323 +2759,609 @@ def show_cost_estimator(): #cost calculator page
     curr_type_key = f"{curr_id}_{curr_type}"
 
     # --- TABS ---
-    tab1, tab2, tab3, tab5, tab4, tab6, tab7, tab8, tab9 = st.tabs([
+    tab1, tab2, tab3, tab5, tab4, tab6, tab7, tab8 = st.tabs([
         "Welcome",
         "1. Ukuran", "2. Rasio",
         "3. Soft Costs", "4. Harga",
         "5. Item Tambahan", "6. Hasil",
         "7. Pembuktian",
-        "Unggah & Unduh",
     ])
 
 # --- TAB 1: WELCOME ---
     with tab1:
+        # ==================================================
+        # HOME / GUIDE PAGE — PROFESSIONAL VERSION
+        # ==================================================
+
         st.markdown("""
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
-            
-            /* General Hero Styling */
-            .hero-card {
-                background: #ffffff; border: 0.5px solid #e0e0e0; border-radius: 12px;
-                padding: 1.75rem 1.5rem 1.5rem; margin-bottom: 2rem;
-            }
-            .hero-badge {
-                display: inline-flex; align-items: center; gap: 6px;
-                font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
-                text-transform: uppercase; background: #f5f5f5;
-                color: #666; border: 0.5px solid #ddd; border-radius: 8px;
-                padding: 4px 10px; margin-bottom: 1rem;
-            }
-            .hero-title { font-size: 22px; font-weight: 600; color: #1a1a1a; margin: 0 0 8px; }
-            .hero-sub   { font-size: 14px; color: #555; margin: 0; line-height: 1.6; }
-            .hero-divider { height: 1px; background: #eee; margin: 1.25rem 0; }
-            .hero-meta  { display: flex; gap: 1.5rem; flex-wrap: wrap; }
-            .hero-meta-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #666; }
-            
-            /* Section Titles */
-            .section-label {
-                font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
-                text-transform: uppercase; color: #3e4095; margin: 0 0 1rem;
-                border-bottom: 1px solid #eee; padding-bottom: 6px;
-            }
-            
-            /* Grid & Cards */
-            .step-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 2rem; }
-            .step-card {
-                background: #fff; border: 0.5px solid #e0e0e0; border-radius: 12px;
-                padding: 1.25rem; transition: border-color 0.15s, box-shadow 0.15s;
-            }
-            .step-card:hover { border-color: #3e4095; box-shadow: 0 4px 12px rgba(62, 64, 149, 0.05); }
-            .step-top  { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-            
-            /* Icons for Navigation Menu */
-            .nav-icon {
-                width: 28px; height: 28px; border-radius: 6px;
-                background: #f0f0f5; color: #3e4095; font-size: 14px;
-                display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-            }
-            
-            /* Numbers for Steps */
-            .step-num  {
-                width: 24px; height: 24px; border-radius: 6px;
-                background: #3e4095; color: #fff; font-size: 11px; font-weight: 600;
-                display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-            }
-            
-            /* Text inside cards */
-            .step-title { font-size: 14px; font-weight: 600; color: #1a1a1a; }
-            .step-desc  { font-size: 13px; color: #666; line-height: 1.5; margin: 0; }
-            .step-caption {
-                font-size: 11px !important;
-                color: #9CA3AF !important;
-                margin-top: 4px !important;
-                font-style: italic;
-            }
-            
-            /* Tooltip/Info Box */
-            .tip-box {
-                background: #f8f8ff; border: 0.5px solid #e0e0ff;
-                border-left: 3px solid #3e4095; border-radius: 0 8px 8px 0;
-                padding: 1rem; display: flex; align-items: flex-start; gap: 12px;
-            }
-            .tip-icon { font-size: 18px; color: #3e4095; margin-top: -2px; flex-shrink: 0; }
-            .tip-text  { font-size: 13px; color: #444; margin: 0; line-height: 1.5; }
-        </style>
+<style>
+:root {
+--brand: #3E4095;
+--brand-soft: #F3F4FF;
+--text-main: #111827;
+--text-muted: #6B7280;
+--border: #E5E7EB;
+--surface: #FFFFFF;
+--surface-soft: #F9FAFB;
+}
 
-        <!-- HERO SECTION -->
-        <div class="hero-card">
-            <div class="hero-badge">&#128200; Workspace Dashboard</div>
-            <p class="hero-title">Project Feasibility Study</p>
-            <p class="hero-sub">Analisis kelayakan proyek secara komprehensif dengan estimasi biaya yang akurat.</p>
-            <div class="hero-divider"></div>
-            <div class="hero-meta">
-                <div class="hero-meta-item">&#128202; Perhitungan area & biaya terintegrasi</div>
-                <div class="hero-meta-item">&#129516; Breakdown biaya otomatis</div>
-                <div class="hero-meta-item">&#128452; Terkoneksi dengan Database master</div>
-            </div>
-        </div>
+.home-hero {
+background: linear-gradient(135deg, #FFFFFF 0%, #F8F9FF 100%);
+border: 1px solid #E5E7EB;
+border-radius: 18px;
+padding: 1.75rem 1.75rem 1.5rem;
+margin-bottom: 1.4rem;
+box-shadow: 0 2px 8px rgba(16,24,40,0.04);
+}
 
-        <!-- SECTION 1: MAIN NAVIGATION -->
-        <p class="section-label">🧭 Penjelasan Menu Utama (Sidebar)</p>
-        <div class="step-grid">
-            <div class="step-card">
-                <div class="step-top"><div class="nav-icon">🧮</div><span class="step-title">Cost Calculator</span></div>
-                <p class="step-desc">Modul utama untuk menghitung rincian dan estimasi kelayakan biaya proyek.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-top"><div class="nav-icon">📐</div><span class="step-title">Area Calculator</span></div>
-                <p class="step-desc">Kalkulator khusus untuk merencanakan parameter dimensi dan luas area.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-top"><div class="nav-icon">🗄️</div><span class="step-title">Database</span></div>
-                <p class="step-desc">Pusat data acuan harga satuan, material, dan referensi standar proyek.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-top"><div class="nav-icon">📊</div><span class="step-title">Summary</span></div>
-                <p class="step-desc">Ringkasan eksekutif dan dashboard pelaporan dari hasil perhitungan akhir.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-top"><div class="nav-icon">📂</div><span class="step-title">Project Archive</span></div>
-                <p class="step-desc">Manajemen berkas: simpan, muat (load), dan kelola histori versi proyek Anda.</p>
-            </div>
-        </div>
+.home-badge {
+display: inline-flex;
+align-items: center;
+gap: 7px;
+font-size: 11px;
+font-weight: 700;
+letter-spacing: 0.07em;
+text-transform: uppercase;
+color: #3E4095;
+background: #F3F4FF;
+border: 1px solid #DDE1FF;
+border-radius: 999px;
+padding: 5px 11px;
+margin-bottom: 1rem;
+}
 
-        <!-- SECTION 2: COST CALCULATOR WORKFLOW -->
-        <p class="section-label">⚙️ Alur Kerja: Cost Calculator</p>
-        <div class="step-grid">
-            <div class="step-card">
-                <div class="step-top"><div class="step-num">1</div><span class="step-title">Ukuran</span></div>
-                <p class="step-desc">Isi luas tanah, GBA, GFA, SGFA, dan jumlah unit.</p>
-                <p class="step-caption">Input berupa qty, bukan harga.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-top"><div class="step-num">2</div><span class="step-title">Rasio</span></div>
-                <p class="step-desc">Untuk input rasio material lantai & fasad.</p>
-                <p class="step-caption">Input berupa persentase (%).</p>
-            </div>
-            <div class="step-card">
-                <div class="step-top"><div class="step-num">3</div><span class="step-title">Soft Cost</span></div>
-                <p class="step-desc">Biaya jasa QS, PM, konsultan, dan asuransi proyek.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-top"><div class="step-num">4</div><span class="step-title">Harga</span></div>
-                <p class="step-desc">Harga otomatis mengikuti database jenis proyek.</p>
-                <p class="step-caption">Dapat disesuaikan manual (override).</p>
-            </div>
-            <div class="step-card">
-                <div class="step-top"><div class="step-num">5</div><span class="step-title">Tambahan</span></div>
-                <p class="step-desc">Penambahan item khusus atau spesifik proyek.</p>
-                <p class="step-caption">Input manual untuk Nama, Qty, dan Harga.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-top"><div class="step-num">6</div><span class="step-title">Hasil</span></div>
-                <p class="step-desc">Dashboard hasil perhitungan total biaya proyek keseluruhan.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-top"><div class="step-num">7</div><span class="step-title">Pembuktian</span></div>
-                <p class="step-desc">Tampilkan perhitungan rinci per item untuk verifikasi dan audit QS.</p>
-            </div>
-        </div>
+.home-title {
+font-size: 26px;
+font-weight: 750;
+color: #111827;
+margin: 0 0 8px;
+line-height: 1.2;
+}
 
-        <!-- TIP BOX -->
-        <div class="tip-box">
-            <span class="tip-icon">&#8505;</span>
-            <p class="tip-text"><strong>Rekomendasi Alur:</strong> Jika Anda memulai proyek baru, masuk ke <strong>Area Calculator</strong> terlebih dahulu. Setelah luasan didapat, pindah ke <strong>Cost Calculator</strong> (Mulai dari tab Ukuran hingga Hasil). Jangan lupa simpan pekerjaan Anda di <strong>Project Archive</strong> sebelum keluar.</p>
-        </div>
+.home-sub {
+font-size: 14px;
+color: #4B5563;
+margin: 0;
+line-height: 1.65;
+max-width: 820px;
+}
+
+.home-divider {
+height: 1px;
+background: #E5E7EB;
+margin: 1.25rem 0;
+}
+
+.home-meta {
+display: grid;
+grid-template-columns: repeat(3, minmax(0, 1fr));
+gap: 10px;
+}
+
+.home-meta-item {
+background: rgba(255,255,255,0.75);
+border: 1px solid #E5E7EB;
+border-radius: 12px;
+padding: 10px 12px;
+font-size: 12.5px;
+color: #374151;
+line-height: 1.45;
+}
+
+.quick-grid {
+display: grid;
+grid-template-columns: repeat(4, minmax(0, 1fr));
+gap: 12px;
+margin-bottom: 1.2rem;
+}
+
+.quick-card {
+background: #FFFFFF;
+border: 1px solid #E5E7EB;
+border-radius: 14px;
+padding: 14px 15px;
+box-shadow: 0 1px 3px rgba(16,24,40,0.035);
+}
+
+.quick-label {
+font-size: 11px;
+color: #6B7280;
+text-transform: uppercase;
+letter-spacing: 0.055em;
+font-weight: 700;
+margin-bottom: 5px;
+}
+
+.quick-value {
+font-size: 14px;
+color: #111827;
+font-weight: 700;
+line-height: 1.4;
+}
+
+.section-note {
+background: #F9FAFB;
+border: 1px solid #E5E7EB;
+border-radius: 14px;
+padding: 14px 16px;
+margin: 0.5rem 0 1rem;
+font-size: 13px;
+color: #4B5563;
+line-height: 1.6;
+}
+
+.guide-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+gap: 12px;
+margin-top: 0.75rem;
+margin-bottom: 0.5rem;
+}
+
+.guide-card {
+background: #FFFFFF;
+border: 1px solid #E5E7EB;
+border-radius: 14px;
+padding: 15px;
+box-shadow: 0 1px 3px rgba(16,24,40,0.035);
+min-height: 125px;
+}
+
+.guide-card:hover {
+border-color: #BFC3F5;
+box-shadow: 0 4px 12px rgba(62,64,149,0.07);
+}
+
+.guide-top {
+display: flex;
+align-items: center;
+gap: 10px;
+margin-bottom: 10px;
+}
+
+.guide-icon {
+width: 30px;
+height: 30px;
+border-radius: 9px;
+background: #F3F4FF;
+border: 1px solid #DDE1FF;
+color: #3E4095;
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 15px;
+flex-shrink: 0;
+}
+
+.guide-num {
+width: 28px;
+height: 28px;
+border-radius: 9px;
+background: #3E4095;
+color: #FFFFFF;
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 12px;
+font-weight: 750;
+flex-shrink: 0;
+}
+
+.guide-title {
+font-size: 14px;
+color: #111827;
+font-weight: 750;
+}
+
+.guide-desc {
+font-size: 13px;
+color: #6B7280;
+line-height: 1.55;
+margin: 0;
+}
+
+.guide-caption {
+font-size: 11.5px;
+color: #9CA3AF;
+line-height: 1.45;
+margin-top: 6px;
+font-style: italic;
+}
+
+.recommendation-box {
+background: #FFFFFF;
+border: 1px solid #DDE1FF;
+border-left: 5px solid #3E4095;
+border-radius: 14px;
+padding: 15px 16px;
+margin-top: 1rem;
+box-shadow: 0 1px 3px rgba(16,24,40,0.035);
+}
+
+.recommendation-title {
+font-size: 13px;
+font-weight: 750;
+color: #111827;
+margin-bottom: 6px;
+}
+
+.recommendation-text {
+font-size: 13px;
+color: #4B5563;
+line-height: 1.6;
+margin: 0;
+}
+
+@media (max-width: 900px) {
+.home-meta {
+grid-template-columns: 1fr;
+}
+
+.quick-grid {
+grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+}
+
+@media (max-width: 640px) {
+.quick-grid {
+grid-template-columns: 1fr;
+}
+}
+
+/* ==================================================
+FLOW / ARROW SEQUENCE COMPONENT
+================================================== */
+.flow-panel {
+background: #FFFFFF;
+border: 1px solid #E5E7EB;
+border-radius: 16px;
+padding: 14px 16px;
+margin-bottom: 1.2rem;
+box-shadow: 0 1px 3px rgba(16,24,40,0.035);
+}
+
+.flow-label {
+font-size: 11px;
+color: #6B7280;
+text-transform: uppercase;
+letter-spacing: 0.06em;
+font-weight: 750;
+margin-bottom: 12px;
+}
+
+.flow-track {
+display: flex;
+align-items: stretch;
+gap: 10px;
+overflow-x: auto;
+padding-bottom: 4px;
+}
+
+.flow-item {
+display: flex;
+align-items: center;
+flex-shrink: 0;
+}
+
+.flow-card {
+min-width: 170px;
+background: #F9FAFB;
+border: 1px solid #E5E7EB;
+border-radius: 14px;
+padding: 13px 14px;
+min-height: 82px;
+}
+
+.flow-card-primary {
+background: #F3F4FF;
+border-color: #DDE1FF;
+}
+
+.flow-eyebrow {
+font-size: 10px;
+color: #6B7280;
+text-transform: uppercase;
+letter-spacing: 0.06em;
+font-weight: 750;
+margin-bottom: 5px;
+}
+
+.flow-title {
+font-size: 14px;
+color: #111827;
+font-weight: 750;
+line-height: 1.35;
+}
+
+.flow-desc {
+font-size: 11.5px;
+color: #6B7280;
+line-height: 1.4;
+margin-top: 5px;
+}
+
+.flow-arrow {
+width: 30px;
+min-width: 30px;
+height: 30px;
+border-radius: 999px;
+background: #FFFFFF;
+border: 1px solid #D1D5DB;
+color: #3E4095;
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 16px;
+font-weight: 800;
+margin-left: 10px;
+}
+
+.workflow-flow .flow-card {
+min-width: 185px;
+}
+
+.flow-step-num {
+width: 24px;
+height: 24px;
+border-radius: 8px;
+background: #3E4095;
+color: #FFFFFF;
+display: inline-flex;
+align-items: center;
+justify-content: center;
+font-size: 11px;
+font-weight: 750;
+margin-bottom: 8px;
+}
+
+@media (max-width: 900px) {
+.flow-track {
+padding-bottom: 8px;
+}
+
+.flow-card {
+min-width: 165px;
+}
+
+.workflow-flow .flow-card {
+min-width: 175px;
+}
+}
+</style>
         """, unsafe_allow_html=True)
-        
-    with tab9:
-            st.header("Upload & Download")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.subheader("Import")
-                uploaded_file = st.file_uploader("Upload CSV Database:", type=["csv"])
 
-                if uploaded_file is not None:
-                    file_key = getattr(uploaded_file, 'file_id', uploaded_file.name)
-                    
-                    if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != file_key:
-                        try:
-                            import ast  # Needed to turn strings back into tables
-                            df_import = pd.read_csv(uploaded_file)
-                            
-                            if df_import is not None and not df_import.empty:
-                                global_temp_custom = {}
-                                import_pid_map = {} # Track mapped IDs to prevent row-by-row renaming
+        # ==================================================
+        # HERO SECTION
+        # ==================================================
+        st.markdown("""
+<div class="home-hero">
+<div class="home-badge">📊 Workspace Dashboard</div>
+<div class="home-title">Project Feasibility Study</div>
+<p class="home-sub">
+Platform kerja untuk menyusun estimasi kelayakan proyek, menghitung area, 
+mengelola asumsi biaya, dan menyiapkan ringkasan hasil secara lebih terstruktur.
+</p>
 
-                                for index, row in df_import.iterrows():
-                                    # Get raw ID
-                                    raw_pid = str(row.get("Project_ID", curr_id)).strip()
-                                    key = str(row.get("Metric_Key", "")).strip()
-                                    val = row.get("Value", "")
+<div class="home-divider"></div>
 
-                                    if not key or pd.isna(val): continue 
+<div class="home-meta">
+<div class="home-meta-item">
+<strong>Area & Cost Integration</strong><br>
+Luasan proyek dan estimasi biaya tersambung dalam satu alur kerja.
+</div>
+<div class="home-meta-item">
+<strong>Automated Breakdown</strong><br>
+Breakdown biaya dapat dihitung otomatis berdasarkan parameter proyek.
+</div>
+<div class="home-meta-item">
+<strong>Database Reference</strong><br>
+Harga satuan dan referensi master digunakan sebagai dasar perhitungan.
+</div>
+</div>
+</div>
+        """, unsafe_allow_html=True)
 
-                                    # 1. Handle Project ID Mapping (Renaming if duplicate exists)
-                                    if raw_pid not in import_pid_map:
-                                        target_pid = raw_pid
-                                        if target_pid in st.session_state.projects:
-                                            # Unique suffix for this file import
-                                            target_pid = f"{target_pid}_imported_{file_key[:4]}"
-                                        import_pid_map[raw_pid] = target_pid
+        # ==================================================
+        # QUICK OVERVIEW
+        # ==================================================
+        st.markdown("""
+<div class="flow-panel">
+<div class="flow-label">Recommended Working Sequence</div>
 
-                                    pid = import_pid_map[raw_pid]
+<div class="flow-track">
+<div class="flow-item">
+<div class="flow-card flow-card-primary">
+<div class="flow-eyebrow">Start Here</div>
+<div class="flow-title">Area Calculator</div>
+<div class="flow-desc">Set up basic area assumptions and planning parameters.</div>
+</div>
+<div class="flow-arrow">→</div>
+</div>
 
-                                    if pid not in st.session_state.projects:
-                                        st.session_state.projects[pid] = {
-                                            "name": f"Imported Project {pid}",
-                                            "type": "Hotel", 
-                                            "data": {}
-                                        }
-                                    
-                                    # 2. Handle Metadata
-                                    if key == "proj_name":
-                                        st.session_state.projects[pid]["name"] = str(val)
-                                    elif key == "proj_type":
-                                        st.session_state.projects[pid]["type"] = str(val)
-                                    
-                                    # 3. Handle Custom Item Reconstruction
-                                    elif key.startswith(("input_name", "input_rate", "input_qty")):
-                                        if pid not in global_temp_custom:
-                                            global_temp_custom[pid] = {}
-                                        try:
-                                            idx = int(''.join(filter(str.isdigit, key)))
-                                            if idx not in global_temp_custom[pid]:
-                                                global_temp_custom[pid][idx] = {"Item Description": "", "Rate (Rp)": 0.0, "Quantity": 1.0}
-                                            
-                                            if "name" in key: global_temp_custom[pid][idx]["Item Description"] = str(val)
-                                            elif "rate" in key: global_temp_custom[pid][idx]["Rate (Rp)"] = float(val)
-                                            elif "qty" in key: global_temp_custom[pid][idx]["Quantity"] = float(val)
-                                        except: continue
+<div class="flow-item">
+<div class="flow-card">
+<div class="flow-eyebrow">Main Module</div>
+<div class="flow-title">Cost Calculator</div>
+<div class="flow-desc">Calculate project cost based on area, ratios, and database pricing.</div>
+</div>
+<div class="flow-arrow">→</div>
+</div>
 
-                                    # 4. Handle Standard Metrics & Nested Tables (Area Calculator)
-                                    else:
-                                        try:
-                                            str_val = str(val).strip()
+<div class="flow-item">
+<div class="flow-card">
+<div class="flow-eyebrow">Data Source</div>
+<div class="flow-title">Database Master</div>
+<div class="flow-desc">Review or adjust cost references and master data assumptions.</div>
+</div>
+<div class="flow-arrow">→</div>
+</div>
 
-                                            # Strip surrounding quotes that CSV may add
-                                            if str_val.startswith('"') and str_val.endswith('"'):
-                                                str_val = str_val[1:-1]
+<div class="flow-item">
+<div class="flow-card">
+<div class="flow-eyebrow">Final Output</div>
+<div class="flow-title">Summary & Archive</div>
+<div class="flow-desc">Review final result, export summary, and save project version.</div>
+</div>
+</div>
+</div>
+</div>
+        """, unsafe_allow_html=True)
 
-                                            if str_val.startswith("[{") or str_val.startswith("['"): 
-                                                # Try JSON first (clean), then fall back to Python literal
-                                                try:
-                                                    st.session_state.projects[pid]["data"][key] = _json.loads(str_val)
-                                                except Exception:
-                                                    try:
-                                                        st.session_state.projects[pid]["data"][key] = ast.literal_eval(str_val)
-                                                    except Exception:
-                                                        st.session_state.projects[pid]["data"][key] = str_val
-                                            else:
-                                                try:
-                                                    st.session_state.projects[pid]["data"][key] = float(val)
-                                                except (ValueError, TypeError):
-                                                    st.session_state.projects[pid]["data"][key] = str(val)
-                                        except (ValueError, TypeError, SyntaxError):
-                                            st.session_state.projects[pid]["data"][key] = str(val)
+        # ==================================================
+        # EXPANDER 1: MAIN SIDEBAR MENU
+        # ==================================================
+        with st.expander("Penjelasan Menu Utama (Sidebar)", expanded=False):
+            st.markdown("""
+<div class="section-note">
+Gunakan bagian ini sebagai panduan navigasi utama. Setiap menu memiliki fungsi berbeda dalam proses studi kelayakan proyek.
+</div>
 
-                                # 5. Finalize Custom Item Lists
-                                for pid_key, items_dict in global_temp_custom.items():
-                                    sorted_custom = [items_dict[i] for i in sorted(items_dict.keys())]
-                                    st.session_state.projects[pid_key]["data"]["smart_custom_costs"] = sorted_custom
+<div class="guide-grid">
+<div class="guide-card">
+<div class="guide-top">
+<div class="guide-icon">🧮</div>
+<span class="guide-title">Cost Calculator</span>
+</div>
+<p class="guide-desc">
+Modul utama untuk menghitung rincian dan estimasi kelayakan biaya proyek.
+</p>
+</div>
 
-                                # 6. CLEAR UI CACHE ANCHORS (Crucial for Area Calculator reload)
-                                keys_to_clear = [k for k in st.session_state.keys() if "base_table_" in k or "area_editor_" in k]
-                                for k in keys_to_clear:
-                                    del st.session_state[k]
+<div class="guide-card">
+<div class="guide-top">
+<div class="guide-icon">📐</div>
+<span class="guide-title">Area Calculator</span>
+</div>
+<p class="guide-desc">
+Kalkulator untuk merencanakan parameter dimensi, jumlah lantai, dan luasan proyek.
+</p>
+</div>
 
-                                st.session_state.last_loaded_file = file_key
-                                st.success(f"✅ Import Successful! New projects created to avoid overwrites.")
-                                st.rerun()
-                            else:
-                                st.warning("⚠️ The uploaded CSV is empty.")
-                        except Exception as e:
-                            st.error(f"❌ Error during import: {e}")
-                            
-            with c2:
-                st.subheader("Export")
-                # --- 1. CURRENT PROJECT ONLY ---
-                current_project_csv = []
-                current_project_csv.append({"Project_ID": curr_id, "Metric_Key": "proj_name", "Value": curr_proj["name"]})
-                current_project_csv.append({"Project_ID": curr_id, "Metric_Key": "proj_type", "Value": curr_proj["type"]})
-                
-                for k, v in st.session_state.projects[curr_id]["data"].items():
-                    if k not in ("header_info", "assumptions"):
-                        serialized_v = _json.dumps(v) if isinstance(v, list) else v
-                        current_project_csv.append({"Project_ID": curr_id, "Metric_Key": k, "Value": serialized_v})
+<div class="guide-card">
+<div class="guide-top">
+<div class="guide-icon">🗄️</div>
+<span class="guide-title">Database</span>
+</div>
+<p class="guide-desc">
+Pusat data acuan harga satuan, material, item pekerjaan, dan referensi standar proyek.
+</p>
+</div>
 
-                df_curr = pd.DataFrame(current_project_csv)
-                csv_buffer = df_curr.to_csv(index=False).encode("utf-8")
+<div class="guide-card">
+<div class="guide-top">
+<div class="guide-icon">📊</div>
+<span class="guide-title">Summary</span>
+</div>
+<p class="guide-desc">
+Ringkasan eksekutif, dashboard hasil akhir, dan tampilan laporan proyek.
+</p>
+</div>
 
-                # --- 2. GLOBAL DATABASE ---
-                all_projects_csv = []
-                for pid, pdata in st.session_state.projects.items():
-                    all_projects_csv.append({"Project_ID": pid, "Metric_Key": "proj_name", "Value": pdata["name"]})
-                    all_projects_csv.append({"Project_ID": pid, "Metric_Key": "proj_type", "Value": pdata["type"]})
-                    for k, v in pdata["data"].items():
-                        if k not in ("header_info", "assumptions"):
-                            all_projects_csv.append({"Project_ID": pid, "Metric_Key": k, "Value": v})
+<div class="guide-card">
+<div class="guide-top">
+<div class="guide-icon">📂</div>
+<span class="guide-title">Project Archive</span>
+</div>
+<p class="guide-desc">
+Area untuk menyimpan, memuat kembali, dan mengelola histori versi proyek.
+</p>
+</div>
+</div>
+            """, unsafe_allow_html=True)
 
-                df_all = pd.DataFrame(all_projects_csv)
-                csv_all_buffer = df_all.to_csv(index=False).encode("utf-8")
+        # ==================================================
+        # EXPANDER 2: COST CALCULATOR WORKFLOW
+        # ==================================================
+        with st.expander("Penjelasan Alur Kerja: Cost Calculator", expanded=False):
+            st.markdown("""
+<div class="section-note">
+Alur kerja berikut disusun sebagai urutan input yang disarankan agar perhitungan lebih mudah diperiksa dan diaudit.
+</div>
 
-                # --- 3. DOWNLOAD BUTTONS ---
-                st.download_button(
-                    label=f"Download {curr_proj['name']} only",
-                    data=csv_buffer,
-                    file_name=f"Project_{curr_id}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
+<div class="flow-panel">
+<div class="flow-label">Cost Calculator Input Flow</div>
 
-                st.download_button(
-                    label="Download All Projects",
-                    data=csv_all_buffer,
-                    file_name="ProCalc_Global_Database.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                    type="primary" 
-                )
+<div class="flow-track workflow-flow">
+
+<div class="flow-item">
+<div class="flow-card flow-card-primary">
+<div class="flow-step-num">1</div>
+<div class="flow-title">Ukuran</div>
+<div class="flow-desc">Isi luas tanah, GBA, GFA, SGFA, dan jumlah unit.</div>
+</div>
+<div class="flow-arrow">→</div>
+</div>
+
+<div class="flow-item">
+<div class="flow-card">
+<div class="flow-step-num">2</div>
+<div class="flow-title">Rasio</div>
+<div class="flow-desc">Input rasio lantai, fasad, dan parameter desain utama.</div>
+</div>
+<div class="flow-arrow">→</div>
+</div>
+
+<div class="flow-item">
+<div class="flow-card">
+<div class="flow-step-num">3</div>
+<div class="flow-title">Soft Cost</div>
+<div class="flow-desc">Input biaya QS, PM, konsultan, asuransi, dan biaya non-konstruksi.</div>
+</div>
+<div class="flow-arrow">→</div>
+</div>
+
+<div class="flow-item">
+<div class="flow-card">
+<div class="flow-step-num">4</div>
+<div class="flow-title">Harga</div>
+<div class="flow-desc">Harga otomatis mengikuti database dan dapat dioverride manual.</div>
+</div>
+<div class="flow-arrow">→</div>
+</div>
+
+<div class="flow-item">
+<div class="flow-card">
+<div class="flow-step-num">5</div>
+<div class="flow-title">Tambahan</div>
+<div class="flow-desc">Tambahkan item khusus atau pekerjaan spesifik proyek.</div>
+</div>
+<div class="flow-arrow">→</div>
+</div>
+
+<div class="flow-item">
+<div class="flow-card">
+<div class="flow-step-num">6</div>
+<div class="flow-title">Hasil</div>
+<div class="flow-desc">Tampilkan total biaya proyek dan komposisi biaya utama.</div>
+</div>
+<div class="flow-arrow">→</div>
+</div>
+
+<div class="flow-item">
+<div class="flow-card">
+<div class="flow-step-num">7</div>
+<div class="flow-title">Pembuktian</div>
+<div class="flow-desc">Cek rincian perhitungan per item untuk verifikasi QS.</div>
+</div>
+</div>
+
+</div>
+</div>
+            """, unsafe_allow_html=True)
+
+        # ==================================================
+        # RECOMMENDATION BOX
+        # ==================================================
+        st.markdown("""
+        <div class="recommendation-box">
+<div class="recommendation-title">Rekomendasi Alur Kerja</div>
+<p class="recommendation-text">
+Untuk proyek baru, mulai dari <strong>Area Calculator</strong> untuk membentuk luasan dasar. 
+Setelah GBA, GFA, SGFA, NFA, dan jumlah unit terbentuk, lanjutkan ke <strong>Cost Calculator</strong>. 
+Setelah hasil final diperiksa, simpan versi proyek melalui <strong>Project Archive</strong>.
+</p>
+</div>
+        """, unsafe_allow_html=True)
 
         # --- TAB 1: PROJECT METRICS ---
 
@@ -3241,6 +5041,221 @@ def show_portfolio_summary():
 
         html_str += "</table></div>"
         st.markdown(html_str, unsafe_allow_html=True)
+
+def show_snapshots():
+    st.title("Project Archive")
+    
+
+    curr_id = st.session_state.current_proj_id
+    curr_proj = st.session_state.projects[curr_id]
+
+    atab1, atab2= st.tabs([
+        "Save to Cloud", "Save to Computer"
+    ])
+    with atab1:
+        # --- SAVE NEW SNAPSHOT ---
+        st.subheader("Save Project")
+        snapshot_name = st.text_input(
+            "Project Name", 
+            placeholder="e.g. ASG Tower - Option 2 - Rev3"
+        )
+        col1, _ = st.columns([1, 6])
+        if col1.button("Save Project", use_container_width=True):
+            if snapshot_name.strip() == "":
+                col1.warning("Please enter Project name.")
+            else:
+                if save_snapshot(snapshot_name):
+                    st.success(f"Project **{snapshot_name}** saved!")
+                    st.rerun()
+
+        st.divider()
+
+        # --- LIST EXISTING SNAPSHOTS ---
+        st.subheader("Load Project:")
+        snapshots = load_snapshots()
+
+        if not snapshots:
+            st.info("No saved projects yet.")
+        else:
+            for snap in snapshots:
+                col1, col2, col3 = st.columns([5, 1, 1])
+                
+                from datetime import datetime, timedelta
+
+                created_utc = datetime.fromisoformat(snap["created_at"].replace("Z", "+00:00"))
+                created_local = created_utc + timedelta(hours=7)
+                formatted_date = created_local.strftime("%d %b %Y, %H:%M")
+                
+                col1.markdown(f"**{snap['snapshot_name']}**  \n  *Saved: {formatted_date} WIB*")
+                
+                if col2.button("Load Project", key=f"load_{snap['id']}", type="primary", use_container_width=True):
+                    data = load_snapshot_data(snap["id"])
+                    if data:
+                        st.session_state.projects = data["projects"]
+                        st.session_state.current_proj_id = data["current_proj_id"]
+                        st.session_state.proj_counter = data["proj_counter"]
+                        save_data()  # also update the main auto-save slot
+                        st.success(f"Loaded **{snap['snapshot_name']}**!")
+                        st.rerun()
+
+                if col3.button("Delete Project", key=f"del_{snap['id']}", use_container_width=True):
+                    if delete_snapshot(snap["id"]):
+                        st.success("Snapshot deleted.")
+                        st.rerun()
+
+    with atab2:
+        st.header("Upload & Download")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.subheader("Import")
+            uploaded_file = st.file_uploader("Upload CSV Database:", type=["csv"])
+
+            if uploaded_file is not None:
+                file_key = getattr(uploaded_file, 'file_id', uploaded_file.name)
+                
+                if "last_loaded_file" not in st.session_state or st.session_state.last_loaded_file != file_key:
+                    try:
+                        import ast  # Needed to turn strings back into tables
+                        df_import = pd.read_csv(uploaded_file)
+                        
+                        if df_import is not None and not df_import.empty:
+                            global_temp_custom = {}
+                            import_pid_map = {} # Track mapped IDs to prevent row-by-row renaming
+
+                            for index, row in df_import.iterrows():
+                                # Get raw ID
+                                raw_pid = str(row.get("Project_ID", curr_id)).strip()
+                                key = str(row.get("Metric_Key", "")).strip()
+                                val = row.get("Value", "")
+
+                                if not key or pd.isna(val): continue 
+
+                                # 1. Handle Project ID Mapping (Renaming if duplicate exists)
+                                if raw_pid not in import_pid_map:
+                                    target_pid = raw_pid
+                                    if target_pid in st.session_state.projects:
+                                        # Unique suffix for this file import
+                                        target_pid = f"{target_pid}_imported_{file_key[:4]}"
+                                    import_pid_map[raw_pid] = target_pid
+
+                                pid = import_pid_map[raw_pid]
+
+                                if pid not in st.session_state.projects:
+                                    st.session_state.projects[pid] = {
+                                        "name": f"Imported Project {pid}",
+                                        "type": "Hotel", 
+                                        "data": {}
+                                    }
+                                
+                                # 2. Handle Metadata
+                                if key == "proj_name":
+                                    st.session_state.projects[pid]["name"] = str(val)
+                                elif key == "proj_type":
+                                    st.session_state.projects[pid]["type"] = str(val)
+                                
+                                # 3. Handle Custom Item Reconstruction
+                                elif key.startswith(("input_name", "input_rate", "input_qty")):
+                                    if pid not in global_temp_custom:
+                                        global_temp_custom[pid] = {}
+                                    try:
+                                        idx = int(''.join(filter(str.isdigit, key)))
+                                        if idx not in global_temp_custom[pid]:
+                                            global_temp_custom[pid][idx] = {"Item Description": "", "Rate (Rp)": 0.0, "Quantity": 1.0}
+                                        
+                                        if "name" in key: global_temp_custom[pid][idx]["Item Description"] = str(val)
+                                        elif "rate" in key: global_temp_custom[pid][idx]["Rate (Rp)"] = float(val)
+                                        elif "qty" in key: global_temp_custom[pid][idx]["Quantity"] = float(val)
+                                    except: continue
+
+                                # 4. Handle Standard Metrics & Nested Tables (Area Calculator)
+                                else:
+                                    try:
+                                        str_val = str(val).strip()
+
+                                        # Strip surrounding quotes that CSV may add
+                                        if str_val.startswith('"') and str_val.endswith('"'):
+                                            str_val = str_val[1:-1]
+
+                                        if str_val.startswith("[{") or str_val.startswith("['"): 
+                                            # Try JSON first (clean), then fall back to Python literal
+                                            try:
+                                                st.session_state.projects[pid]["data"][key] = _json.loads(str_val)
+                                            except Exception:
+                                                try:
+                                                    st.session_state.projects[pid]["data"][key] = ast.literal_eval(str_val)
+                                                except Exception:
+                                                    st.session_state.projects[pid]["data"][key] = str_val
+                                        else:
+                                            try:
+                                                st.session_state.projects[pid]["data"][key] = float(val)
+                                            except (ValueError, TypeError):
+                                                st.session_state.projects[pid]["data"][key] = str(val)
+                                    except (ValueError, TypeError, SyntaxError):
+                                        st.session_state.projects[pid]["data"][key] = str(val)
+
+                            # 5. Finalize Custom Item Lists
+                            for pid_key, items_dict in global_temp_custom.items():
+                                sorted_custom = [items_dict[i] for i in sorted(items_dict.keys())]
+                                st.session_state.projects[pid_key]["data"]["smart_custom_costs"] = sorted_custom
+
+                            # 6. CLEAR UI CACHE ANCHORS (Crucial for Area Calculator reload)
+                            keys_to_clear = [k for k in st.session_state.keys() if "base_table_" in k or "area_editor_" in k]
+                            for k in keys_to_clear:
+                                del st.session_state[k]
+
+                            st.session_state.last_loaded_file = file_key
+                            st.success(f"✅ Import Successful! New projects created to avoid overwrites.")
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ The uploaded CSV is empty.")
+                    except Exception as e:
+                        st.error(f"❌ Error during import: {e}")
+                        
+        with c2:
+            st.subheader("Export")
+            # --- 1. CURRENT PROJECT ONLY ---
+            current_project_csv = []
+            current_project_csv.append({"Project_ID": curr_id, "Metric_Key": "proj_name", "Value": curr_proj["name"]})
+            current_project_csv.append({"Project_ID": curr_id, "Metric_Key": "proj_type", "Value": curr_proj["type"]})
+            
+            for k, v in st.session_state.projects[curr_id]["data"].items():
+                if k not in ("header_info", "assumptions"):
+                    serialized_v = _json.dumps(v) if isinstance(v, list) else v
+                    current_project_csv.append({"Project_ID": curr_id, "Metric_Key": k, "Value": serialized_v})
+
+            df_curr = pd.DataFrame(current_project_csv)
+            csv_buffer = df_curr.to_csv(index=False).encode("utf-8")
+
+            # --- 2. GLOBAL DATABASE ---
+            all_projects_csv = []
+            for pid, pdata in st.session_state.projects.items():
+                all_projects_csv.append({"Project_ID": pid, "Metric_Key": "proj_name", "Value": pdata["name"]})
+                all_projects_csv.append({"Project_ID": pid, "Metric_Key": "proj_type", "Value": pdata["type"]})
+                for k, v in pdata["data"].items():
+                    if k not in ("header_info", "assumptions"):
+                        all_projects_csv.append({"Project_ID": pid, "Metric_Key": k, "Value": v})
+
+            df_all = pd.DataFrame(all_projects_csv)
+            csv_all_buffer = df_all.to_csv(index=False).encode("utf-8")
+
+            # --- 3. DOWNLOAD BUTTONS ---
+            st.download_button(
+                label=f"Download {curr_proj['name']} only",
+                data=csv_buffer,
+                file_name=f"Project_{curr_id}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+
+            st.download_button(
+                label="Download All Projects",
+                data=csv_all_buffer,
+                file_name="ProCalc_Global_Database.csv",
+                mime="text/csv",
+                use_container_width=True,
+                type="primary" 
+            )
+
 
 #region --- LOGIN SCREEN AND SIDE BAR(INSIDE MAIN APP) ---
 from supabase import create_client, Client
