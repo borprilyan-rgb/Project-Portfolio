@@ -17,16 +17,7 @@ from openpyxl.utils import get_column_letter
 import json as _json
 import os
 import tempfile
-from streamlit_cookies_manager import EncryptedCookieManager
-
-cookies = EncryptedCookieManager(
-    prefix="asg_app_",
-    password="your-secret-password-change-this"
-)
 #endregion
-
-
-
 
 #region --- GLOBAL VARIABLES (VERSION, PASSWORD, PAGE CONFIG) ---
 APP_VERSION = "1.1.0" #app version for future compatibility check
@@ -5878,11 +5869,6 @@ def login_screen():
                             st.session_state.user = res.user
                             st.session_state.access_token = res.session.access_token
 
-                            cookies["access_token"] = res.session.access_token
-                            cookies["refresh_token"] = res.session.refresh_token
-                            cookies["user_email"] = res.user.email
-                            cookies.save()
-
                             # Clear projects so main_app() re-loads from Supabase
                             for key in ["projects", "storage_loaded"]:
                                 if key in st.session_state:
@@ -6022,21 +6008,22 @@ def main_app():
         pass
 
     if st.sidebar.button("Logout", type="primary"):
-        cookies["access_token"] = ""
-        cookies["refresh_token"] = ""
-        cookies["user_email"] = ""
-        cookies.save()
-
         st.session_state.logged_in = False
         st.session_state.access_token = None
         st.session_state.user = None
 
-        for key_to_clear in ["projects", "storage_loaded", "report_config", "port_meta", "port_assumptions"]:
+        for key_to_clear in [
+            "projects",
+            "storage_loaded",
+            "report_config",
+            "port_meta",
+            "port_assumptions"
+        ]:
             if key_to_clear in st.session_state:
                 del st.session_state[key_to_clear]
 
         st.rerun()
-            
+        
     st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
     #endregion
     
@@ -6052,65 +6039,12 @@ def main_app():
         show_cost_estimator()
 
 # 4. THE GATEKEEPER LOGIC
-if not cookies.ready():
-    st.stop()
+# Replace your entire gatekeeper section at the bottom with this:
 
-def try_restore_session():
-    saved_token = cookies.get("access_token", "")
-    saved_refresh = cookies.get("refresh_token", "")
-    saved_email = cookies.get("user_email", "")
-
-    if not saved_token and not saved_refresh:
-        return False
-
-    if saved_token:
-        try:
-            authed_client = create_client(url, key)
-            authed_client.postgrest.auth(saved_token)
-            user_resp = authed_client.auth.get_user(saved_token)
-
-            if user_resp and user_resp.user:
-                st.session_state.logged_in = True
-                st.session_state.user = user_resp.user
-                st.session_state.access_token = saved_token
-                supabase.postgrest.auth(saved_token)
-                return True
-        except Exception:
-            pass
-
-    if saved_refresh:
-        try:
-            res = supabase.auth.refresh_session(saved_refresh)
-
-            if res and res.session:
-                new_access = res.session.access_token
-                new_refresh = res.session.refresh_token
-
-                cookies["access_token"] = new_access
-                cookies["refresh_token"] = new_refresh
-                cookies.save()
-
-                st.session_state.logged_in = True
-                st.session_state.user = res.user
-                st.session_state.access_token = new_access
-                supabase.postgrest.auth(new_access)
-                return True
-        except Exception:
-            pass
-
-    cookies["access_token"] = ""
-    cookies["refresh_token"] = ""
-    cookies["user_email"] = ""
-    cookies.save()
-    return False
-
-
-if not st.session_state.get("logged_in", False):
-    try_restore_session()
-
-if not st.session_state.get("logged_in", False):
+if not st.session_state.logged_in:
     login_screen()
 else:
+    # Re-apply token on EVERY script run, not just after login
     token = st.session_state.get("access_token")
     if token:
         supabase.postgrest.auth(token)
