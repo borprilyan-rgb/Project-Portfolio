@@ -17,10 +17,14 @@ from openpyxl.utils import get_column_letter
 import json as _json
 import os
 import tempfile
+import base64
+from io import BytesIO
 
 APP_VERSION = "1.1.0" #app version for future compatibility check
 st.set_page_config(page_title="Project Feasibility Study - Agung Sedayu Group",
-                    layout="wide", page_icon="Agung-Sedayu.png",) #streamlit page config
+                    layout="wide", page_icon="Agung-Sedayu.png",)
+
+st.logo("Agung-Sedayu-Group.png")
 #endregion
 
 #region --- DO NOT CHANGE (OR I WILL KICK YOUR BUTT)---
