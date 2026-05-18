@@ -404,7 +404,6 @@ def calculate_project_totals(pdata, curr_type):
 
 from datetime import datetime, timedelta
 
-
 def _get_authed_snapshot_client(show_error=True):
     token = st.session_state.get("access_token")
     user = st.session_state.get("user")
@@ -423,7 +422,6 @@ def _get_authed_snapshot_client(show_error=True):
 
     return authed_client, user_id
 
-
 def format_snapshot_time(created_at):
     if not created_at:
         return ""
@@ -434,7 +432,6 @@ def format_snapshot_time(created_at):
         return created_local.strftime("%d %b %Y, %H:%M WIB")
     except Exception:
         return ""
-
 
 def save_snapshot(snapshot_name):
     authed_client, user_id = _get_authed_snapshot_client()
@@ -461,7 +458,6 @@ def save_snapshot(snapshot_name):
     except Exception as e:
         st.error(f"Project Save Error: {e}")
         return False
-
 
 def overwrite_current_snapshot():
     snapshot_id = st.session_state.get("loaded_snapshot_id")
@@ -500,7 +496,6 @@ def overwrite_current_snapshot():
         st.error(f"Project Overwrite Error: {e}")
         return False
 
-
 def rename_snapshot(snapshot_id, new_name):
     token = st.session_state.get("access_token")
     user = st.session_state.get("user")
@@ -537,7 +532,6 @@ def rename_snapshot(snapshot_id, new_name):
     except Exception as e:
         st.error(f"Project Rename Error: {e}")
         return False
-
 
 def overwrite_snapshot(snapshot_id, snapshot_name=None):
     authed_client, user_id = _get_authed_snapshot_client()
@@ -577,7 +571,6 @@ def overwrite_snapshot(snapshot_id, snapshot_name=None):
         st.error(f"Project Overwrite Error: {e}")
         return False
 
-
 def load_snapshots():
     authed_client, user_id = _get_authed_snapshot_client(show_error=False)
 
@@ -596,7 +589,6 @@ def load_snapshots():
     except Exception as e:
         st.error(f"Project Load Error: {e}")
         return []
-
 
 def load_snapshot_data(snapshot_id):
     authed_client, user_id = _get_authed_snapshot_client()
@@ -620,7 +612,6 @@ def load_snapshot_data(snapshot_id):
         st.error(f"Saved Project Fetch Error: {e}")
 
     return None
-
 
 def delete_snapshot(snapshot_id):
     authed_client, user_id = _get_authed_snapshot_client()
@@ -1061,7 +1052,9 @@ def create_new_feasibility_study(study_name, project_type="Hotel"):
 
     return save_snapshot(clean_name)
 
-def render_feasibility_study_landing():
+#endregion
+
+def render_feasibility_study_landing(): #start page
     st.title("Feasibility Study")
 
     st.divider()
@@ -1080,12 +1073,16 @@ def render_feasibility_study_landing():
     # ==================================================
 
     if active_file_id and st.session_state.fs_landing_mode is None:
-        st.info(f"**{active_file_name}** is currently loaded (Go To 1. Ukuran to start Calculation)")
+        
+        c1, c2 = st.columns([1, 1])
+        
+        c1.success(f"**{active_file_name}** is currently loaded (You can start calculating your project)", icon=":material/check:")
+        c2.info("Use **Quick Save** button on the sidebar to save calculation", icon=":material/help:")
 
         col_msg, col_back = st.columns([1, 5])
     
         with col_msg:
-            if st.button("Back", key="go_back_to_load_list", use_container_width=True):
+            if st.button("Previous Page", icon=":material/arrow_back:", key="go_back_to_load_list", use_container_width=True):
                 st.session_state.fs_landing_mode = "home"
                 st.rerun()
 
@@ -1096,6 +1093,14 @@ def render_feasibility_study_landing():
     # ==================================================
     if st.session_state.fs_landing_mode is None or st.session_state.fs_landing_mode == "home":
 
+        st.info("""
+
+        **Welcome to Project Feasibility Study - Agung Sedayu Group**
+
+        To start calculating, first create a new project by clicking the button below.""", icon=":material/waving_hand:")
+
+        st.space(size="small")
+
         col_create_btn, col_load_btn, col_empty = st.columns([1, 1, 2], gap="small", vertical_alignment="center")
 
         with col_create_btn:
@@ -1103,13 +1108,14 @@ def render_feasibility_study_landing():
                 "Create New Feasibility Study",
                 key="landing_choose_create_study",
                 type="primary",
-                use_container_width=True
+                use_container_width=True,
+                icon=":material/create_new_folder:"
             ):
                 st.session_state.fs_landing_mode = "create"
                 st.rerun()
 
         with col_load_btn:
-            st.markdown("**or load saved FS below:**")
+            st.info("**or load saved FS below:**")
 
 
     # ==================================================
@@ -1127,7 +1133,10 @@ def render_feasibility_study_landing():
                 st.session_state.fs_landing_mode = None
                 st.rerun()
 
-        with st.form("create_new_feasibility_study_form", clear_on_submit=False):
+
+        col_title, col_back = st.columns([5, 1])
+
+        with col_title.form("create_new_feasibility_study_form", clear_on_submit=False):
             study_name = st.text_input(
                 "Feasibility Study Name",
                 placeholder="e.g. Project X - Option 1 - Rev 0"
@@ -1199,7 +1208,7 @@ def render_feasibility_study_landing():
             with col_file:
                 st.markdown(f"**{snap_name}**")
                 if is_active:
-                    st.caption("Currently loaded file")
+                    st.badge("Currently loaded file", icon=":material/check:", color="green")
 
                 if saved_time:
                     st.caption(f"Saved: {saved_time}{active_label}")
@@ -1210,7 +1219,7 @@ def render_feasibility_study_landing():
                 if st.button(
                     "Load",
                     key=f"landing_load_file_{snap_id}",
-                    type="secondary" if is_active else "primary",
+                    type="primary",
                     use_container_width=True
                 ):
                     data = load_snapshot_data(snap_id)
@@ -1263,8 +1272,6 @@ def render_feasibility_study_landing():
                     
     st.divider()
     st.caption("For rename, delete, import, export, or full archive management, use the Feasibility Study Archive page.")
-
-#endregion
 
 def show_project_database():  # database page
     st.title("Project Database")
@@ -4391,18 +4398,13 @@ def show_cost_estimator(): #cost calculator page
     curr_type_key = f"{curr_id}_{curr_type}"
 
     # --- TABS ---
-    tab1, tab2, tab3, tab5, tab4, tab6, tab7, tab8 = st.tabs([
-        "Welcome",
+    tab2, tab3, tab5, tab4, tab6, tab7, tab8 = st.tabs([
         "1. Ukuran", "2. Rasio",
         "3. Soft Costs", "4. Harga",
         "5. Item Tambahan", "6. Hasil",
         "7. Pembuktian",
     ])
 
-# --- TAB 1: WELCOME ---
-    with tab1:
-        render_feasibility_study_landing()
-              
     with tab2:
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 
@@ -6866,7 +6868,7 @@ def main_app():
 
     page_choice = st.sidebar.radio(
         "Pilih Pekerjaan:",
-        ["Cost Analysis", "Area Analysis", "Database", "Summary", "Archive"]
+        ["Start", "Cost Analysis", "Area Analysis", "Database", "Summary", "Archive"]
     )
 
     st.sidebar.markdown("---")
@@ -7015,8 +7017,10 @@ def main_app():
         show_portfolio_summary()
     elif page_choice == "Archive":
         show_snapshots()
-    else:
+    elif page_choice == "Cost Analysis":
         show_cost_estimator()
+    else:
+        render_feasibility_study_landing()
 
 # 4. THE GATEKEEPER LOGIC
 # Replace your entire gatekeeper section at the bottom with this:
