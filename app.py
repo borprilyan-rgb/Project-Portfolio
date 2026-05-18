@@ -6727,6 +6727,17 @@ def show_snapshots():
             st.info("No saved projects yet.")
         else:
             for snap in snapshots:
+                snap_id = snap["id"]
+
+                rename_key = f"renaming_{snap_id}"
+                delete_key = f"deleting_{snap_id}"
+
+                if rename_key not in st.session_state:
+                    st.session_state[rename_key] = False
+
+                if delete_key not in st.session_state:
+                    st.session_state[delete_key] = False
+
                 col1, col2, col3, col4 = st.columns([4, 1, 1, 1])
 
                 from datetime import datetime, timedelta
@@ -6735,44 +6746,91 @@ def show_snapshots():
                 created_local = created_utc + timedelta(hours=7)
                 formatted_date = created_local.strftime("%d %b %Y, %H:%M")
 
-                is_active = st.session_state.get("loaded_snapshot_id") == snap["id"]
+                is_active = st.session_state.get("loaded_snapshot_id") == snap_id
                 active_label = " — ACTIVE" if is_active else ""
 
-                with col1:
-                    new_archive_name = st.text_input(
-                        "Project Name",
-                        value=snap["snapshot_name"],
-                        key=f"rename_input_{snap['id']}",
-                        label_visibility="collapsed"
-                    )
-                    st.caption(f"Saved: {formatted_date} WIB{active_label}")
+                # ==================================================
+                # NORMAL DISPLAY MODE
+                # ==================================================
+                if not st.session_state[rename_key] and not st.session_state[delete_key]:
+                    with col1:
+                        st.markdown(f"**{snap['snapshot_name']}**")
+                        st.caption(f"Saved: {formatted_date} WIB{active_label}")
 
-                if col2.button("Rename", key=f"rename_{snap['id']}", use_container_width=True):
-                    if rename_snapshot(snap["id"], new_archive_name):
-                        st.success("Project renamed.")
+                    if col2.button("Rename", key=f"rename_start_{snap_id}", use_container_width=True):
+                        st.session_state[rename_key] = True
+                        st.session_state[delete_key] = False
                         st.rerun()
 
-                if col3.button("Load", key=f"load_{snap['id']}", type="primary", use_container_width=True):
-                    data = load_snapshot_data(snap["id"])
-                    if data:
-                        restore_app_payload(data)
+                    if col3.button("Load", key=f"load_{snap_id}", type="primary", use_container_width=True):
+                        data = load_snapshot_data(snap_id)
 
-                        st.session_state.loaded_snapshot_id = snap["id"]
-                        st.session_state.loaded_snapshot_name = snap["snapshot_name"]
+                        if data:
+                            restore_app_payload(data)
 
-                        save_data()
-                        st.success(f"Loaded **{snap['snapshot_name']}**.")
-                        st.rerun()
+                            st.session_state.loaded_snapshot_id = snap_id
+                            st.session_state.loaded_snapshot_name = snap["snapshot_name"]
 
-                if col4.button("Delete", key=f"del_{snap['id']}", use_container_width=True):
-                    if delete_snapshot(snap["id"]):
-                        if st.session_state.get("loaded_snapshot_id") == snap["id"]:
-                            st.session_state.loaded_snapshot_id = None
-                            st.session_state.loaded_snapshot_name = None
                             save_data()
+                            st.success(f"Loaded **{snap['snapshot_name']}**.")
+                            st.rerun()
 
-                        st.success("Project deleted.")
+                    if col4.button("Delete", key=f"delete_start_{snap_id}", use_container_width=True):
+                        st.session_state[delete_key] = True
+                        st.session_state[rename_key] = False
                         st.rerun()
+
+                # ==================================================
+                # RENAME MODE
+                # ==================================================
+                elif st.session_state[rename_key]:
+                    with col1:
+                        new_archive_name = st.text_input(
+                            "New file name",
+                            value=snap["snapshot_name"],
+                            key=f"rename_input_{snap_id}",
+                            label_visibility="collapsed"
+                        )
+                        st.caption(f"Saved: {formatted_date} WIB{active_label}")
+
+                    if col2.button("Save Name", key=f"rename_save_{snap_id}", type="primary", use_container_width=True):
+                        if rename_snapshot(snap_id, new_archive_name):
+                            st.session_state[rename_key] = False
+                            st.success("File renamed.")
+                            st.rerun()
+
+                    if col3.button("Cancel", key=f"rename_cancel_{snap_id}", use_container_width=True):
+                        st.session_state[rename_key] = False
+                        st.rerun()
+
+                    with col4:
+                        st.empty()
+
+                # ==================================================
+                # DELETE CONFIRMATION MODE
+                # ==================================================
+                elif st.session_state[delete_key]:
+                    with col1:
+                        st.warning(f"Delete **{snap['snapshot_name']}**?")
+                        st.caption("This archived file will be removed from the library.")
+
+                    if col2.button("Confirm", key=f"delete_confirm_{snap_id}", type="primary", use_container_width=True):
+                        if delete_snapshot(snap_id):
+                            if st.session_state.get("loaded_snapshot_id") == snap_id:
+                                st.session_state.loaded_snapshot_id = None
+                                st.session_state.loaded_snapshot_name = None
+                                save_data()
+
+                            st.session_state[delete_key] = False
+                            st.success("File deleted.")
+                            st.rerun()
+
+                    if col3.button("Cancel", key=f"delete_cancel_{snap_id}", use_container_width=True):
+                        st.session_state[delete_key] = False
+                        st.rerun()
+
+                    with col4:
+                        st.empty()
 
     with atab2:
         st.header("Upload & Download")
