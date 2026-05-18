@@ -974,6 +974,12 @@ PROJECT_DATABASE = { #Change only when asked
 }
 
 #region --- DO NOT CHANGE#2 (OR I WILL KICK YOUR FACE)---
+def mi(name):
+    return f":material/{name}:"
+
+def icon_safe(name):
+    return mi(name) if "mi" in globals() else None    
+
 def cb_add_project():
     st.session_state.proj_counter += 1
     new_id = f"proj_{st.session_state.proj_counter}"
@@ -6347,10 +6353,11 @@ def show_snapshots():
     curr_id, curr_proj = get_current_project()
 
     atab1, atab2= st.tabs([
-        "Save to Cloud", "Save to Computer"
+        "Online Backup", "Offline Backup"
     ])
     with atab1:
         # --- SAVE NEW SNAPSHOT ---
+        st.header("Online Backup")
         st.subheader("Save File")
         col1, _ = st.columns([4, 3])
         snapshot_name = col1.text_input(
@@ -6358,7 +6365,7 @@ def show_snapshots():
             placeholder="e.g. Project X - Opt 1 - Rev 0"
         )
         col1, _ = st.columns([1, 6])
-        if col1.button("Save", use_container_width=True):
+        if col1.button("Save", use_container_width=True, icon=icon_safe("save_as")):
             if snapshot_name.strip() == "":
                 col1.warning("Please enter Project name.")
             else:
@@ -6548,7 +6555,7 @@ def show_snapshots():
                     st.rerun()  
 
     with atab2:
-        st.header("Upload & Download")
+        st.header("Offline Backup")
         c1, c2 = st.columns(2)
         with c1:
             st.subheader("Import")
@@ -6697,13 +6704,16 @@ def show_snapshots():
                 use_container_width=True
             )
 
+            active_file_name = st.session_state.get("loaded_snapshot_name")
+
             st.download_button(
-                label="Download All Projects",
+                label=f"Download {active_file_name} File",
                 data=csv_all_buffer,
                 file_name="ProCalc_Global_Database.csv",
                 mime="text/csv",
                 use_container_width=True,
-                type="primary" 
+                type="primary",
+                icon=icon_safe("download")
             )
 
 #region --- LOGIN SCREEN AND SIDE BAR(INSIDE MAIN APP) ---
@@ -6883,31 +6893,46 @@ def main_app():
     ]
 
     current_index = proj_ids.index(curr_id) if curr_id in proj_ids else 0
+    
+    # ==================================================
+    # SIDEBAR CURRENT FILE / QUICK SAVE
+    # ==================================================
+    active_archive_id = st.session_state.get("loaded_snapshot_id")
+    active_archive_name = st.session_state.get("loaded_snapshot_name")
 
-    new_name = st.sidebar.text_input("Nama Proyek", value=curr_proj["name"], key=f"sb_name_{curr_id}")
+    if active_archive_id:
 
-    types_list = ["Hotel", "Retail", "Apartment", "Parking", "Luxury Apartment", "Apartment2", "Hotel 3 Star", "Retail2", "Terrace Villa", "Podium Villa", "Parking2"]
-    type_index = types_list.index(curr_proj["type"]) if curr_proj["type"] in types_list else 0
-    new_type = st.sidebar.selectbox("Jenis Proyek", types_list, index=type_index, key=f"sb_type_{curr_id}")
+        if st.sidebar.button(
+            "Quick Save",
+            key="sidebar_save_current_archive",
+            type="primary",
+            use_container_width=True,
+            icon=mi("save") if "mi" in globals() else None,
+            help="Overwrite the currently loaded file."
+        ):
+            if overwrite_current_snapshot():
+                save_data()
+                st.sidebar.success("File saved.")
+                st.rerun()
+    else:
+        st.sidebar.info("No file linked yet.")
+        st.sidebar.button(
+            "Quick Save",
+            key="sidebar_save_disabled_no_archive",
+            use_container_width=True,
+            disabled=True,
+            icon=mi("save") if "mi" in globals() else None,
+        )
 
-    needs_rerun = False
-    if new_name != curr_proj["name"]:
-        st.session_state.projects[curr_id]["name"] = new_name
-        save_data() # SAVE HERE
-        needs_rerun = True
+    st.sidebar.markdown("---")
 
-    if new_type != curr_proj["type"]:
-        st.session_state.projects[curr_id]["type"] = new_type
-        st.session_state.projects[curr_id]["data"] = {}
-        save_data() # SAVE HERE
-        needs_rerun = True
+    # ==================================================
+    # ACTIVE COMPONENT SELECTOR
+    # ==================================================
+    st.sidebar.subheader("Project List")
 
-    if needs_rerun:
-        st.rerun()
-
-    st.sidebar.subheader("Daftar Proyek")
     st.sidebar.radio(
-        "Active Project:",
+        "Active Component:",
         options=proj_labels,
         index=current_index,
         key="project_selector",
@@ -6915,81 +6940,222 @@ def main_app():
         label_visibility="collapsed"
     )
 
-    c1, c2 = st.sidebar.columns(2)
+    curr_id, curr_proj = get_current_project()
 
-    with c1:
-        st.button("Tambah", on_click=cb_add_project, type="primary", use_container_width=True)
-        
-    with c2:
-        st.button(
-            "Hapus",
-            type="secondary",
+    # ==================================================
+    # SIDEBAR COMPONENT ACTION MODE
+    # ==================================================
+    if "sidebar_component_mode" not in st.session_state:
+        st.session_state.sidebar_component_mode = None
+
+    project_type_options = list(PROJECT_DATABASE.keys())
+
+
+    # ==================================================
+    # DEFAULT ACTION BUTTONS
+    # ==================================================
+    if st.session_state.sidebar_component_mode is None:
+        c1, c2 = st.sidebar.columns(2)
+
+        with c1:
+            if st.button(
+                "Add",
+                key="sidebar_component_add_start",
+                type="primary",
+                use_container_width=True,
+                icon=icon_safe("add")
+            ):
+                st.session_state.sidebar_component_mode = "add"
+                st.rerun()
+
+        with c2:
+            if st.button(
+                "Edit",
+                key="sidebar_component_edit_start",
+                use_container_width=True,
+                icon=icon_safe("edit")
+            ):
+                st.session_state.sidebar_component_mode = "edit"
+                st.rerun()
+
+        if st.sidebar.button(
+            "Delete",
+            key="sidebar_component_delete_start",
             use_container_width=True,
-            on_click=cb_delete_project
-        )
-
-    if st.sidebar.button("Hapus Semua Proyek", type="secondary", use_container_width=True):
-        st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
-        st.session_state.proj_counter = 1
-        st.session_state.current_proj_id = "proj_1"
-        save_data()
-        st.rerun()
-        
-        if st.sidebar.button("Hapus Semua Proyek", type="secondary", use_container_width=True):
-            st.session_state.projects = {"proj_1": {"name": "New Project 1", "type": "Hotel", "data": {}}}
-            st.session_state.proj_counter = 1
-            st.session_state.current_proj_id = "proj_1"
-            save_data()
+            icon=icon_safe("delete")
+        ):
+            st.session_state.sidebar_component_mode = "delete"
             st.rerun()
 
 
-    # --- BACKUP SYSTEM ---
-    if "projects" in st.session_state and st.session_state.get("storage_loaded", False):
-        backup_payload = {
-            "app_version": APP_VERSION,
-            "projects_dict": st.session_state.projects,
-            "current_proj_id": st.session_state.current_proj_id,
-            "proj_counter": st.session_state.proj_counter
-        }
-
-        # Local storage disabled
-        pass
-
     # ==================================================
-    # SIDEBAR CURRENT ARCHIVE SAVE ONLY
+    # ADD COMPONENT MODE
     # ==================================================
-    st.sidebar.markdown("---")
+    elif st.session_state.sidebar_component_mode == "add":
+        with st.sidebar.form("sidebar_add_component_form", clear_on_submit=False):
+            st.markdown("**Add Component**")
 
-    active_archive_id = st.session_state.get("loaded_snapshot_id")
-    active_archive_name = st.session_state.get("loaded_snapshot_name")
+            new_component_name = st.text_input(
+                "Component Name",
+                placeholder="e.g. Apartment Tower A"
+            )
 
-    if active_archive_id:
-        st.sidebar.markdown("Quick Save:")
+            new_component_type = st.selectbox(
+                "Component Type",
+                options=project_type_options,
+                index=project_type_options.index("Hotel") if "Hotel" in project_type_options else 0
+            )
 
-        if st.sidebar.button(
-            f"**{active_archive_name or 'Unnamed Project'}**",
-            key="sidebar_save_current_archive",
-            type="primary",
-            use_container_width=True,
-            help="Overwrite the currently loaded archive."
-        ):
-            if overwrite_current_snapshot():
-                save_data()
-                st.sidebar.success("Current archive saved.")
+            c_create, c_cancel = st.columns(2)
+
+            with c_create:
+                create_clicked = st.form_submit_button(
+                    "Create",
+                    type="primary",
+                    use_container_width=True
+                )
+
+            with c_cancel:
+                cancel_clicked = st.form_submit_button(
+                    "Cancel",
+                    use_container_width=True
+                )
+
+            if create_clicked:
+                clean_name = new_component_name.strip()
+
+                if clean_name == "":
+                    st.warning("Please enter component name.")
+                else:
+                    st.session_state.proj_counter += 1
+                    new_id = f"proj_{st.session_state.proj_counter}"
+
+                    st.session_state.projects[new_id] = {
+                        "name": clean_name,
+                        "type": new_component_type,
+                        "data": {}
+                    }
+
+                    st.session_state.current_proj_id = new_id
+                    st.session_state.sidebar_component_mode = None
+
+                    save_data()
+                    st.rerun()
+
+            if cancel_clicked:
+                st.session_state.sidebar_component_mode = None
                 st.rerun()
 
-    else:
-        st.sidebar.info("No archive linked yet. Create the first saved project from Archive.")
-        st.sidebar.button(
-            "Overwrite",
-            key="sidebar_save_disabled_no_archive",
-            use_container_width=True,
-            disabled=True
+
+    # ==================================================
+    # EDIT COMPONENT MODE
+    # ==================================================
+    elif st.session_state.sidebar_component_mode == "edit":
+        curr_id, curr_proj = get_current_project()
+
+        current_name = curr_proj.get("name", "")
+        current_type = curr_proj.get("type", "Hotel")
+
+        if current_type not in project_type_options:
+            current_type = "Hotel"
+
+        with st.sidebar.form("sidebar_edit_component_form", clear_on_submit=False):
+            st.markdown("**Edit Component**")
+
+            edited_component_name = st.text_input(
+                "Component Name",
+                value=current_name
+            )
+
+            edited_component_type = st.selectbox(
+                "Component Type",
+                options=project_type_options,
+                index=project_type_options.index(current_type)
+            )
+
+            c_save, c_cancel = st.columns(2)
+
+            with c_save:
+                save_clicked = st.form_submit_button(
+                    "Save",
+                    type="primary",
+                    use_container_width=True
+                )
+
+            with c_cancel:
+                cancel_clicked = st.form_submit_button(
+                    "Cancel",
+                    use_container_width=True
+                )
+
+            if save_clicked:
+                clean_name = edited_component_name.strip()
+
+                if clean_name == "":
+                    st.warning("Component name cannot be empty.")
+                else:
+                    st.session_state.projects[curr_id]["name"] = clean_name
+                    st.session_state.projects[curr_id]["type"] = edited_component_type
+
+                    st.session_state.sidebar_component_mode = None
+
+                    save_data()
+                    st.rerun()
+
+            if cancel_clicked:
+                st.session_state.sidebar_component_mode = None
+                st.rerun()
+
+
+    # ==================================================
+    # DELETE COMPONENT CONFIRMATION MODE
+    # ==================================================
+    elif st.session_state.sidebar_component_mode == "delete":
+        curr_id, curr_proj = get_current_project()
+
+        st.sidebar.warning(
+            f"Delete **{curr_proj.get('name', 'Current Component')}**?"
         )
+        st.sidebar.caption("This will remove the active component from the current file.")
 
-    st.sidebar.markdown("---")
+        c_confirm, c_cancel = st.sidebar.columns(2)
 
-    if st.sidebar.button("Logout", type="primary"):
+        with c_confirm:
+            if st.button(
+                "Confirm",
+                key="sidebar_component_delete_confirm",
+                type="primary",
+                use_container_width=True
+            ):
+                projects = st.session_state.get("projects", {})
+
+                if not isinstance(projects, dict) or len(projects) <= 1:
+                    st.sidebar.warning("At least one component must remain.")
+                    st.session_state.sidebar_component_mode = None
+                    repair_projects_state(save=True)
+                    st.rerun()
+
+                if curr_id in projects:
+                    del projects[curr_id]
+
+                repair_projects_state(save=True)
+                st.session_state.sidebar_component_mode = None
+
+                save_data()
+                st.rerun()
+
+        with c_cancel:
+            if st.button(
+                "Cancel",
+                key="sidebar_component_delete_cancel",
+                use_container_width=True
+            ):
+                st.session_state.sidebar_component_mode = None
+                st.rerun()  
+
+    st.sidebar.divider()
+
+    if st.sidebar.button("Logout", type="primary", icon=icon_safe("logout")):
         st.session_state.logged_in = False
         st.session_state.access_token = None
         st.session_state.user = None
