@@ -1023,6 +1023,247 @@ def cb_switch_project():
         st.session_state.current_proj_id = proj_ids[selected_idx]
         save_data()     
 
+def create_new_feasibility_study(study_name, project_type="Hotel"):
+    clean_name = str(study_name).strip()
+
+    if clean_name == "":
+        st.error("Please enter feasibility study name.")
+        return False
+
+    st.session_state.projects = {
+        "proj_1": {
+            "name": clean_name,
+            "type": project_type,
+            "data": {}
+        }
+    }
+
+    st.session_state.current_proj_id = "proj_1"
+    st.session_state.proj_counter = 1
+
+    st.session_state.loaded_snapshot_id = None
+    st.session_state.loaded_snapshot_name = None
+
+    st.session_state.report_config = copy.deepcopy(DEFAULT_REPORT_CONFIG)
+
+    keys_to_clear = [
+        k for k in st.session_state.keys()
+        if "base_table_" in k
+        or "area_editor_" in k
+        or "rename_input_" in k
+        or "renaming_" in k
+        or "deleting_" in k
+        or "fs_load_page" in k
+    ]
+
+    for k in keys_to_clear:
+        del st.session_state[k]
+
+    return save_snapshot(clean_name)
+
+def render_feasibility_study_landing():
+    st.title("Feasibility Study")
+
+    st.divider()
+
+    active_file_id = st.session_state.get("loaded_snapshot_id")
+    active_file_name = st.session_state.get("loaded_snapshot_name")
+
+    # ==================================================
+    # LANDING MODE STATE
+    # ==================================================
+    if "fs_landing_mode" not in st.session_state:
+        st.session_state.fs_landing_mode = None
+
+    # ==================================================
+    # AFTER FILE IS CREATED / LOADED
+    # ==================================================
+
+    if active_file_id and st.session_state.fs_landing_mode is None:
+        st.info(f"**{active_file_name}** is currently loaded (Go To 1. Ukuran to start Calculation)")
+
+        col_msg, col_back = st.columns([1, 5])
+    
+        with col_msg:
+            if st.button("Back", key="go_back_to_load_list", use_container_width=True):
+                st.session_state.fs_landing_mode = "home"
+                st.rerun()
+
+        return
+
+    # ==================================================
+    # FIRST-SIGHT QUESTION
+    # ==================================================
+    if st.session_state.fs_landing_mode is None or st.session_state.fs_landing_mode == "home":
+
+        col_create_btn, col_load_btn, col_empty = st.columns([1, 1, 2], gap="small", vertical_alignment="center")
+
+        with col_create_btn:
+            if st.button(
+                "Create New Feasibility Study",
+                key="landing_choose_create_study",
+                type="primary",
+                use_container_width=True
+            ):
+                st.session_state.fs_landing_mode = "create"
+                st.rerun()
+
+        with col_load_btn:
+            st.markdown("**or load saved FS below:**")
+
+
+    # ==================================================
+    # CREATE NEW STUDY MODE
+    # ==================================================
+    elif st.session_state.fs_landing_mode == "create":
+        col_title, col_back = st.columns([5, 1])
+
+        with col_title:
+            st.subheader("Create New Feasibility Study")
+            st.caption("Enter a study name. A new default project will be created automatically.")
+
+        with col_back:
+            if st.button("Back", key="landing_create_back", use_container_width=True):
+                st.session_state.fs_landing_mode = None
+                st.rerun()
+
+        with st.form("create_new_feasibility_study_form", clear_on_submit=False):
+            study_name = st.text_input(
+                "Feasibility Study Name",
+                placeholder="e.g. Project X - Option 1 - Rev 0"
+            )
+
+            create_clicked = st.form_submit_button(
+                "Create New Feasibility Study",
+                type="primary",
+                use_container_width=True
+            )
+
+            if create_clicked:
+                if study_name.strip() == "":
+                    st.warning("Please enter feasibility study name.")
+                else:
+                    # Uses default project type from create_new_feasibility_study()
+                    # Usually default = Hotel
+                    if create_new_feasibility_study(study_name):
+                        st.session_state.fs_landing_mode = None
+                        st.success(f"Created **{study_name.strip()}**.")
+                        st.rerun()
+    
+    snapshots = load_snapshots()
+
+    if not snapshots:
+        st.info("No saved feasibility studies yet.")
+
+    else:
+        # ==================================================
+        # PAGINATION SETUP
+        # ==================================================
+        PAGE_SIZE = 10
+
+        if "fs_load_page" not in st.session_state:
+            st.session_state.fs_load_page = 0
+
+        total_items = len(snapshots)
+        total_pages = max(1, (total_items + PAGE_SIZE - 1) // PAGE_SIZE)
+
+        # Safety clamp if files were deleted / changed
+        if st.session_state.fs_load_page >= total_pages:
+            st.session_state.fs_load_page = total_pages - 1
+
+        if st.session_state.fs_load_page < 0:
+            st.session_state.fs_load_page = 0
+
+        start_idx = st.session_state.fs_load_page * PAGE_SIZE
+        end_idx = start_idx + PAGE_SIZE
+        page_snapshots = snapshots[start_idx:end_idx]
+
+        st.divider()
+
+        # ==================================================
+        # SAVED FILE LIST
+        # ==================================================
+        for snap in page_snapshots:
+            snap_id = snap["id"]
+            snap_name = snap.get("snapshot_name", "Untitled File")
+
+            is_active = st.session_state.get("loaded_snapshot_id") == snap_id
+            active_label = " — ACTIVE" if is_active else ""
+
+            saved_time = ""
+            if "format_snapshot_time" in globals():
+                saved_time = format_snapshot_time(snap.get("created_at"))
+
+            col_file, col_date, col_action= st.columns([4, 2, 1])
+
+            with col_file:
+                st.markdown(f"**{snap_name}**")
+                if is_active:
+                    st.caption("Currently loaded file")
+
+                if saved_time:
+                    st.caption(f"Saved: {saved_time}{active_label}")
+                else:
+                    st.caption(f"Saved file{active_label}")
+
+            with col_action:
+                if st.button(
+                    "Load",
+                    key=f"landing_load_file_{snap_id}",
+                    type="secondary" if is_active else "primary",
+                    use_container_width=True
+                ):
+                    data = load_snapshot_data(snap_id)
+
+                    if data:
+                        restore_app_payload(data)
+
+                        st.session_state.loaded_snapshot_id = snap_id
+                        st.session_state.loaded_snapshot_name = snap_name
+                        st.session_state.fs_landing_mode = None
+
+                        save_data()
+                        st.success(f"Loaded **{snap_name}**.")
+                        st.rerun()
+
+            st.divider()
+
+        # ==================================================
+        # PAGINATION CONTROLS
+        # ==================================================
+        c1, col_prev, col_page, col_next, c2 = st.columns([5, 1, 2, 1, 5])
+
+        with col_prev:
+            if st.button(
+                "Previous",
+                key="fs_load_prev_page",
+                use_container_width=True,
+                disabled=st.session_state.fs_load_page <= 0
+            ):
+                st.session_state.fs_load_page -= 1
+                st.rerun()
+
+        with col_page:
+            st.markdown(
+                f"<div style='text-align:center; padding-top: 0.45rem;'>"
+                f"Page {st.session_state.fs_load_page + 1} of {total_pages}"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+
+        with col_next:
+            if st.button(
+                "Next",
+                key="fs_load_next_page",
+                use_container_width=True,
+                disabled=st.session_state.fs_load_page >= total_pages - 1
+            ):
+                st.session_state.fs_load_page += 1
+                st.rerun()
+                    
+    st.divider()
+    st.caption("For rename, delete, import, export, or full archive management, use the Feasibility Study Archive page.")
+
 #endregion
 
 def show_project_database():  # database page
@@ -4160,602 +4401,8 @@ def show_cost_estimator(): #cost calculator page
 
 # --- TAB 1: WELCOME ---
     with tab1:
-        # ==================================================
-        # HOME / GUIDE PAGE — PROFESSIONAL VERSION
-        # ==================================================
-
-        st.markdown("""
-<style>
-:root {
---brand: #3E4095;
---brand-soft: #F3F4FF;
---text-main: #111827;
---text-muted: #6B7280;
---border: #E5E7EB;
---surface: #FFFFFF;
---surface-soft: #F9FAFB;
-}
-
-.home-hero {
-background: linear-gradient(135deg, #FFFFFF 0%, #F8F9FF 100%);
-border: 1px solid #E5E7EB;
-border-radius: 18px;
-padding: 1.75rem 1.75rem 1.5rem;
-margin-bottom: 1.4rem;
-box-shadow: 0 2px 8px rgba(16,24,40,0.04);
-}
-
-.home-badge {
-display: inline-flex;
-align-items: center;
-gap: 7px;
-font-size: 11px;
-font-weight: 700;
-letter-spacing: 0.07em;
-text-transform: uppercase;
-color: #3E4095;
-background: #F3F4FF;
-border: 1px solid #DDE1FF;
-border-radius: 999px;
-padding: 5px 11px;
-margin-bottom: 1rem;
-}
-
-.home-title {
-font-size: 26px;
-font-weight: 750;
-color: #111827;
-margin: 0 0 8px;
-line-height: 1.2;
-}
-
-.home-sub {
-font-size: 14px;
-color: #4B5563;
-margin: 0;
-line-height: 1.65;
-max-width: 820px;
-}
-
-.home-divider {
-height: 1px;
-background: #E5E7EB;
-margin: 1.25rem 0;
-}
-
-.home-meta {
-display: grid;
-grid-template-columns: repeat(3, minmax(0, 1fr));
-gap: 10px;
-}
-
-.home-meta-item {
-background: rgba(255,255,255,0.75);
-border: 1px solid #E5E7EB;
-border-radius: 12px;
-padding: 10px 12px;
-font-size: 12.5px;
-color: #374151;
-line-height: 1.45;
-}
-
-.quick-grid {
-display: grid;
-grid-template-columns: repeat(4, minmax(0, 1fr));
-gap: 12px;
-margin-bottom: 1.2rem;
-}
-
-.quick-card {
-background: #FFFFFF;
-border: 1px solid #E5E7EB;
-border-radius: 14px;
-padding: 14px 15px;
-box-shadow: 0 1px 3px rgba(16,24,40,0.035);
-}
-
-.quick-label {
-font-size: 11px;
-color: #6B7280;
-text-transform: uppercase;
-letter-spacing: 0.055em;
-font-weight: 700;
-margin-bottom: 5px;
-}
-
-.quick-value {
-font-size: 14px;
-color: #111827;
-font-weight: 700;
-line-height: 1.4;
-}
-
-.section-note {
-background: #F9FAFB;
-border: 1px solid #E5E7EB;
-border-radius: 14px;
-padding: 14px 16px;
-margin: 0.5rem 0 1rem;
-font-size: 13px;
-color: #4B5563;
-line-height: 1.6;
-}
-
-.guide-grid {
-display: grid;
-grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-gap: 12px;
-margin-top: 0.75rem;
-margin-bottom: 0.5rem;
-}
-
-.guide-card {
-background: #FFFFFF;
-border: 1px solid #E5E7EB;
-border-radius: 14px;
-padding: 15px;
-box-shadow: 0 1px 3px rgba(16,24,40,0.035);
-min-height: 125px;
-}
-
-.guide-card:hover {
-border-color: #BFC3F5;
-box-shadow: 0 4px 12px rgba(62,64,149,0.07);
-}
-
-.guide-top {
-display: flex;
-align-items: center;
-gap: 10px;
-margin-bottom: 10px;
-}
-
-.guide-icon {
-width: 30px;
-height: 30px;
-border-radius: 9px;
-background: #F3F4FF;
-border: 1px solid #DDE1FF;
-color: #3E4095;
-display: flex;
-align-items: center;
-justify-content: center;
-font-size: 15px;
-flex-shrink: 0;
-}
-
-.guide-num {
-width: 28px;
-height: 28px;
-border-radius: 9px;
-background: #3E4095;
-color: #FFFFFF;
-display: flex;
-align-items: center;
-justify-content: center;
-font-size: 12px;
-font-weight: 750;
-flex-shrink: 0;
-}
-
-.guide-title {
-font-size: 14px;
-color: #111827;
-font-weight: 750;
-}
-
-.guide-desc {
-font-size: 13px;
-color: #6B7280;
-line-height: 1.55;
-margin: 0;
-}
-
-.guide-caption {
-font-size: 11.5px;
-color: #9CA3AF;
-line-height: 1.45;
-margin-top: 6px;
-font-style: italic;
-}
-
-.recommendation-box {
-background: #FFFFFF;
-border: 1px solid #DDE1FF;
-border-left: 5px solid #3E4095;
-border-radius: 14px;
-padding: 15px 16px;
-margin-top: 1rem;
-box-shadow: 0 1px 3px rgba(16,24,40,0.035);
-}
-
-.recommendation-title {
-font-size: 13px;
-font-weight: 750;
-color: #111827;
-margin-bottom: 6px;
-}
-
-.recommendation-text {
-font-size: 13px;
-color: #4B5563;
-line-height: 1.6;
-margin: 0;
-}
-
-@media (max-width: 900px) {
-.home-meta {
-grid-template-columns: 1fr;
-}
-
-.quick-grid {
-grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-}
-
-@media (max-width: 640px) {
-.quick-grid {
-grid-template-columns: 1fr;
-}
-}
-
-/* ==================================================
-FLOW / ARROW SEQUENCE COMPONENT
-================================================== */
-.flow-panel {
-background: #FFFFFF;
-border: 1px solid #E5E7EB;
-border-radius: 16px;
-padding: 14px 16px;
-margin-bottom: 1.2rem;
-box-shadow: 0 1px 3px rgba(16,24,40,0.035);
-}
-
-.flow-label {
-font-size: 11px;
-color: #6B7280;
-text-transform: uppercase;
-letter-spacing: 0.06em;
-font-weight: 750;
-margin-bottom: 12px;
-}
-
-.flow-track {
-display: flex;
-align-items: stretch;
-gap: 10px;
-overflow-x: auto;
-padding-bottom: 4px;
-}
-
-.flow-item {
-display: flex;
-align-items: center;
-flex-shrink: 0;
-}
-
-.flow-card {
-min-width: 170px;
-background: #F9FAFB;
-border: 1px solid #E5E7EB;
-border-radius: 14px;
-padding: 13px 14px;
-min-height: 82px;
-}
-
-.flow-card-primary {
-background: #F3F4FF;
-border-color: #DDE1FF;
-}
-
-.flow-eyebrow {
-font-size: 10px;
-color: #6B7280;
-text-transform: uppercase;
-letter-spacing: 0.06em;
-font-weight: 750;
-margin-bottom: 5px;
-}
-
-.flow-title {
-font-size: 14px;
-color: #111827;
-font-weight: 750;
-line-height: 1.35;
-}
-
-.flow-desc {
-font-size: 11.5px;
-color: #6B7280;
-line-height: 1.4;
-margin-top: 5px;
-}
-
-.flow-arrow {
-width: 30px;
-min-width: 30px;
-height: 30px;
-border-radius: 999px;
-background: #FFFFFF;
-border: 1px solid #D1D5DB;
-color: #3E4095;
-display: flex;
-align-items: center;
-justify-content: center;
-font-size: 16px;
-font-weight: 800;
-margin-left: 10px;
-}
-
-.workflow-flow .flow-card {
-min-width: 185px;
-}
-
-.flow-step-num {
-width: 24px;
-height: 24px;
-border-radius: 8px;
-background: #3E4095;
-color: #FFFFFF;
-display: inline-flex;
-align-items: center;
-justify-content: center;
-font-size: 11px;
-font-weight: 750;
-margin-bottom: 8px;
-}
-
-@media (max-width: 900px) {
-.flow-track {
-padding-bottom: 8px;
-}
-
-.flow-card {
-min-width: 165px;
-}
-
-.workflow-flow .flow-card {
-min-width: 175px;
-}
-}
-</style>
-        """, unsafe_allow_html=True)
-
-        # ==================================================
-        # HERO SECTION
-        # ==================================================
-        st.markdown("""
-<div class="home-hero">
-<div class="home-badge">Workspace Dashboard</div>
-<div class="home-title">Project Feasibility Study</div>
-<p class="home-sub">
-Platform kerja untuk menyusun estimasi kelayakan proyek, menghitung area, 
-mengelola asumsi biaya, dan menyiapkan ringkasan hasil secara lebih terstruktur.
-</p>
-
-<div class="home-divider"></div>
-
-<div class="home-meta">
-<div class="home-meta-item">
-<strong>Area & Cost Integration</strong><br>
-Luasan proyek dan estimasi biaya tersambung dalam satu alur kerja.
-</div>
-<div class="home-meta-item">
-<strong>Automated Breakdown</strong><br>
-Breakdown biaya dapat dihitung otomatis berdasarkan parameter proyek.
-</div>
-<div class="home-meta-item">
-<strong>Database Reference</strong><br>
-Harga satuan dan referensi master digunakan sebagai dasar perhitungan.
-</div>
-</div>
-</div>
-        """, unsafe_allow_html=True)
-
-        # ==================================================
-        # QUICK OVERVIEW
-        # ==================================================
-        st.markdown("""
-<div class="flow-panel">
-<div class="flow-label">Recommended Working Sequence</div>
-
-<div class="flow-track">
-<div class="flow-item">
-<div class="flow-card flow-card-primary">
-<div class="flow-eyebrow">Start Here</div>
-<div class="flow-title">Area Analysis</div>
-<div class="flow-desc">Set up basic area assumptions and planning parameters.</div>
-</div>
-<div class="flow-arrow">→</div>
-</div>
-
-<div class="flow-item">
-<div class="flow-card">
-<div class="flow-eyebrow">Main Module</div>
-<div class="flow-title">Cost Analysis</div>
-<div class="flow-desc">Calculate project cost based on area, ratios, and database pricing.</div>
-</div>
-<div class="flow-arrow">→</div>
-</div>
-
-<div class="flow-item">
-<div class="flow-card">
-<div class="flow-eyebrow">Data Source</div>
-<div class="flow-title">Database Master</div>
-<div class="flow-desc">Review or adjust cost references and master data assumptions.</div>
-</div>
-<div class="flow-arrow">→</div>
-</div>
-
-<div class="flow-item">
-<div class="flow-card">
-<div class="flow-eyebrow">Final Output</div>
-<div class="flow-title">Summary & Archive</div>
-<div class="flow-desc">Review final result, export summary, and save project version.</div>
-</div>
-</div>
-</div>
-</div>
-        """, unsafe_allow_html=True)
-
-        # ==================================================
-        # EXPANDER 1: MAIN SIDEBAR MENU
-        # ==================================================
-        with st.expander("Penjelasan Menu Utama (Sidebar)", expanded=False):
-            st.markdown("""
-<div class="section-note">
-Gunakan bagian ini sebagai panduan navigasi utama. Setiap menu memiliki fungsi berbeda dalam proses studi kelayakan proyek.
-</div>
-
-<div class="guide-grid">
-<div class="guide-card">
-<div class="guide-top">
-<div class="guide-icon">🧮</div>
-<span class="guide-title">Cost Analysis</span>
-</div>
-<p class="guide-desc">
-Modul utama untuk menghitung rincian dan estimasi kelayakan biaya proyek.
-</p>
-</div>
-
-<div class="guide-card">
-<div class="guide-top">
-<div class="guide-icon">📐</div>
-<span class="guide-title">Area Analysis</span>
-</div>
-<p class="guide-desc">
-Kalkulator untuk merencanakan parameter dimensi, jumlah lantai, dan luasan proyek.
-</p>
-</div>
-
-<div class="guide-card">
-<div class="guide-top">
-<div class="guide-icon">🗄️</div>
-<span class="guide-title">Database</span>
-</div>
-<p class="guide-desc">
-Pusat data acuan harga satuan, material, item pekerjaan, dan referensi standar proyek.
-</p>
-</div>
-
-<div class="guide-card">
-<div class="guide-top">
-<div class="guide-icon">📊</div>
-<span class="guide-title">Summary</span>
-</div>
-<p class="guide-desc">
-Ringkasan eksekutif, dashboard hasil akhir, dan tampilan laporan proyek.
-</p>
-</div>
-
-<div class="guide-card">
-<div class="guide-top">
-<div class="guide-icon">📂</div>
-<span class="guide-title">Archive</span>
-</div>
-<p class="guide-desc">
-Area untuk menyimpan, memuat kembali, dan mengelola histori versi proyek.
-</p>
-</div>
-</div>
-            """, unsafe_allow_html=True)
-
-        # ==================================================
-        # EXPANDER 2: COST CALCULATOR WORKFLOW
-        # ==================================================
-        with st.expander("Penjelasan Alur Kerja: Cost Analysis", expanded=False):
-            st.markdown("""
-<div class="section-note">
-Alur kerja berikut disusun sebagai urutan input yang disarankan agar perhitungan lebih mudah diperiksa dan diaudit.
-</div>
-
-<div class="flow-panel">
-<div class="flow-label">Cost Analysis Input Flow</div>
-
-<div class="flow-track workflow-flow">
-
-<div class="flow-item">
-<div class="flow-card flow-card-primary">
-<div class="flow-step-num">1</div>
-<div class="flow-title">Ukuran</div>
-<div class="flow-desc">Isi luas tanah, GBA, GFA, SGFA, dan jumlah unit.</div>
-</div>
-<div class="flow-arrow">→</div>
-</div>
-
-<div class="flow-item">
-<div class="flow-card">
-<div class="flow-step-num">2</div>
-<div class="flow-title">Rasio</div>
-<div class="flow-desc">Input rasio lantai, fasad, dan parameter desain utama.</div>
-</div>
-<div class="flow-arrow">→</div>
-</div>
-
-<div class="flow-item">
-<div class="flow-card">
-<div class="flow-step-num">3</div>
-<div class="flow-title">Soft Cost</div>
-<div class="flow-desc">Input biaya QS, PM, konsultan, asuransi, dan biaya non-konstruksi.</div>
-</div>
-<div class="flow-arrow">→</div>
-</div>
-
-<div class="flow-item">
-<div class="flow-card">
-<div class="flow-step-num">4</div>
-<div class="flow-title">Harga</div>
-<div class="flow-desc">Harga otomatis mengikuti database dan dapat dioverride manual.</div>
-</div>
-<div class="flow-arrow">→</div>
-</div>
-
-<div class="flow-item">
-<div class="flow-card">
-<div class="flow-step-num">5</div>
-<div class="flow-title">Tambahan</div>
-<div class="flow-desc">Tambahkan item khusus atau pekerjaan spesifik proyek.</div>
-</div>
-<div class="flow-arrow">→</div>
-</div>
-
-<div class="flow-item">
-<div class="flow-card">
-<div class="flow-step-num">6</div>
-<div class="flow-title">Hasil</div>
-<div class="flow-desc">Tampilkan total biaya proyek dan komposisi biaya utama.</div>
-</div>
-<div class="flow-arrow">→</div>
-</div>
-
-<div class="flow-item">
-<div class="flow-card">
-<div class="flow-step-num">7</div>
-<div class="flow-title">Pembuktian</div>
-<div class="flow-desc">Cek rincian perhitungan per item untuk verifikasi QS.</div>
-</div>
-</div>
-
-</div>
-</div>
-            """, unsafe_allow_html=True)
-
-        # ==================================================
-        # RECOMMENDATION BOX
-        # ==================================================
-        st.markdown("""
-        <div class="recommendation-box">
-<div class="recommendation-title">Rekomendasi Alur Kerja</div>
-<p class="recommendation-text">
-Untuk proyek baru, mulai dari <strong>Area Analysis</strong> untuk membentuk luasan dasar. 
-Setelah GBA, GFA, SGFA, NFA, dan jumlah unit terbentuk, lanjutkan ke <strong>Cost Analysis</strong>. 
-Setelah hasil final diperiksa, simpan versi proyek melalui <strong>Archive</strong>.
-</p>
-</div>
-        """, unsafe_allow_html=True)
-
-        # --- TAB 1: PROJECT METRICS ---
-
+        render_feasibility_study_landing()
+              
     with tab2:
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 
@@ -6726,7 +6373,38 @@ def show_snapshots():
         if not snapshots:
             st.info("No saved projects yet.")
         else:
-            for snap in snapshots:
+            # ==================================================
+            # PAGINATION SETUP
+            # ==================================================
+            PAGE_SIZE = 10
+
+            if "archive_page" not in st.session_state:
+                st.session_state.archive_page = 0
+
+            total_items = len(snapshots)
+            total_pages = max(1, (total_items + PAGE_SIZE - 1) // PAGE_SIZE)
+
+            # Safety clamp if files were deleted / changed
+            if st.session_state.archive_page >= total_pages:
+                st.session_state.archive_page = total_pages - 1
+
+            if st.session_state.archive_page < 0:
+                st.session_state.archive_page = 0
+
+            start_idx = st.session_state.archive_page * PAGE_SIZE
+            end_idx = start_idx + PAGE_SIZE
+            page_snapshots = snapshots[start_idx:end_idx]
+
+            st.caption(
+                f"Showing {start_idx + 1}–{min(end_idx, total_items)} of {total_items} saved files"
+            )
+
+            st.divider()
+
+            # ==================================================
+            # PAGINATED SNAPSHOT LIST
+            # ==================================================
+            for snap in page_snapshots:
                 snap_id = snap["id"]
 
                 rename_key = f"renaming_{snap_id}"
@@ -6831,6 +6509,41 @@ def show_snapshots():
 
                     with col4:
                         st.empty()
+
+                st.divider()
+
+            # ==================================================
+            # PAGINATION CONTROLS
+            # ==================================================
+            c1, col_prev, col_page, col_next, c2 = st.columns([5, 1, 2, 1, 5])
+
+            with col_prev:
+                if st.button(
+                    "Previous",
+                    key="archive_prev_page",
+                    use_container_width=True,
+                    disabled=st.session_state.archive_page <= 0
+                ):
+                    st.session_state.archive_page -= 1
+                    st.rerun()
+
+            with col_page:
+                st.markdown(
+                    f"<div style='text-align:center; padding-top: 0.45rem;'>"
+                    f"Page {st.session_state.archive_page + 1} of {total_pages}"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+            with col_next:
+                if st.button(
+                    "Next",
+                    key="archive_next_page",
+                    use_container_width=True,
+                    disabled=st.session_state.archive_page >= total_pages - 1
+                ):
+                    st.session_state.archive_page += 1
+                    st.rerun()  
 
     with atab2:
         st.header("Upload & Download")
@@ -7249,7 +6962,7 @@ def main_app():
     active_archive_name = st.session_state.get("loaded_snapshot_name")
 
     if active_archive_id:
-        st.sidebar.markdown("Overwrite Save File:")
+        st.sidebar.markdown("Quick Save:")
 
         if st.sidebar.button(
             f"**{active_archive_name or 'Unnamed Project'}**",
