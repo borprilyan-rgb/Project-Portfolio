@@ -149,6 +149,9 @@ def build_app_payload():
         "current_proj_id": curr_id,
         "proj_counter": st.session_state.get("proj_counter", 1),
 
+        "loaded_snapshot_id": st.session_state.get("loaded_snapshot_id"),
+        "loaded_snapshot_name": st.session_state.get("loaded_snapshot_name"),
+
         "report_config": st.session_state.get(
             "report_config",
             copy.deepcopy(DEFAULT_REPORT_CONFIG)
@@ -245,6 +248,10 @@ def restore_app_payload(data):
         report_config["port_assumptions"] = data["port_assumptions"]
 
     st.session_state.report_config = report_config
+
+    # Active archive reference
+    st.session_state.loaded_snapshot_id = data.get("loaded_snapshot_id")
+    st.session_state.loaded_snapshot_name = data.get("loaded_snapshot_name")
 
     # Optional backward compatibility aliases
     st.session_state.port_meta = st.session_state.report_config["port_meta"]
@@ -395,7 +402,75 @@ def calculate_project_totals(pdata, curr_type):
 
     return calc_gba, calc_gfa, calc_sgfa, calc_budget, rooms
 
+from datetime import datetime, timedelta
+
+
+def _get_authed_snapshot_client(show_error=True):
+    token = st.session_state.get("access_token")
+    user = st.session_state.get("user")
+
+    user_id = getattr(user, "id", None)
+    if user_id is None and isinstance(user, dict):
+        user_id = user.get("id")
+
+    if not token or not user_id:
+        if show_error:
+            st.error("Not authenticated.")
+        return None, None
+
+    authed_client = create_client(url, key)
+    authed_client.postgrest.auth(token)
+
+    return authed_client, user_id
+
+
+def format_snapshot_time(created_at):
+    if not created_at:
+        return ""
+
+    try:
+        created_utc = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        created_local = created_utc + timedelta(hours=7)
+        return created_local.strftime("%d %b %Y, %H:%M WIB")
+    except Exception:
+        return ""
+
+
 def save_snapshot(snapshot_name):
+    authed_client, user_id = _get_authed_snapshot_client()
+
+    if not authed_client or not user_id:
+        return False
+
+    payload = build_app_payload()
+
+    try:
+        response = authed_client.table("project_snapshots").insert({
+            "user_id": user_id,
+            "snapshot_name": snapshot_name,
+            "data": payload
+        }).execute()
+
+        if response.data:
+            st.session_state.loaded_snapshot_id = response.data[0].get("id")
+            st.session_state.loaded_snapshot_name = response.data[0].get("snapshot_name", snapshot_name)
+
+        save_data()
+        return True
+
+    except Exception as e:
+        st.error(f"Project Save Error: {e}")
+        return False
+
+
+def overwrite_current_snapshot():
+    snapshot_id = st.session_state.get("loaded_snapshot_id")
+    snapshot_name = st.session_state.get("loaded_snapshot_name")
+
+    if not snapshot_id:
+        st.error("No archive is currently linked. Please save this project first from Archive.")
+        return False
+
     token = st.session_state.get("access_token")
     user = st.session_state.get("user")
     user_id = getattr(user, "id", None)
@@ -410,74 +485,162 @@ def save_snapshot(snapshot_name):
     payload = build_app_payload()
 
     try:
-        authed_client.table("project_snapshots").insert({
-            "user_id": user_id,
-            "snapshot_name": snapshot_name,
-            "data": payload
-        }).execute()
+        authed_client.table("project_snapshots") \
+            .update({
+                "snapshot_name": snapshot_name,
+                "data": payload
+            }) \
+            .eq("id", snapshot_id) \
+            .eq("user_id", user_id) \
+            .execute()
+
         return True
+
     except Exception as e:
-        st.error(f"Project Save Error: {e}")
+        st.error(f"Project Overwrite Error: {e}")
         return False
 
-def load_snapshots():
+
+def rename_snapshot(snapshot_id, new_name):
     token = st.session_state.get("access_token")
     user = st.session_state.get("user")
+    user_id = getattr(user, "id", None)
 
-    if not token or not user:
+    if not token or not user_id:
+        st.error("Not authenticated.")
+        return False
+
+    if not snapshot_id or not str(new_name).strip():
+        st.error("Invalid project name.")
+        return False
+
+    authed_client = create_client(url, key)
+    authed_client.postgrest.auth(token)
+
+    clean_name = str(new_name).strip()
+
+    try:
+        authed_client.table("project_snapshots") \
+            .update({
+                "snapshot_name": clean_name
+            }) \
+            .eq("id", snapshot_id) \
+            .eq("user_id", user_id) \
+            .execute()
+
+        if st.session_state.get("loaded_snapshot_id") == snapshot_id:
+            st.session_state.loaded_snapshot_name = clean_name
+            save_data()
+
+        return True
+
+    except Exception as e:
+        st.error(f"Project Rename Error: {e}")
+        return False
+
+
+def overwrite_snapshot(snapshot_id, snapshot_name=None):
+    authed_client, user_id = _get_authed_snapshot_client()
+
+    if not authed_client or not user_id:
+        return False
+
+    if not snapshot_id:
+        st.error("No saved project selected.")
+        return False
+
+    payload = build_app_payload()
+
+    update_payload = {
+        "data": payload
+    }
+
+    # Optional rename while overwriting
+    if snapshot_name is not None and str(snapshot_name).strip() != "":
+        update_payload["snapshot_name"] = str(snapshot_name).strip()
+
+    try:
+        authed_client.table("project_snapshots") \
+            .update(update_payload) \
+            .eq("id", snapshot_id) \
+            .eq("user_id", user_id) \
+            .execute()
+
+        st.session_state.loaded_snapshot_id = snapshot_id
+
+        if snapshot_name is not None and str(snapshot_name).strip() != "":
+            st.session_state.loaded_snapshot_name = str(snapshot_name).strip()
+
+        return True
+
+    except Exception as e:
+        st.error(f"Project Overwrite Error: {e}")
+        return False
+
+
+def load_snapshots():
+    authed_client, user_id = _get_authed_snapshot_client(show_error=False)
+
+    if not authed_client or not user_id:
         return []
 
     try:
-        authed_client = create_client(url, key)
-        authed_client.postgrest.auth(token)
-
         response = authed_client.table("project_snapshots") \
             .select("id, snapshot_name, created_at") \
-            .eq("user_id", user.id) \
+            .eq("user_id", user_id) \
             .order("created_at", desc=True) \
             .execute()
 
         return response.data if response.data else []
+
     except Exception as e:
         st.error(f"Project Load Error: {e}")
         return []
 
-def load_snapshot_data(snapshot_id):
-    token = st.session_state.get("access_token")
 
-    if not token:
+def load_snapshot_data(snapshot_id):
+    authed_client, user_id = _get_authed_snapshot_client()
+
+    if not authed_client or not user_id:
         return None
 
     try:
-        authed_client = create_client(url, key)
-        authed_client.postgrest.auth(token)
-
         response = authed_client.table("project_snapshots") \
-            .select("data") \
+            .select("data, snapshot_name") \
             .eq("id", snapshot_id) \
+            .eq("user_id", user_id) \
             .execute()
 
         if response.data:
+            st.session_state.loaded_snapshot_id = snapshot_id
+            st.session_state.loaded_snapshot_name = response.data[0].get("snapshot_name", "")
             return response.data[0]["data"]
+
     except Exception as e:
         st.error(f"Saved Project Fetch Error: {e}")
+
     return None
 
-def delete_snapshot(snapshot_id):
-    token = st.session_state.get("access_token")
 
-    if not token:
+def delete_snapshot(snapshot_id):
+    authed_client, user_id = _get_authed_snapshot_client()
+
+    if not authed_client or not user_id:
         return False
 
     try:
-        authed_client = create_client(url, key)
-        authed_client.postgrest.auth(token)
-
         authed_client.table("project_snapshots") \
             .delete() \
             .eq("id", snapshot_id) \
+            .eq("user_id", user_id) \
             .execute()
+
+        if st.session_state.get("loaded_snapshot_id") == snapshot_id:
+            st.session_state.loaded_snapshot_id = None
+            st.session_state.loaded_snapshot_name = None
+
         return True
+
     except Exception as e:
         st.error(f"Project Delete Error: {e}")
         return False
@@ -1557,7 +1720,7 @@ def show_project_database():  # database page
         )
 
 def show_area_calculator(): #area calculator page
-    st.title("Area Calculator")
+    st.title("Area Analysis")
     
     # 1. Identify the Active Project
     curr_id, curr_proj = get_current_project()
@@ -3914,7 +4077,7 @@ def update_price(metric_key, db_key): #this function pulls~
         st.session_state[f"u_fl_{metric_key}_{c_type_key}"] = float(new_val)
 
 def show_cost_estimator(): #cost calculator page
-    st.title("Cost Calculator")
+    st.title("Cost Analysis")
 
     st.markdown("""
         <style>
@@ -4363,7 +4526,7 @@ min-width: 175px;
         # ==================================================
         st.markdown("""
 <div class="home-hero">
-<div class="home-badge">📊 Workspace Dashboard</div>
+<div class="home-badge">Workspace Dashboard</div>
 <div class="home-title">Project Feasibility Study</div>
 <p class="home-sub">
 Platform kerja untuk menyusun estimasi kelayakan proyek, menghitung area, 
@@ -4400,7 +4563,7 @@ Harga satuan dan referensi master digunakan sebagai dasar perhitungan.
 <div class="flow-item">
 <div class="flow-card flow-card-primary">
 <div class="flow-eyebrow">Start Here</div>
-<div class="flow-title">Area Calculator</div>
+<div class="flow-title">Area Analysis</div>
 <div class="flow-desc">Set up basic area assumptions and planning parameters.</div>
 </div>
 <div class="flow-arrow">→</div>
@@ -4409,7 +4572,7 @@ Harga satuan dan referensi master digunakan sebagai dasar perhitungan.
 <div class="flow-item">
 <div class="flow-card">
 <div class="flow-eyebrow">Main Module</div>
-<div class="flow-title">Cost Calculator</div>
+<div class="flow-title">Cost Analysis</div>
 <div class="flow-desc">Calculate project cost based on area, ratios, and database pricing.</div>
 </div>
 <div class="flow-arrow">→</div>
@@ -4448,7 +4611,7 @@ Gunakan bagian ini sebagai panduan navigasi utama. Setiap menu memiliki fungsi b
 <div class="guide-card">
 <div class="guide-top">
 <div class="guide-icon">🧮</div>
-<span class="guide-title">Cost Calculator</span>
+<span class="guide-title">Cost Analysis</span>
 </div>
 <p class="guide-desc">
 Modul utama untuk menghitung rincian dan estimasi kelayakan biaya proyek.
@@ -4458,7 +4621,7 @@ Modul utama untuk menghitung rincian dan estimasi kelayakan biaya proyek.
 <div class="guide-card">
 <div class="guide-top">
 <div class="guide-icon">📐</div>
-<span class="guide-title">Area Calculator</span>
+<span class="guide-title">Area Analysis</span>
 </div>
 <p class="guide-desc">
 Kalkulator untuk merencanakan parameter dimensi, jumlah lantai, dan luasan proyek.
@@ -4488,7 +4651,7 @@ Ringkasan eksekutif, dashboard hasil akhir, dan tampilan laporan proyek.
 <div class="guide-card">
 <div class="guide-top">
 <div class="guide-icon">📂</div>
-<span class="guide-title">Project Archive</span>
+<span class="guide-title">Archive</span>
 </div>
 <p class="guide-desc">
 Area untuk menyimpan, memuat kembali, dan mengelola histori versi proyek.
@@ -4500,14 +4663,14 @@ Area untuk menyimpan, memuat kembali, dan mengelola histori versi proyek.
         # ==================================================
         # EXPANDER 2: COST CALCULATOR WORKFLOW
         # ==================================================
-        with st.expander("Penjelasan Alur Kerja: Cost Calculator", expanded=False):
+        with st.expander("Penjelasan Alur Kerja: Cost Analysis", expanded=False):
             st.markdown("""
 <div class="section-note">
 Alur kerja berikut disusun sebagai urutan input yang disarankan agar perhitungan lebih mudah diperiksa dan diaudit.
 </div>
 
 <div class="flow-panel">
-<div class="flow-label">Cost Calculator Input Flow</div>
+<div class="flow-label">Cost Analysis Input Flow</div>
 
 <div class="flow-track workflow-flow">
 
@@ -4584,9 +4747,9 @@ Alur kerja berikut disusun sebagai urutan input yang disarankan agar perhitungan
         <div class="recommendation-box">
 <div class="recommendation-title">Rekomendasi Alur Kerja</div>
 <p class="recommendation-text">
-Untuk proyek baru, mulai dari <strong>Area Calculator</strong> untuk membentuk luasan dasar. 
-Setelah GBA, GFA, SGFA, NFA, dan jumlah unit terbentuk, lanjutkan ke <strong>Cost Calculator</strong>. 
-Setelah hasil final diperiksa, simpan versi proyek melalui <strong>Project Archive</strong>.
+Untuk proyek baru, mulai dari <strong>Area Analysis</strong> untuk membentuk luasan dasar. 
+Setelah GBA, GFA, SGFA, NFA, dan jumlah unit terbentuk, lanjutkan ke <strong>Cost Analysis</strong>. 
+Setelah hasil final diperiksa, simpan versi proyek melalui <strong>Archive</strong>.
 </p>
 </div>
         """, unsafe_allow_html=True)
@@ -5264,7 +5427,7 @@ Setelah hasil final diperiksa, simpan versi proyek melalui <strong>Project Archi
                 st.altair_chart(detailed_chart, use_container_width=True)
 
 # --- SAVE ALL METRICS TO SESSION STATE ---
-    # We use .update() so we NEVER delete the Area Calculator's data!
+    # We use .update() so we NEVER delete the Area Analysis's data!
     st.session_state.projects[curr_id]["data"].update({
         "ht_spec_type": get_val("ht_spec_type", "Type1"),
         "vin_spec_type": get_val("vin_spec_type", "Type1"),
@@ -6530,8 +6693,7 @@ Adjust the fields on the left and the preview will update automatically.
         st.markdown(html_str, unsafe_allow_html=True)
 
 def show_snapshots():
-    st.title("Project Archive")
-    
+    st.title("Feasibility Study Archive")
 
     curr_id, curr_proj = get_current_project()
 
@@ -6540,13 +6702,14 @@ def show_snapshots():
     ])
     with atab1:
         # --- SAVE NEW SNAPSHOT ---
-        st.subheader("Save Project")
-        snapshot_name = st.text_input(
-            "Project Name", 
-            placeholder="e.g. ASG Tower - Option 2 - Rev3"
+        st.subheader("Save File")
+        col1, _ = st.columns([4, 3])
+        snapshot_name = col1.text_input(
+            "Name", 
+            placeholder="e.g. Project X - Opt 1 - Rev 0"
         )
         col1, _ = st.columns([1, 6])
-        if col1.button("Save Project", use_container_width=True):
+        if col1.button("Save", use_container_width=True):
             if snapshot_name.strip() == "":
                 col1.warning("Please enter Project name.")
             else:
@@ -6557,34 +6720,58 @@ def show_snapshots():
         st.divider()
 
         # --- LIST EXISTING SNAPSHOTS ---
-        st.subheader("Load Project:")
+        st.subheader("Load File")
         snapshots = load_snapshots()
 
         if not snapshots:
             st.info("No saved projects yet.")
         else:
             for snap in snapshots:
-                col1, col2, col3 = st.columns([5, 1, 1])
-                
+                col1, col2, col3, col4 = st.columns([4, 1, 1, 1])
+
                 from datetime import datetime, timedelta
 
                 created_utc = datetime.fromisoformat(snap["created_at"].replace("Z", "+00:00"))
                 created_local = created_utc + timedelta(hours=7)
                 formatted_date = created_local.strftime("%d %b %Y, %H:%M")
-                
-                col1.markdown(f"**{snap['snapshot_name']}**  \n  *Saved: {formatted_date} WIB*")
-                
-                if col2.button("Load Project", key=f"load_{snap['id']}", type="primary", use_container_width=True):
+
+                is_active = st.session_state.get("loaded_snapshot_id") == snap["id"]
+                active_label = " — ACTIVE" if is_active else ""
+
+                with col1:
+                    new_archive_name = st.text_input(
+                        "Project Name",
+                        value=snap["snapshot_name"],
+                        key=f"rename_input_{snap['id']}",
+                        label_visibility="collapsed"
+                    )
+                    st.caption(f"Saved: {formatted_date} WIB{active_label}")
+
+                if col2.button("Rename", key=f"rename_{snap['id']}", use_container_width=True):
+                    if rename_snapshot(snap["id"], new_archive_name):
+                        st.success("Project renamed.")
+                        st.rerun()
+
+                if col3.button("Load", key=f"load_{snap['id']}", type="primary", use_container_width=True):
                     data = load_snapshot_data(snap["id"])
                     if data:
                         restore_app_payload(data)
-                        save_data()  # also update the main auto-save slot
-                        st.success(f"Loaded **{snap['snapshot_name']}**!")
+
+                        st.session_state.loaded_snapshot_id = snap["id"]
+                        st.session_state.loaded_snapshot_name = snap["snapshot_name"]
+
+                        save_data()
+                        st.success(f"Loaded **{snap['snapshot_name']}**.")
                         st.rerun()
 
-                if col3.button("Delete Project", key=f"del_{snap['id']}", use_container_width=True):
+                if col4.button("Delete", key=f"del_{snap['id']}", use_container_width=True):
                     if delete_snapshot(snap["id"]):
-                        st.success("Snapshot deleted.")
+                        if st.session_state.get("loaded_snapshot_id") == snap["id"]:
+                            st.session_state.loaded_snapshot_id = None
+                            st.session_state.loaded_snapshot_name = None
+                            save_data()
+
+                        st.success("Project deleted.")
                         st.rerun()
 
     with atab2:
@@ -6651,7 +6838,7 @@ def show_snapshots():
                                         elif "qty" in key: global_temp_custom[pid][idx]["Quantity"] = float(val)
                                     except: continue
 
-                                # 4. Handle Standard Metrics & Nested Tables (Area Calculator)
+                                # 4. Handle Standard Metrics & Nested Tables (Area Analysis)
                                 else:
                                     try:
                                         str_val = str(val).strip()
@@ -6682,7 +6869,7 @@ def show_snapshots():
                                 sorted_custom = [items_dict[i] for i in sorted(items_dict.keys())]
                                 st.session_state.projects[pid_key]["data"]["smart_custom_costs"] = sorted_custom
 
-                            # 6. CLEAR UI CACHE ANCHORS (Crucial for Area Calculator reload)
+                            # 6. CLEAR UI CACHE ANCHORS (Crucial for Area Analysis reload)
                             keys_to_clear = [k for k in st.session_state.keys() if "base_table_" in k or "area_editor_" in k]
                             for k in keys_to_clear:
                                 del st.session_state[k]
@@ -6908,7 +7095,7 @@ def main_app():
 
     page_choice = st.sidebar.radio(
         "Pilih Pekerjaan:",
-        ["🧮 Cost Calculator", "📐 Area Calculator", "🗄️ Database", "📊 Summary", "📂 Project Archive"]
+        ["Cost Analysis", "Area Analysis", "Database", "Summary", "Archive"]
     )
 
     st.sidebar.markdown("---")
@@ -6982,8 +7169,6 @@ def main_app():
             save_data()
             st.rerun()
 
-    # --- NEW: GLOBAL PROJECT EDITOR IN SIDEBAR ---
-    st.sidebar.markdown("---")
 
     # --- BACKUP SYSTEM ---
     if "projects" in st.session_state and st.session_state.get("storage_loaded", False):
@@ -6996,6 +7181,40 @@ def main_app():
 
         # Local storage disabled
         pass
+
+    # ==================================================
+    # SIDEBAR CURRENT ARCHIVE SAVE ONLY
+    # ==================================================
+    st.sidebar.markdown("---")
+
+    active_archive_id = st.session_state.get("loaded_snapshot_id")
+    active_archive_name = st.session_state.get("loaded_snapshot_name")
+
+    if active_archive_id:
+        st.sidebar.markdown("Overwrite Save File:")
+
+        if st.sidebar.button(
+            f"**{active_archive_name or 'Unnamed Project'}**",
+            key="sidebar_save_current_archive",
+            type="primary",
+            use_container_width=True,
+            help="Overwrite the currently loaded archive."
+        ):
+            if overwrite_current_snapshot():
+                save_data()
+                st.sidebar.success("Current archive saved.")
+                st.rerun()
+
+    else:
+        st.sidebar.info("No archive linked yet. Create the first saved project from Archive.")
+        st.sidebar.button(
+            "Overwrite",
+            key="sidebar_save_disabled_no_archive",
+            use_container_width=True,
+            disabled=True
+        )
+
+    st.sidebar.markdown("---")
 
     if st.sidebar.button("Logout", type="primary"):
         st.session_state.logged_in = False
@@ -7017,13 +7236,13 @@ def main_app():
     st.sidebar.caption(f"v{APP_VERSION} | © 2026 QS & Procurement - ASG")
     #endregion
     
-    if page_choice == "📐 Area Calculator":
+    if page_choice == "Area Analysis":
         show_area_calculator()
-    elif page_choice == "🗄️ Database":
+    elif page_choice == "Database":
         show_project_database()
-    elif page_choice == "📊 Summary":
+    elif page_choice == "Summary":
         show_portfolio_summary()
-    elif page_choice == "📂 Project Archive":
+    elif page_choice == "Archive":
         show_snapshots()
     else:
         show_cost_estimator()
