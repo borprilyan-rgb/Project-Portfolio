@@ -67,6 +67,49 @@ DEFAULT_REPORT_CONFIG = {
     ],
 }
 
+def clean_for_json(obj):
+    """
+    Recursively converts NaN / inf / pandas NA / numpy values into JSON-safe values.
+    Supabase/PostgREST JSON does not accept NaN or Infinity.
+    """
+    import math
+    import numpy as np
+    import pandas as pd
+
+    if obj is None:
+        return None
+
+    if isinstance(obj, pd.DataFrame):
+        return clean_for_json(obj.to_dict("records"))
+
+    if isinstance(obj, pd.Series):
+        return clean_for_json(obj.to_dict())
+
+    if isinstance(obj, dict):
+        return {
+            str(k): clean_for_json(v)
+            for k, v in obj.items()
+        }
+
+    if isinstance(obj, list):
+        return [clean_for_json(v) for v in obj]
+
+    if isinstance(obj, tuple):
+        return [clean_for_json(v) for v in obj]
+
+    if obj is pd.NA:
+        return None
+
+    if isinstance(obj, np.generic):
+        obj = obj.item()
+
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+
+    return obj
+
 def init_report_config():
     """
     Creates one global/report-level config bucket.
@@ -133,7 +176,6 @@ def set_port_assumptions_df(df):
     cfg = get_report_config()
     cfg["port_assumptions"] = df.to_dict("records")
 
-
 def build_app_payload():
     """
     Single source of truth for saving.
@@ -143,7 +185,7 @@ def build_app_payload():
 
     curr_id, _ = repair_projects_state(save=False)
 
-    return {
+    payload = {
         "app_version": APP_VERSION,
         "projects": st.session_state.get("projects", make_default_projects()),
         "current_proj_id": curr_id,
@@ -157,6 +199,8 @@ def build_app_payload():
             copy.deepcopy(DEFAULT_REPORT_CONFIG)
         )
     }
+
+    return clean_for_json(payload)
 
 def make_default_projects():
     return {
@@ -1275,7 +1319,8 @@ def render_feasibility_study_landing(): #start page
             ):
                 st.session_state.fs_load_page += 1
                 st.rerun()
-                    
+
+    return                
     st.divider()
     st.caption("For rename, delete, import, export, or full archive management, use the Feasibility Study Archive page.")
 
@@ -6568,6 +6613,7 @@ def show_snapshots():
                     try:
                         import ast  # Needed to turn strings back into tables
                         df_import = pd.read_csv(uploaded_file)
+                        df_import = df_import.replace({np.nan: None})
                         
                         if df_import is not None and not df_import.empty:
                             global_temp_custom = {}
@@ -7094,17 +7140,34 @@ def main_app():
                 if clean_name == "":
                     st.warning("Component name cannot be empty.")
                 else:
+                    old_type = st.session_state.projects[curr_id].get("type", "Hotel")
+
                     st.session_state.projects[curr_id]["name"] = clean_name
-                    st.session_state.projects[curr_id]["type"] = edited_component_type
+
+                    if edited_component_type != old_type:
+                        st.session_state.projects[curr_id]["type"] = edited_component_type
+
+                        # Clear old cost/input values so new database defaults can take effect
+                        st.session_state.projects[curr_id]["data"] = {}
+
+                        # Clear possible widget/session cache tied to old type
+                        keys_to_clear = [
+                            k for k in st.session_state.keys()
+                            if str(curr_id) in str(k)
+                            or "temp_spec_" in str(k)
+                            or "u_fl_" in str(k)
+                        ]
+
+                        for k in keys_to_clear:
+                            if k not in ["projects", "current_proj_id", "proj_counter"]:
+                                del st.session_state[k]
+                    else:
+                        st.session_state.projects[curr_id]["type"] = edited_component_type
 
                     st.session_state.sidebar_component_mode = None
 
                     save_data()
                     st.rerun()
-
-            if cancel_clicked:
-                st.session_state.sidebar_component_mode = None
-                st.rerun()
 
 
     # ==================================================
