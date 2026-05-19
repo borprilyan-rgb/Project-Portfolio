@@ -95,10 +95,11 @@ def _safe_float(v, default=0.0):
         return default
 
 def calculate_area_totals_from_table(area_table_data):
+    unit_area_col = "Unit Area"
     breakdown_cols = [
         "Parkir", "Roof/Deck", "MEP Outdoor",
         "Koridor/Lobby", "Stair, MEP, Etc",
-        "Unit", "Office"
+        unit_area_col, "Office"
     ]
 
     if not isinstance(area_table_data, list) or len(area_table_data) == 0:
@@ -111,6 +112,9 @@ def calculate_area_totals_from_table(area_table_data):
 
     df = pd.DataFrame(area_table_data)
 
+    if unit_area_col not in df.columns and "Unit" in df.columns:
+        df[unit_area_col] = df["Unit"]
+
     for col in breakdown_cols:
         if col not in df.columns:
             df[col] = 0.0
@@ -121,8 +125,8 @@ def calculate_area_totals_from_table(area_table_data):
 
     gba = _safe_float(total.sum())
     gfa = _safe_float((total - df[["Parkir", "Roof/Deck", "MEP Outdoor"]].sum(axis=1)).sum())
-    sgfa = _safe_float(df[["Unit", "Office", "Koridor/Lobby"]].sum(axis=1).sum())
-    nfa = _safe_float(df[["Unit", "Office"]].sum(axis=1).sum())
+    sgfa = _safe_float(df[[unit_area_col, "Office", "Koridor/Lobby"]].sum(axis=1).sum())
+    nfa = _safe_float(df[[unit_area_col, "Office"]].sum(axis=1).sum())
 
     return {
         "gba": gba,
@@ -427,13 +431,17 @@ def calculate_project_totals(pdata, curr_type):
         calc_gba = 0.0
         calc_gfa = 0.0
         calc_sgfa = 0.0
-        breakdown_cols = ["Parkir", "Roof/Deck", "MEP Outdoor", "Koridor/Lobby", "Stair, MEP, Etc", "Unit", "Office"]
+        unit_area_col = "Unit Area"
+        breakdown_cols = ["Parkir", "Roof/Deck", "MEP Outdoor", "Koridor/Lobby", "Stair, MEP, Etc", unit_area_col, "Office"]
         
         for row in area_table:
             row_total = sum(_safe_float(row.get(c, 0)) for c in breakdown_cols)
+            if unit_area_col not in row and "Unit" in row:
+                row_total += _safe_float(row.get("Unit", 0))
             calc_gba += row_total
             calc_gfa += row_total - sum(_safe_float(row.get(c, 0)) for c in ["Parkir", "Roof/Deck", "MEP Outdoor"])
-            calc_sgfa += sum(_safe_float(row.get(c, 0)) for c in ["Unit", "Office", "Koridor/Lobby"])
+            unit_area = _safe_float(row.get(unit_area_col, row.get("Unit", 0)))
+            calc_sgfa += unit_area + sum(_safe_float(row.get(c, 0)) for c in ["Office", "Koridor/Lobby"])
     else:
         calc_gba = get_val("m_gba", 0.0)
         calc_gfa = get_val("m_gfa", 0.0)
@@ -2163,13 +2171,13 @@ def show_area_calculator(): #area calculator page
                 st.session_state[base_key] = curr_proj["data"]["area_table_data"]
             else:
                 default_stack = [
-                    {"FL": "Roof Machine", "Space Type": "Roof", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit": 0.0, "Office": 0.0},
-                    {"FL": "Roof", "Space Type": "Roof", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit": 0.0, "Office": 0.0},
-                    {"FL": "5F", "Space Type": "Unit", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit": 0.0, "Office": 0.0},
-                    {"FL": "4F", "Space Type": "Unit", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit": 0.0, "Office": 0.0},
-                    {"FL": "3F", "Space Type": "Unit", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit": 0.0, "Office": 0.0},
-                    {"FL": "2F", "Space Type": "Unit", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit": 0.0, "Office": 0.0},
-                    {"FL": "1F", "Space Type": "Lobby", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit": 0.0, "Office": 0.0}
+                    {"FL": "Roof Machine", "Space Type": "Roof", "Typical Unit": 0, "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit Area": 0.0, "Office": 0.0},
+                    {"FL": "Roof", "Space Type": "Roof", "Typical Unit": 0, "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit Area": 0.0, "Office": 0.0},
+                    {"FL": "5F", "Space Type": "Unit", "Typical Unit": 0, "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit Area": 0.0, "Office": 0.0},
+                    {"FL": "4F", "Space Type": "Unit", "Typical Unit": 0, "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit Area": 0.0, "Office": 0.0},
+                    {"FL": "3F", "Space Type": "Unit", "Typical Unit": 0, "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit Area": 0.0, "Office": 0.0},
+                    {"FL": "2F", "Space Type": "Unit", "Typical Unit": 0, "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit Area": 0.0, "Office": 0.0},
+                    {"FL": "1F", "Space Type": "Lobby", "Typical Unit": 0, "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 0.0, "Unit Area": 0.0, "Office": 0.0}
                 ]
                 st.session_state[base_key] = default_stack
                 curr_proj["data"]["area_table_data"] = default_stack
@@ -2219,18 +2227,20 @@ def show_area_calculator(): #area calculator page
         
         if st.button("Generate Table", type="primary"):
             new_data = [
-                {"FL": "Roof Machine", "Space Type": "Roof", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 50.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 150.0, "Unit": 0.0, "Office": 0.0},
-                {"FL": "Roof", "Space Type": "Roof", "Parkir": 0.0, "Roof/Deck": 200.0, "MEP Outdoor": 80.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 790.0, "Unit": 0.0, "Office": 0.0}
+                {"FL": "Roof Machine", "Space Type": "Roof", "Floor to Floor Height (m)": 3.0, "Typical Unit": 0, "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 50.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 150.0, "Unit Area": 0.0, "Office": 0.0},
+                {"FL": "Roof", "Space Type": "Roof", "Floor to Floor Height (m)": 3.0, "Typical Unit": 0, "Parkir": 0.0, "Roof/Deck": 200.0, "MEP Outdoor": 80.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 790.0, "Unit Area": 0.0, "Office": 0.0}
             ]
             for i in range(upper_floors, 1, -1):
-                new_data.append({"FL": f"{i}F", "Space Type": "Unit", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 75.0, "Stair, MEP, Etc": 150.0, "Unit": 500.0, "Office": 0.0})
-            new_data.append({"FL": "1F", "Space Type": "Lobby", "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 20.0, "Koridor/Lobby": 75.0, "Stair, MEP, Etc": 0.0, "Unit": 500.0, "Office": 0.0})
+                new_data.append({"FL": f"{i}F", "Space Type": "Unit", "Floor to Floor Height (m)": 3.2, "Typical Unit": 8, "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 75.0, "Stair, MEP, Etc": 150.0, "Unit Area": 500.0, "Office": 0.0})
+            new_data.append({"FL": "1F", "Space Type": "Lobby", "Floor to Floor Height (m)": 4.5, "Typical Unit": 0, "Parkir": 0.0, "Roof/Deck": 0.0, "MEP Outdoor": 20.0, "Koridor/Lobby": 75.0, "Stair, MEP, Etc": 0.0, "Unit Area": 0.0, "Office": 0.0})
             for i in range(1, basements + 1):
                 fl_name = "LG" if i == 1 else f"B{i-1}"
-                new_data.append({"FL": fl_name, "Space Type": "Carpark", "Parkir": 800.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 150.0, "Unit": 0.0, "Office": 0.0})
+                new_data.append({"FL": fl_name, "Space Type": "Carpark", "Floor to Floor Height (m)": 3.2, "Typical Unit": 0, "Parkir": 800.0, "Roof/Deck": 0.0, "MEP Outdoor": 0.0, "Koridor/Lobby": 0.0, "Stair, MEP, Etc": 150.0, "Unit Area": 0.0, "Office": 0.0})
             
             # Update Anchor and clear editor memory
             st.session_state[base_key] = new_data
+            curr_proj["data"]["area_table_data"] = new_data
+            save_data()
             if f"area_editor_{curr_id}" in st.session_state:
                 del st.session_state[f"area_editor_{curr_id}"]
             st.rerun()
@@ -2247,21 +2257,75 @@ def show_area_calculator(): #area calculator page
                 {
                     "FL": "1F",
                     "Space Type": "Lobby",
+                    "Floor to Floor Height (m)": 4.5,
                     "Parkir": 0.0,
                     "Roof/Deck": 0.0,
                     "MEP Outdoor": 0.0,
                     "Koridor/Lobby": 0.0,
                     "Stair, MEP, Etc": 0.0,
-                    "Unit": 0.0,
+                    "Typical Unit": 0,
+                    "Unit Area": 0.0,
                     "Office": 0.0
                 }
             ]
             st.session_state[base_key] = base_data
             curr_proj["data"]["area_table_data"] = base_data
 
+        F2F_COL = "Floor to Floor Height (m)"
+        UNIT_AREA_COL = "Unit Area"
+        TYPICAL_UNIT_COL = "Typical Unit"
+
+        def guess_f2f_height(row):
+            fl = str(row.get("FL", "")).strip()
+            space_type = str(row.get("Space Type", "")).strip()
+
+            if fl == "1F" or space_type == "Lobby":
+                return 4.5
+            if fl == "LG" or fl.startswith("B") or space_type == "Carpark":
+                return 3.2
+            if fl in ["Roof", "Roof Machine"] or space_type == "Roof":
+                return 3.0
+            if space_type == "Office":
+                return 3.6
+            if space_type == "Facility":
+                return 4.0
+
+            return 3.2  # default typical apartment/unit floor height
+
+
+        # Add / migrate columns for old and new saved tables
+        for row in base_data:
+            # Old saved data used "Unit" as an area column.
+            # New standard: "Unit Area" = area, "Typical Unit" = count/unit number per floor.
+            if UNIT_AREA_COL not in row:
+                row[UNIT_AREA_COL] = _safe_float(row.get("Unit", 0.0))
+
+            # Optional: remove old confusing key from saved records
+            if "Unit" in row:
+                row.pop("Unit", None)
+
+            if TYPICAL_UNIT_COL not in row:
+                row[TYPICAL_UNIT_COL] = 0
+
+            if F2F_COL not in row:
+                row[F2F_COL] = guess_f2f_height(row)
+
+        st.session_state[base_key] = base_data
+        curr_proj["data"]["area_table_data"] = base_data
+
         df_area = pd.DataFrame(base_data)
 
-        breakdown_cols = ["Parkir", "Roof/Deck", "MEP Outdoor", "Koridor/Lobby", "Stair, MEP, Etc", "Unit", "Office"]
+        breakdown_cols = [
+            "Parkir",
+            "Roof/Deck",
+            "MEP Outdoor",
+            "Koridor/Lobby",
+            "Stair, MEP, Etc",
+            UNIT_AREA_COL,
+            "Office"
+        ]
+
+        detail_input_cols = [TYPICAL_UNIT_COL]
         
         # FULL WIDTH EDITOR
         edited_df = st.data_editor(
@@ -2270,21 +2334,106 @@ def show_area_calculator(): #area calculator page
             use_container_width=True,
             key=f"area_editor_{curr_id}",
             hide_index=True,
-            column_order=["FL", "Space Type"] + breakdown_cols,
+            column_order=["FL", "Space Type", F2F_COL, TYPICAL_UNIT_COL] + breakdown_cols,
             column_config={
-                "Space Type": st.column_config.SelectboxColumn("Space Type", options=["Roof", "Unit", "Lobby", "Ramp", "Carpark", "Facility"], required=True)
+                "Space Type": st.column_config.SelectboxColumn(
+                    "Space Type",
+                    options=["Roof", "Unit", "Lobby", "Ramp", "Carpark", "Facility"],
+                    required=True
+                ),
+                F2F_COL: st.column_config.NumberColumn(
+                    "Floor to Floor Height (m)",
+                    min_value=0.0,
+                    step=0.1,
+                    format="%.2f m",
+                    help="Vertical height from one finished floor level to the next."
+                ),
+                TYPICAL_UNIT_COL: st.column_config.NumberColumn(
+                    "Typical Unit",
+                    min_value=0,
+                    step=1,
+                    format="%d",
+                    help="Number of typical units on this floor. This is a count, not an area."
+                ),
+                UNIT_AREA_COL: st.column_config.NumberColumn(
+                    "Unit Area",
+                    min_value=0.0,
+                    step=10.0,
+                    format="%.2f m²",
+                    help="Total unit area on this floor."
+                )
             }
         )
+
+        # --- CLEAN EDITED DATA FIRST ---
+        for col in breakdown_cols:
+            if col not in edited_df.columns:
+                edited_df[col] = 0.0
+            edited_df[col] = pd.to_numeric(edited_df[col], errors="coerce").fillna(0.0)
+
+        if TYPICAL_UNIT_COL not in edited_df.columns:
+            edited_df[TYPICAL_UNIT_COL] = 0
+
+        edited_df[TYPICAL_UNIT_COL] = (
+            pd.to_numeric(edited_df[TYPICAL_UNIT_COL], errors="coerce")
+            .fillna(0)
+            .astype(int)
+        )
+
+        edited_df[F2F_COL] = pd.to_numeric(
+            edited_df[F2F_COL],
+            errors="coerce"
+        ).fillna(0.0)
+
+        # Keep only editable source columns
+        editable_cols = ["FL", "Space Type", F2F_COL, TYPICAL_UNIT_COL] + breakdown_cols
+
+        saved_area_records = edited_df[editable_cols].to_dict("records")
+
+        # ✅ Save to session anchor (so it persists on next rerun)
+        st.session_state[base_key] = saved_area_records
+
+        # ✅ Also save to project data
+        curr_proj["data"]["area_table_data"] = saved_area_records
+
+        # Optional but recommended: persist to file
+        save_data()
 
         # --- CALCULATIONS ---
         edited_df["TOTAL"] = edited_df[breakdown_cols].sum(axis=1)
         edited_df["GBA"] = edited_df["TOTAL"]
         edited_df["GFA"] = edited_df["TOTAL"] - edited_df[["Parkir", "Roof/Deck", "MEP Outdoor"]].sum(axis=1)
-        edited_df["SGFA"] = edited_df[["Unit", "Office", "Koridor/Lobby"]].sum(axis=1)
-        edited_df["NFA"] = edited_df[["Unit", "Office"]].sum(axis=1)
-        
-        # Silently update project data for CSV export without disturbing the Anchor
-        curr_proj["data"]["area_table_data"] = edited_df[["FL", "Space Type"] + breakdown_cols].to_dict('records')
+        edited_df["SGFA"] = edited_df[[UNIT_AREA_COL, "Office", "Koridor/Lobby"]].sum(axis=1)
+        edited_df["NFA"] = edited_df[[UNIT_AREA_COL, "Office"]].sum(axis=1)
+
+        # --- COST ESTIMATOR SYNC REFERENCES ---
+        # Ruang (unit) = total Typical Unit from full Tab 1 table
+
+        total_typical_units = (
+            int(pd.to_numeric(edited_df[TYPICAL_UNIT_COL], errors="coerce").fillna(0).sum())
+            if TYPICAL_UNIT_COL in edited_df.columns
+            else 0
+        )
+
+        curr_proj["data"]["area_rooms_calc"] = total_typical_units
+        curr_proj["data"]["area_typical_units_total_calc"] = total_typical_units
+
+        # --- DETAIL AREA REFERENCES FOR COST ESTIMATOR SYNC ---
+        # Lobby Interior for cost estimator = total Koridor/Lobby area from the full Tab 1 table.
+        # Do not filter by Space Type, because corridor/lobby area usually appears on Unit floors too.
+
+        total_lobby_interior = (
+            _safe_float(edited_df["Koridor/Lobby"].sum())
+            if "Koridor/Lobby" in edited_df.columns
+            else 0.0
+        )
+
+        # Optional supporting references
+        total_koridor_lobby_gba_source = total_lobby_interior
+
+        # Store calculated references for future sync into cost estimator
+        curr_proj["data"]["area_lobby_interior_calc"] = total_lobby_interior
+        curr_proj["data"]["area_koridor_lobby_total_calc"] = total_lobby_interior
 
         st.divider()
 
@@ -2299,7 +2448,7 @@ def show_area_calculator(): #area calculator page
         # Light enough for black text, but not too pale
         # --------------------------------------------------
         PRO_COLORS = {
-            "Unit": "#9FBBD6",             # Main residential blue
+            "Unit Area": "#9FBBD6",        # Main residential blue
             "Office": "#B5CEE5",           # Office blue
             "Koridor/Lobby": "#B6D0AA",    # Circulation sage
             "Stair, MEP, Etc": "#CCC7BE",  # Service warm gray
@@ -2319,7 +2468,7 @@ def show_area_calculator(): #area calculator page
 
         area_cols = [
             "Office",
-            "Unit",
+            UNIT_AREA_COL,
             "Koridor/Lobby",
             "Stair, MEP, Etc",
             "Parkir",
@@ -2392,7 +2541,7 @@ Stacked floor composition by area category
 
                     is_lobby = "Lobby" in sp_type
                     unit_colors.append(
-                        PRO_COLORS["Lobby_Override"] if is_lobby else PRO_COLORS["Unit"]
+                        PRO_COLORS["Lobby_Override"] if is_lobby else PRO_COLORS[UNIT_AREA_COL]
                     )
 
                     for col in area_cols:
@@ -2402,7 +2551,7 @@ Stacked floor composition by area category
                             bases[col].append(curr_x)
                             widths[col].append(val)
 
-                            display_name = "Lobby" if col == "Unit" and is_lobby else col
+                            display_name = "Lobby" if col == UNIT_AREA_COL and is_lobby else col
 
                             hover_texts[col].append(
                                 f"<b>{display_name}</b>"
@@ -2439,7 +2588,7 @@ Stacked floor composition by area category
                 floor_bar_height = 0.84
 
                 for col in area_cols:
-                    marker_color = unit_colors if col == "Unit" else PRO_COLORS.get(col, "#DDDDDD")
+                    marker_color = unit_colors if col == UNIT_AREA_COL else PRO_COLORS.get(col, "#DDDDDD")
 
                     fig_mass.add_trace(
                         go.Bar(
@@ -2632,9 +2781,11 @@ Stacked floor composition by area category
             gfa_ratio = (total_gfa / total_gba * 100) if total_gba > 0 else 0
 
             floor_count = len(edited_df)
+            total_f2f_height = safe_sum(edited_df, F2F_COL)
+            total_typical_units = int(edited_df[TYPICAL_UNIT_COL].sum()) if TYPICAL_UNIT_COL in edited_df.columns else 0
 
             composition = [
-                ("NFA", total_nfa, PRO_COLORS["Unit"]),
+                ("NFA", total_nfa, PRO_COLORS[UNIT_AREA_COL]),
                 ("Circulation", total_circ, PRO_COLORS["Koridor/Lobby"]),
                 ("Services", total_serv, PRO_COLORS["Stair, MEP, Etc"]),
                 ("Non-GFA", total_non_gfa, PRO_COLORS["Parkir"])
@@ -2804,6 +2955,8 @@ Stacked floor composition by area category
 
 <div class="pro-chip-row">
 <div class="pro-chip">{floor_count} Floors</div>
+<div class="pro-chip">{total_typical_units:,} Typical Units</div>
+<div class="pro-chip">Total Height {total_f2f_height:.1f} m</div>
 <div class="pro-chip">GFA/GBA {gfa_ratio:.1f}%</div>
 <div class="pro-chip">SGFA/GBA {sgfa_ratio:.1f}%</div>
 </div>
@@ -2909,7 +3062,113 @@ Stacked floor composition by area category
                 use_container_width=True,
                 config={"displayModeBar": False}
             )
-        
+
+    with tab2:
+        st.subheader("2. Area Details")
+        st.caption("Calculated detail areas from Tab 1. These values are prepared for later sync into the cost estimator.")
+
+        st.markdown("##### Total Area Summary From Tab 1")
+
+        summary_cols = [
+            TYPICAL_UNIT_COL,
+            "Parkir",
+            "Roof/Deck",
+            "MEP Outdoor",
+            "Koridor/Lobby",
+            "Stair, MEP, Etc",
+            UNIT_AREA_COL,
+            "Office",
+            "GBA",
+            "GFA",
+            "SGFA",
+            "NFA",
+        ]
+
+        summary_cols = [c for c in summary_cols if c in edited_df.columns]
+
+        total_summary = pd.DataFrame([
+            {
+                "Summary": "TOTAL",
+                **{
+                    col: (
+                        int(edited_df[col].sum())
+                        if col == TYPICAL_UNIT_COL
+                        else _safe_float(edited_df[col].sum())
+                    )
+                    for col in summary_cols
+                }
+            }
+        ])
+
+        st.dataframe(
+            total_summary,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.markdown("##### Area Summary by Space Type")
+
+        group_cols = [
+            TYPICAL_UNIT_COL,
+            "Parkir",
+            "Roof/Deck",
+            "MEP Outdoor",
+            "Koridor/Lobby",
+            "Stair, MEP, Etc",
+            UNIT_AREA_COL,
+            "Office",
+            "GBA",
+            "GFA",
+            "SGFA",
+            "NFA",
+        ]
+
+        group_cols = [c for c in group_cols if c in edited_df.columns]
+
+        area_by_space_type = (
+            edited_df
+            .groupby("Space Type", dropna=False)[group_cols]
+            .sum()
+            .reset_index()
+        )
+
+        if TYPICAL_UNIT_COL in area_by_space_type.columns:
+            area_by_space_type[TYPICAL_UNIT_COL] = area_by_space_type[TYPICAL_UNIT_COL].astype(int)
+
+        st.dataframe(
+            area_by_space_type,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.markdown("##### Cost Analysis Sync Sources")
+
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric(
+            "Lobby Interior Sync Source",
+            f"{total_lobby_interior:,.0f} m²",
+            help="Calculated from total Koridor/Lobby in Tab 1."
+        )
+
+        c2.metric(
+            "Ruang / Units Sync Source",
+            f"{total_typical_units:,} unit",
+            help="Calculated from total Typical Unit in Tab 1."
+        )
+
+        c3.metric(
+            "Future Targets",
+            "m_lobby / m_rooms",
+            help="These values will be copied into Cost Analysis inputs by Use Area Analysis."
+        )
+
+        st.info(
+            f"Sync sources prepared: "
+            f"`area_lobby_interior_calc = {total_lobby_interior:,.0f} m²`, "
+            f"`area_rooms_calc = {total_typical_units:,} unit`."
+        )
+
 def update_price(metric_key, db_key): #this function pulls~
     """Update flooring price based on spec radio selection."""
     c_id = st.session_state.current_proj_id
@@ -3026,6 +3285,25 @@ def show_cost_estimator(): #cost calculator page
         area_table_data = curr_proj.get("data", {}).get("area_table_data", [])
         area_totals = calculate_area_totals_from_table(area_table_data)
         area_land = _safe_float(curr_proj.get("data", {}).get("m_land", 0.0))
+        area_lobby_interior = _safe_float(curr_proj.get("data", {}).get("area_lobby_interior_calc", 0.0))
+        area_rooms = int(_safe_float(curr_proj.get("data", {}).get("area_rooms_calc", 0)))
+
+        if isinstance(area_table_data, list) and len(area_table_data) > 0:
+            area_sync_df = pd.DataFrame(area_table_data)
+            if "Koridor/Lobby" in area_sync_df.columns:
+                area_lobby_interior = _safe_float(
+                    pd.to_numeric(
+                        area_sync_df["Koridor/Lobby"],
+                        errors="coerce"
+                    ).fillna(0.0).sum()
+                )
+            if "Typical Unit" in area_sync_df.columns:
+                area_rooms = int(
+                    pd.to_numeric(
+                        area_sync_df["Typical Unit"],
+                        errors="coerce"
+                    ).fillna(0).sum()
+                )
 
         sync_col1, sync_col2 = st.columns([1, 3])
 
@@ -3036,7 +3314,7 @@ def show_cost_estimator(): #cost calculator page
                 type="primary",
                 use_container_width=True,
                 icon=mi("sync") if "mi" in globals() else None,
-                help="Replace GBA, GFA, and SGFA using the current component's Area Analysis table."
+                help="Replace GBA, GFA, SGFA, NFA, Lobby Interior, and Ruang using the current component's Area Analysis table."
             ):
 
                 st.session_state.projects[curr_id]["data"]["m_land"] = area_land
@@ -3044,14 +3322,18 @@ def show_cost_estimator(): #cost calculator page
                 st.session_state.projects[curr_id]["data"]["m_gfa"] = area_totals["gfa"]
                 st.session_state.projects[curr_id]["data"]["m_sgfa"] = area_totals["sgfa"]
                 st.session_state.projects[curr_id]["data"]["m_nfa"] = area_totals["nfa"]
+                st.session_state.projects[curr_id]["data"]["m_lobby"] = area_lobby_interior
+                st.session_state.projects[curr_id]["data"]["m_rooms"] = area_rooms
 
                 st.session_state[f"m_land_{curr_id}"] = area_land
                 st.session_state[f"m_gba_{curr_id}"] = area_totals["gba"]
                 st.session_state[f"m_gfa_{curr_id}"] = area_totals["gfa"]
                 st.session_state[f"m_sgfa_{curr_id}"] = area_totals["sgfa"]
+                st.session_state[f"m_lobby_{curr_id}"] = area_lobby_interior
+                st.session_state[f"m_rooms_{curr_id}"] = area_rooms
 
                 save_data()
-                st.success("Area Analysis totals applied to Cost Analysis.")
+                st.success("Area Analysis totals, lobby area, and rooms applied to Cost Analysis.")
                 st.rerun()
 
         with sync_col2:
@@ -3061,7 +3343,9 @@ def show_cost_estimator(): #cost calculator page
                 f"GBA {area_totals['gba']:,.0f} m² | "
                 f"GFA {area_totals['gfa']:,.0f} m² | "
                 f"SGFA {area_totals['sgfa']:,.0f} m² | "
-                f"NFA {area_totals['nfa']:,.0f} m²"
+                f"NFA {area_totals['nfa']:,.0f} m² | "
+                f"Lobby {area_lobby_interior:,.0f} m² | "
+                f"Ruang {area_rooms:,} unit"
             )
 
         st.divider()
@@ -3079,8 +3363,22 @@ def show_cost_estimator(): #cost calculator page
         with col_m2:
             with st.expander("Arsitektur", expanded=True):
                 st.subheader("Interior")
-                rooms = st.number_input("Ruang (unit)", help="cth. 500 unit untuk 1 proyek Apartement A", value=get_val("m_rooms", 0.0), step=1.0, key=f"m_rooms_{curr_id}")
-                lobby_interior = st.number_input("Lobby Interior (m2)", help="cth. 500 m2 lobby untuk 1 proyek Apartement A", value=_safe_float(get_val("m_lobby", 0.0)), step=10.0, key=f"m_lobby_{curr_id}")
+                rooms = st.number_input(
+                    "Ruang (unit)",
+                    help="cth. 500 unit untuk 1 proyek Apartement A",
+                    value=int(_safe_float(get_val("m_rooms", 0))),
+                    step=1,
+                    key=f"m_rooms_{curr_id}"
+                )
+
+                lobby_interior = st.number_input(
+                    "Lobby Interior (m2)",
+                    help="cth. 500 m2 lobby untuk 1 proyek Apartement A",
+                    value=_safe_float(get_val("m_lobby", 0.0)),
+                    step=10.0,
+                    key=f"m_lobby_{curr_id}"
+                )
+
                 carpet_m2 = st.number_input("Karpet (m2)", value=get_val("m_carpet", 0.0), step=10.0, key=f"m_carpet_{curr_id}")
                 glass_m2 = st.number_input("Kaca (m2)", value=get_val("m_glass", 0.0), step=10.0, key=f"m_glass_{curr_id}")
                 st.subheader("Eksterior")
