@@ -67,6 +67,32 @@ DEFAULT_REPORT_CONFIG = {
     ],
 }
 
+def _safe_float(v, default=0.0):
+    if v is None:
+        return default
+
+    try:
+        if pd.isna(v):
+            return default
+    except Exception:
+        pass
+
+    if isinstance(v, str):
+        v = (
+            v.strip()
+            .replace("Rp", "")
+            .replace("rp", "")
+            .replace(",", "")
+            .replace("%", "")
+        )
+
+        if v == "" or v.lower() in ["none", "nan", "null", "-"]:
+            return default
+
+    try:
+        return float(v)
+    except Exception:
+        return default
 
 def calculate_area_totals_from_table(area_table_data):
     breakdown_cols = [
@@ -93,10 +119,10 @@ def calculate_area_totals_from_table(area_table_data):
 
     total = df[breakdown_cols].sum(axis=1)
 
-    gba = float(total.sum())
-    gfa = float((total - df[["Parkir", "Roof/Deck", "MEP Outdoor"]].sum(axis=1)).sum())
-    sgfa = float(df[["Unit", "Office", "Koridor/Lobby"]].sum(axis=1).sum())
-    nfa = float(df[["Unit", "Office"]].sum(axis=1).sum())
+    gba = _safe_float(total.sum())
+    gfa = _safe_float((total - df[["Parkir", "Roof/Deck", "MEP Outdoor"]].sum(axis=1)).sum())
+    sgfa = _safe_float(df[["Unit", "Office", "Koridor/Lobby"]].sum(axis=1).sum())
+    nfa = _safe_float(df[["Unit", "Office"]].sum(axis=1).sum())
 
     return {
         "gba": gba,
@@ -107,46 +133,80 @@ def calculate_area_totals_from_table(area_table_data):
 
 def clean_for_json(obj):
     """
-    Recursively converts NaN / inf / pandas NA / numpy values into JSON-safe values.
-    Supabase/PostgREST JSON does not accept NaN or Infinity.
+    Convert Streamlit / pandas / numpy objects into JSON-safe Python objects.
+    This prevents save_data() from crashing when session_state contains
+    numpy, pandas, NaN, inf, Timestamp, DataFrame, Series, etc.
     """
-    import math
-    import numpy as np
-    import pandas as pd
 
+    import math
+    import datetime
+    from decimal import Decimal
+
+    # None
     if obj is None:
         return None
 
+    # Pandas DataFrame / Series
     if isinstance(obj, pd.DataFrame):
-        return clean_for_json(obj.to_dict("records"))
+        return clean_for_json(obj.to_dict(orient="records"))
 
     if isinstance(obj, pd.Series):
         return clean_for_json(obj.to_dict())
 
-    if isinstance(obj, dict):
-        return {
-            str(k): clean_for_json(v)
-            for k, v in obj.items()
-        }
+    # Pandas / datetime objects
+    if isinstance(obj, (pd.Timestamp, datetime.datetime, datetime.date)):
+        return obj.isoformat()
 
-    if isinstance(obj, list):
-        return [clean_for_json(v) for v in obj]
+    # Numpy scalar types
+    if isinstance(obj, np.integer):
+        return int(obj)
 
-    if isinstance(obj, tuple):
-        return [clean_for_json(v) for v in obj]
+    if isinstance(obj, np.floating):
+        val = float(obj)
+        if math.isnan(val) or math.isinf(val):
+            return None
+        return val
 
-    if obj is pd.NA:
-        return None
+    if isinstance(obj, np.bool_):
+        return bool(obj)
 
-    if isinstance(obj, np.generic):
-        obj = obj.item()
+    # Normal Python scalar types
+    if isinstance(obj, bool):
+        return obj
+
+    if isinstance(obj, int):
+        return obj
 
     if isinstance(obj, float):
         if math.isnan(obj) or math.isinf(obj):
             return None
         return obj
 
-    return obj
+    if isinstance(obj, Decimal):
+        val = float(obj)
+        if math.isnan(val) or math.isinf(val):
+            return None
+        return val
+
+    if isinstance(obj, str):
+        return obj
+
+    # Dictionary
+    if isinstance(obj, dict):
+        return {
+            str(k): clean_for_json(v)
+            for k, v in obj.items()
+        }
+
+    # List / tuple / set
+    if isinstance(obj, (list, tuple, set)):
+        return [clean_for_json(v) for v in obj]
+
+    # Fallback for unknown objects
+    try:
+        return str(obj)
+    except Exception:
+        return None
 
 def init_report_config():
     """
@@ -348,70 +408,6 @@ url: str = st.secrets["SUPABASE_URL"]
 key: str = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 
-def force_recalculate_all_projects():
-    """Loops through all projects and updates their final totals in the session state."""
-    for pid, pdata in st.session_state.projects.items():
-        d = pdata.get("data", {})
-        curr_type = pdata.get("type", "Hotel")
-        pt_data = PROJECT_DATABASE.get(curr_type, {})
-
-        def get_val(key, default=0.0):
-            val = d.get(key, default)
-            if isinstance(val, list): return val
-            try: return float(val)
-            except: return val
-
-        # 1. Area Calc
-        area_table = get_val("area_table_data", [])
-        if isinstance(area_table, list) and len(area_table) > 0:
-            calc_gba = calc_gfa = calc_sgfa = 0.0
-            for row in area_table:
-                row_total = sum(float(row.get(c, 0)) for c in ["Parkir", "Roof/Deck", "MEP Outdoor", "Koridor/Lobby", "Stair, MEP, Etc", "Unit", "Office"])
-                calc_gba += row_total
-                calc_gfa += row_total - sum(float(row.get(c, 0)) for c in ["Parkir", "Roof/Deck", "MEP Outdoor"])
-                calc_sgfa += sum(float(row.get(c, 0)) for c in ["Unit", "Office", "Koridor/Lobby"])
-        else:
-            calc_gba = get_val("m_gba", 0.0)
-            calc_gfa = get_val("m_gfa", 0.0)
-            calc_sgfa = get_val("m_sgfa", 0.0)
-
-        # 2. Cost Calc (Simplified core drivers)
-        struc_earth = get_val("u_earth", pt_data.get("struc_earth", 0))
-        struc_found = get_val("u_found", pt_data.get("struc_found", 0))
-        struc_work = get_val("u_struc", pt_data.get("struc_work", 0))
-        arch_base = get_val("u_arch", pt_data.get("arch_base", 0))
-        facade = get_val("m_facade", 0.0)
-        fac_precast_pct = get_val("r_fac_pre", pt_data.get("facade_precast_pct", 0))
-        fac_precast_rate = get_val("u_f_pre", pt_data.get("facade_precast_rate", 0))
-        rooms = get_val("m_rooms", 0.0)
-        ffe_rate = get_val("u_ffe", pt_data.get("ffe", 0))
-        mep_rate = get_val("u_mep", pt_data.get("mep", 0))
-        utility_rate = get_val("u_util", pt_data.get("utility", 0))
-        consultancy_rate = get_val("sc_cons", pt_data.get("cons", 0))
-        
-        smart_custom_costs = sum(float(item.get("Rate (Rp)", 0)) * float(item.get("Quantity", 1)) for item in get_val("smart_custom_costs", []))
-
-        construction_subtotal = sum([
-            (calc_gba * struc_earth), (calc_gba * struc_found), (calc_gba * struc_work), 
-            (calc_gfa * arch_base), (facade * (fac_precast_pct / 100) * fac_precast_rate), 
-            (rooms * ffe_rate), (calc_gba * mep_rate), (calc_gba * utility_rate), smart_custom_costs
-        ])
-
-        t_prelim = construction_subtotal * 0.05
-        t_cont = (construction_subtotal + t_prelim) * 0.03
-        grand_total_hc = construction_subtotal + t_prelim + t_cont
-        total_soft_cost = (calc_gfa * consultancy_rate) + (grand_total_hc * 0.12) 
-        
-        calc_budget = grand_total_hc + total_soft_cost
-
-        # 3. OVERWRITE THE SAVED DATA
-        st.session_state.projects[pid]["data"]["m_gba"] = calc_gba
-        st.session_state.projects[pid]["data"]["m_gfa"] = calc_gfa
-        st.session_state.projects[pid]["data"]["m_sgfa"] = calc_sgfa
-        st.session_state.projects[pid]["data"]["grand_total_project"] = calc_budget
-        st.session_state.projects[pid]["data"]["m_rooms"] = rooms
-        
-    save_data() # Save to cloud/local
 
 def calculate_project_totals(pdata, curr_type):
     """Calculates all totals dynamically for a given project."""
@@ -422,7 +418,7 @@ def calculate_project_totals(pdata, curr_type):
     def get_val(key, default=0.0):
         val = d.get(key, default)
         if isinstance(val, list): return val
-        try: return float(val)
+        try: return _safe_float(val)
         except: return val
 
     # --- Area Calculations ---
@@ -434,10 +430,10 @@ def calculate_project_totals(pdata, curr_type):
         breakdown_cols = ["Parkir", "Roof/Deck", "MEP Outdoor", "Koridor/Lobby", "Stair, MEP, Etc", "Unit", "Office"]
         
         for row in area_table:
-            row_total = sum(float(row.get(c, 0)) for c in breakdown_cols)
+            row_total = sum(_safe_float(row.get(c, 0)) for c in breakdown_cols)
             calc_gba += row_total
-            calc_gfa += row_total - sum(float(row.get(c, 0)) for c in ["Parkir", "Roof/Deck", "MEP Outdoor"])
-            calc_sgfa += sum(float(row.get(c, 0)) for c in ["Unit", "Office", "Koridor/Lobby"])
+            calc_gfa += row_total - sum(_safe_float(row.get(c, 0)) for c in ["Parkir", "Roof/Deck", "MEP Outdoor"])
+            calc_sgfa += sum(_safe_float(row.get(c, 0)) for c in ["Unit", "Office", "Koridor/Lobby"])
     else:
         calc_gba = get_val("m_gba", 0.0)
         calc_gfa = get_val("m_gfa", 0.0)
@@ -461,7 +457,7 @@ def calculate_project_totals(pdata, curr_type):
     consultancy_rate = get_val("sc_cons", pt_data.get("cons", 0))
     insurance_pct = get_val("sc_ins", 0.12)
     
-    smart_custom_costs = sum(float(item.get("Rate (Rp)", 0)) * float(item.get("Quantity", 1)) for item in get_val("smart_custom_costs", []))
+    smart_custom_costs = sum(_safe_float(item.get("Rate (Rp)", 0)) * _safe_float(item.get("Quantity", 1)) for item in get_val("smart_custom_costs", []))
 
     t_earth = calc_gba * struc_earth
     t_found = calc_gba * struc_found
@@ -800,7 +796,7 @@ def ensure_app_state_loaded():
 
 def n2w(amount):
     try:
-        amount = float(amount)
+        amount = _safe_float(amount)
         if amount >= 1_000_000_000_000: # Trillion
             return f"{amount / 1_000_000_000_000:,.2f} Triliun"
         elif amount >= 1_000_000_000: # Billion (Miliar)
@@ -1757,7 +1753,7 @@ def show_project_database():  # database page
 
     def format_value(value, value_type):
         try:
-            num = float(value)
+            num = _safe_float(value)
         except Exception:
             return str(value)
 
@@ -2215,7 +2211,7 @@ def show_area_calculator(): #area calculator page
         land_area = c_u.number_input(
             "Luas Tanah (m²)",
             min_value=0.0,
-            value=float(get_area_val("m_land", 0.0)),
+            value=_safe_float(get_area_val("m_land", 0.0)),
             step=100.0,
             key=f"wid_m_land_{curr_id}"
         )
@@ -2341,7 +2337,7 @@ def show_area_calculator(): #area calculator page
 
 
         def safe_sum(df, col):
-            return float(df[col].sum()) if col in df.columns else 0.0
+            return _safe_float(df[col].sum()) if col in df.columns else 0.0
 
 
         # ==================================================
@@ -2389,7 +2385,7 @@ Stacked floor composition by area category
                 unit_colors = []
 
                 for _, row in draw_df.iterrows():
-                    gba = float(row.get("GBA", 0))
+                    gba = _safe_float(row.get("GBA", 0))
                     sp_type = str(row.get("Space Type", ""))
 
                     curr_x = -gba / 2 if gba > 0 else 0
@@ -2400,7 +2396,7 @@ Stacked floor composition by area category
                     )
 
                     for col in area_cols:
-                        val = float(row.get(col, 0))
+                        val = _safe_float(row.get(col, 0))
 
                         if val > 0 and gba > 0:
                             bases[col].append(curr_x)
@@ -2474,14 +2470,14 @@ Stacked floor composition by area category
                         )
                     )
 
-                max_gba = float(draw_df["GBA"].max()) if len(draw_df) else 0
+                max_gba = _safe_float(draw_df["GBA"].max()) if len(draw_df) else 0
 
                 # --------------------------------------------------
                 # FULL OUTER BUILDING OUTLINE PER FLOOR
                 # Keeps every floor clearly boxed regardless of area composition
                 # --------------------------------------------------
                 for i, row in draw_df.iterrows():
-                    gba = float(row.get("GBA", 0))
+                    gba = _safe_float(row.get("GBA", 0))
 
                     if gba > 0:
                         fig_mass.add_shape(
@@ -2503,7 +2499,7 @@ Stacked floor composition by area category
                 # These read like floor slabs / level lines
                 # --------------------------------------------------
                 for i, row in draw_df.iterrows():
-                    gba = float(row.get("GBA", 0))
+                    gba = _safe_float(row.get("GBA", 0))
 
                     if gba > 0:
                         # Top slab line
@@ -2939,7 +2935,7 @@ def update_price(metric_key, db_key): #this function pulls~
     
     if isinstance(db_val, dict):
         new_val = db_val.get(selected_spec, 0.0)
-        st.session_state[f"u_fl_{metric_key}_{c_type_key}"] = float(new_val)
+        st.session_state[f"u_fl_{metric_key}_{c_type_key}"] = _safe_float(new_val)
 
 def show_cost_estimator(): #cost calculator page
     st.title("Cost Analysis")
@@ -3002,9 +2998,9 @@ def show_cost_estimator(): #cost calculator page
         if isinstance(val, list):
             return val
             
-        # For everything else (numbers/strings), try to force to float
+        # For everything else (numbers/strings), try to force to _safe_float
         try:
-            return float(val)
+            return _safe_float(val)
         except (ValueError, TypeError):
             # If it's not a number (like "Type1"), return it as is
             return val
@@ -3029,7 +3025,7 @@ def show_cost_estimator(): #cost calculator page
         # ==================================================
         area_table_data = curr_proj.get("data", {}).get("area_table_data", [])
         area_totals = calculate_area_totals_from_table(area_table_data)
-        area_land = float(curr_proj.get("data", {}).get("m_land", 0.0))
+        area_land = _safe_float(curr_proj.get("data", {}).get("m_land", 0.0))
 
         sync_col1, sync_col2 = st.columns([1, 3])
 
@@ -3084,7 +3080,7 @@ def show_cost_estimator(): #cost calculator page
             with st.expander("Arsitektur", expanded=True):
                 st.subheader("Interior")
                 rooms = st.number_input("Ruang (unit)", help="cth. 500 unit untuk 1 proyek Apartement A", value=get_val("m_rooms", 0.0), step=1.0, key=f"m_rooms_{curr_id}")
-                lobby_interior = st.number_input("Lobby Interior (m2)", help="cth. 500 m2 lobby untuk 1 proyek Apartement A", value=float(get_val("m_lobby", 0.0)), step=10.0, key=f"m_lobby_{curr_id}")
+                lobby_interior = st.number_input("Lobby Interior (m2)", help="cth. 500 m2 lobby untuk 1 proyek Apartement A", value=_safe_float(get_val("m_lobby", 0.0)), step=10.0, key=f"m_lobby_{curr_id}")
                 carpet_m2 = st.number_input("Karpet (m2)", value=get_val("m_carpet", 0.0), step=10.0, key=f"m_carpet_{curr_id}")
                 glass_m2 = st.number_input("Kaca (m2)", value=get_val("m_glass", 0.0), step=10.0, key=f"m_glass_{curr_id}")
                 st.subheader("Eksterior")
@@ -3343,8 +3339,8 @@ def show_cost_estimator(): #cost calculator page
             suffix = index + 1
             
             desc = row.get("Item Description", "")
-            rate = float(row.get("Rate (Rp)", 0.0))
-            qty = float(row.get("Quantity", 1.0))
+            rate = _safe_float(row.get("Rate (Rp)", 0.0))
+            qty = _safe_float(row.get("Quantity", 1.0))
             
             # Store individual keys as requested
             smart_custom_inputs[f"input_name{suffix}"] = desc
@@ -4042,12 +4038,12 @@ def generate_recap_excel(port_meta, projects):
         def get_val(key, default_db_key, default_val=0.0):
             val = d.get(key)
             if val is not None and val != "":
-                try: return float(val)
+                try: return _safe_float(val)
                 except: pass
             if default_db_key and default_db_key in pt_data:
-                try: return float(pt_data[default_db_key])
+                try: return _safe_float(pt_data[default_db_key])
                 except: pass
-            return float(default_val)
+            return _safe_float(default_val)
             
         gba = get_val("m_gba", None, 0); gfa = get_val("m_gfa", None, 0)
         struc_earth = get_val("u_earth", "struc_earth", 0)
@@ -4090,7 +4086,7 @@ def generate_recap_excel(port_meta, projects):
         proj_fac_u = get_val("m_fac_proj", None, 0); fac_proj_rate = get_val("u_fac_pr", "fac_proj", 0)
         consultancy_rate = get_val("sc_cons", "cons", 0); qs_months = get_val("sc_qs_m", None, 0); qs_rate = get_val("sc_qs_r", None, 0)
         pm_months = get_val("sc_pm_m", None, 0); pm_rate = get_val("sc_pm_r", None, 0); insurance_pct = get_val("sc_ins", None, 0.12)
-        smart_custom_costs = sum(float(i.get("Rate (Rp)", 0)) * float(i.get("Quantity", 1)) for i in d.get("smart_custom_costs", []) if isinstance(i, dict))
+        smart_custom_costs = sum(_safe_float(i.get("Rate (Rp)", 0)) * _safe_float(i.get("Quantity", 1)) for i in d.get("smart_custom_costs", []) if isinstance(i, dict))
 
         t_earth = gba * struc_earth; t_found = gba * struc_found; t_struc = gba * struc_work; t_arch_base = gfa * arch_base
         t_precast = facade * (facade_precast_pct / 100) * facade_precast_rate; t_window = facade * (facade_window_pct / 100) * facade_window_rate
@@ -4150,7 +4146,7 @@ def generate_recap_excel(port_meta, projects):
         tot_cache[pid] = vals
         for k, v in vals.items(): global_cost[k] = global_cost.get(k, 0) + v
         d = pdata.get("data", {})
-        tot_gba += float(d.get("m_gba", 0)); tot_gfa += float(d.get("m_gfa", 0)); tot_sgfa += float(d.get("m_sgfa", 0))
+        tot_gba += _safe_float(d.get("m_gba", 0)); tot_gfa += _safe_float(d.get("m_gfa", 0)); tot_sgfa += _safe_float(d.get("m_sgfa", 0))
 
     # Calculate global % divisors
     global_hc = global_cost.get("HARDCOST", 0)
@@ -4202,7 +4198,7 @@ def generate_recap_excel(port_meta, projects):
             gba, gfa, sgfa, nfa = tot_gba, tot_gfa, tot_sgfa, tot_gfa * 0.82
         else:
             d = pdata.get("data", {})
-            gba, gfa, sgfa = float(d.get("m_gba", 0)), float(d.get("m_gfa", 0)), float(d.get("m_sgfa", 0))
+            gba, gfa, sgfa = _safe_float(d.get("m_gba", 0)), _safe_float(d.get("m_gfa", 0)), _safe_float(d.get("m_sgfa", 0))
             nfa = gfa * 0.82
         
         gba_f = gba if gba > 0 else 1; gfa_f = gfa if gfa > 0 else 1; sgfa_f = sgfa if sgfa > 0 else 1; nfa_f = nfa if nfa > 0 else 1
@@ -4263,9 +4259,9 @@ def generate_recap_excel(port_meta, projects):
                 sgfa_f = tot_sgfa if tot_sgfa > 0 else 1; nfa_f = (tot_gfa*0.82) if tot_gfa > 0 else 1
             else:
                 d = pdata.get("data", {})
-                gba_f = float(d.get("m_gba", 1) if d.get("m_gba", 0) > 0 else 1)
-                gfa_f = float(d.get("m_gfa", 1) if d.get("m_gfa", 0) > 0 else 1)
-                sgfa_f = float(d.get("m_sgfa", 1) if d.get("m_sgfa", 0) > 0 else 1)
+                gba_f = _safe_float(d.get("m_gba", 1) if d.get("m_gba", 0) > 0 else 1)
+                gfa_f = _safe_float(d.get("m_gfa", 1) if d.get("m_gfa", 0) > 0 else 1)
+                sgfa_f = _safe_float(d.get("m_sgfa", 1) if d.get("m_sgfa", 0) > 0 else 1)
                 nfa_f = gfa_f * 0.82
             
             for j, v in enumerate([val, val/gba_f, val/gfa_f, val/sgfa_f, val/nfa_f]):
@@ -4755,11 +4751,6 @@ Adjust the fields on the left and the preview will update automatically.
         # 2. UI CONTROLS (Now they can safely see raw_data)
         col_btn1, col_btn2, _ = st.columns([1.5, 1.5, 3])
         
-        with col_btn2:
-            if st.button("Sync", use_container_width=True):
-                force_recalculate_all_projects()
-                st.rerun()
-                
         with col_btn1:
             # This will now work because raw_data was defined in Step 1
             excel_output = generate_exact_portfolio_excel(
@@ -4812,11 +4803,11 @@ Adjust the fields on the left and the preview will update automatically.
             name = pdata.get("name", f"Project {sn}")
             ptype = pdata.get("type", "")
             
-            gba = float(d.get("m_gba", 0.0))
-            gfa = float(d.get("m_gfa", 0.0))
-            sgfa = float(d.get("m_sgfa", 0.0))
-            qty = float(d.get("m_rooms", 0.0))
-            budget = float(d.get("grand_total_project", 0.0))
+            gba = _safe_float(d.get("m_gba", 0.0))
+            gfa = _safe_float(d.get("m_gfa", 0.0))
+            sgfa = _safe_float(d.get("m_sgfa", 0.0))
+            qty = _safe_float(d.get("m_rooms", 0.0))
+            budget = _safe_float(d.get("grand_total_project", 0.0))
             
             if "Hotel" in ptype: unit_lbl = "RoomKey"
             elif "Parking" in ptype: unit_lbl = "lots"
@@ -4905,7 +4896,7 @@ Adjust the fields on the left and the preview will update automatically.
             tot_cache[pid] = vals
             for k, v in vals.items(): global_cost[k] = global_cost.get(k, 0) + v
             d = pdata.get("data", {})
-            tot_gba += float(d.get("m_gba", 0)); tot_gfa += float(d.get("m_gfa", 0)); tot_sgfa += float(d.get("m_sgfa", 0))
+            tot_gba += _safe_float(d.get("m_gba", 0)); tot_gfa += _safe_float(d.get("m_gfa", 0)); tot_sgfa += _safe_float(d.get("m_sgfa", 0))
 
         global_hc = global_cost.get("HARDCOST", 0); safe_hc = global_hc if global_hc > 0 else 1
         global_sc = global_cost.get("SOFTCOST", 0); safe_sc = global_sc if global_sc > 0 else 1
@@ -4941,7 +4932,7 @@ Adjust the fields on the left and the preview will update automatically.
                 gba, gfa, sgfa, nfa = tot_gba, tot_gfa, tot_sgfa, tot_gfa * 0.82
             else:
                 d = pdata.get("data", {})
-                gba, gfa, sgfa = float(d.get("m_gba", 0)), float(d.get("m_gfa", 0)), float(d.get("m_sgfa", 0))
+                gba, gfa, sgfa = _safe_float(d.get("m_gba", 0)), _safe_float(d.get("m_gfa", 0)), _safe_float(d.get("m_sgfa", 0))
                 nfa = gfa * 0.82
             html_str += f"<th style='background-color:{color};'>Rp</th><th style='background-color:{color};'>{gba:,.0f}</th><th style='background-color:{color};'>{gfa:,.0f}</th><th style='background-color:{color};'>{sgfa:,.0f}</th><th style='background-color:{color};'>{nfa:,.0f}</th>"
         html_str += "</tr>"
@@ -4984,9 +4975,9 @@ Adjust the fields on the left and the preview will update automatically.
                     nfa_f = (tot_gfa * 0.82) or 1
                 else:
                     d = pdata.get("data", {})
-                    gba_f = float(d.get("m_gba") or 1)
-                    gfa_f = float(d.get("m_gfa") or 1)
-                    sgfa_f = float(d.get("m_sgfa") or 1)
+                    gba_f = _safe_float(d.get("m_gba") or 1)
+                    gfa_f = _safe_float(d.get("m_gfa") or 1)
+                    sgfa_f = _safe_float(d.get("m_sgfa") or 1)
                     nfa_f = gfa_f * 0.82 or 1
                 
                 # Apply the background color style to every <td> in this column
@@ -5272,8 +5263,8 @@ def show_snapshots():
                                             global_temp_custom[pid][idx] = {"Item Description": "", "Rate (Rp)": 0.0, "Quantity": 1.0}
                                         
                                         if "name" in key: global_temp_custom[pid][idx]["Item Description"] = str(val)
-                                        elif "rate" in key: global_temp_custom[pid][idx]["Rate (Rp)"] = float(val)
-                                        elif "qty" in key: global_temp_custom[pid][idx]["Quantity"] = float(val)
+                                        elif "rate" in key: global_temp_custom[pid][idx]["Rate (Rp)"] = _safe_float(val)
+                                        elif "qty" in key: global_temp_custom[pid][idx]["Quantity"] = _safe_float(val)
                                     except: continue
 
                                 # 4. Handle Standard Metrics & Nested Tables (Area Analysis)
@@ -5296,7 +5287,7 @@ def show_snapshots():
                                                     st.session_state.projects[pid]["data"][key] = str_val
                                         else:
                                             try:
-                                                st.session_state.projects[pid]["data"][key] = float(val)
+                                                st.session_state.projects[pid]["data"][key] = _safe_float(val)
                                             except (ValueError, TypeError):
                                                 st.session_state.projects[pid]["data"][key] = str(val)
                                     except (ValueError, TypeError, SyntaxError):
